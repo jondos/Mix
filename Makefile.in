@@ -92,7 +92,8 @@ am_libproxytest_a_OBJECTS = CAAbstractControlChannel.$(OBJEXT) \
 	CASocketGroupEpoll.$(OBJEXT) CASocketList.$(OBJEXT) \
 	CATLSClientSocket.$(OBJEXT) CASymCipher.$(OBJEXT) \
 	CASyncControlChannel.$(OBJEXT) CATempIPBlockList.$(OBJEXT) \
-	CAThread.$(OBJEXT) CAThreadPool.$(OBJEXT) CAUtil.$(OBJEXT) \
+	CAThread.$(OBJEXT) CAThreadPool.$(OBJEXT) \
+	CAThreadList.$(OBJEXT) CAUtil.$(OBJEXT) \
 	CAXMLBI.$(OBJEXT) CAXMLCostConfirmation.$(OBJEXT) \
 	CAXMLErrorMessage.$(OBJEXT) CAXMLPriceCert.$(OBJEXT) \
 	Hashtable.$(OBJEXT) packetintro.$(OBJEXT)
@@ -302,6 +303,7 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CATempIPBlockList.cpp\
 		    CAThread.cpp \
 		    CAThreadPool.cpp\
+			CAThreadList.cpp\
 		    CAUtil.cpp \
 		    CAXMLBI.cpp \
 		    CAXMLCostConfirmation.cpp\
@@ -477,6 +479,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CATempIPBlockList.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CAThread.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CAThreadPool.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CAThreadList.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CAUtil.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CAXMLBI.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CAXMLCostConfirmation.Po@am__quote@
@@ -949,6 +952,7 @@ uninstall-am: uninstall-sbinPROGRAMS
 		    CATempIPBlockList.hpp\
 		    CAThread.hpp \
 		    CAThreadPool.hpp\
+			CAThreadPool.hpp\
 		    CAUtil.hpp \
 		    CAXMLBI.hpp \
 		    CAXMLCostConfirmation.hpp\

@@ -1390,6 +1390,7 @@ SINT32 CAFirstMix::clean()
 				fmHashTableEntry* pHashEntry=m_pChannelList->getFirst();
 				while(pHashEntry!=NULL)
 					{
+						CAMsg::printMsg	(LOG_CRIT,"Entering pHashloop\n");	
 						CAMuxSocket * pMuxSocket=pHashEntry->pMuxSocket;
 						delete pHashEntry->pQueueSend;
 						delete pHashEntry->pSymCipher; 
@@ -1398,10 +1399,10 @@ SINT32 CAFirstMix::clean()
 						while(pEntry!=NULL)
 							{
 								delete pEntry->pCipher;
-			
 								pEntry=m_pChannelList->getNextChannel(pEntry);
 							}
 						m_pChannelList->remove(pHashEntry->pMuxSocket);
+						CAMsg::printMsg	(LOG_CRIT,"pMuxSocket ref %0x%x\n", (UINT32) pMuxSocket);	
 						pMuxSocket->close();
 						delete pMuxSocket;
 						pHashEntry=m_pChannelList->getNext();
@@ -1429,8 +1430,10 @@ SINT32 CAFirstMix::clean()
 			{
 				for(UINT32 i=0;i<m_u32MixCount-1;i++)
 					{
+						CAMsg::printMsg	(LOG_CRIT,"In m_arMixParameters-loop now.\n",getMemoryUsage());	
 						delete[] m_arMixParameters[i].m_strMixID;
 					}
+				CAMsg::printMsg	(LOG_CRIT,"Out of m_arMixParameters-loop.\n",getMemoryUsage());	
 				delete[] m_arMixParameters;
 			}
 			m_arMixParameters=NULL;
@@ -1527,7 +1530,7 @@ SINT32 CAFirstMix::initCountryStats()
 		memset((void*)m_PacketsPerCountryIN,0,sizeof(UINT32)*(NR_OF_COUNTRIES+1));
 		m_PacketsPerCountryOUT=new UINT32[NR_OF_COUNTRIES+1];
 		memset((void*)m_PacketsPerCountryOUT,0,sizeof(UINT32)*(NR_OF_COUNTRIES+1));
-		m_threadLogLoop=new CAThread();
+		m_threadLogLoop=new CAThread((UINT8*)"Country Logger Thread");
 		m_threadLogLoop->setMainLoop(iplist_loopDoLogCountries);
 		m_bRunLogCountries=true;
 		m_threadLogLoop->start(this,true);

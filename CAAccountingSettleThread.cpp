@@ -42,7 +42,7 @@ extern CACmdLnOptions* pglobalOptions;
 CAAccountingSettleThread::CAAccountingSettleThread(Hashtable* a_accountingHashtable, UINT8* currentCascade)
 {
 	// launch AI thread
-	m_pThread = new CAThread();
+	m_pThread = new CAThread((UINT8*)"Accounting Settle Thread");
 	m_settleCascade = currentCascade;
 	m_pThread->setMainLoop( mainLoop );
 	CAMsg::printMsg(LOG_DEBUG, "Now launching Accounting SettleThread...\n");
