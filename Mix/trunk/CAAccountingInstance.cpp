@@ -120,20 +120,25 @@ CAAccountingInstance::~CAAccountingInstance()
 		m_Mutex.lock();
 		
 		CAMsg::printMsg( LOG_DEBUG, "AccountingInstance dying\n" );
+		
 		if (m_pSettleThread)
 		{
+			CAMsg::printMsg( LOG_DEBUG, "deleting m_pSettleThread\n" );
 			delete m_pSettleThread;
 		}
+		
 		m_pSettleThread = NULL;
 		
 		if (m_aiThreadPool)
 		{
+			CAMsg::printMsg( LOG_DEBUG, "deleting m_aiThreadPool\n" );
 			delete m_aiThreadPool;
 		}
 		m_aiThreadPool = NULL;
 		
 		if (m_dbInterface)
 		{
+			CAMsg::printMsg( LOG_DEBUG, "termintaing dbConnection\n" );
 			m_dbInterface->terminateDBConnection();
 			delete m_dbInterface;
 		}
@@ -142,33 +147,38 @@ CAAccountingInstance::~CAAccountingInstance()
 		//m_pIPBlockList = NULL;
 		if (m_AiName)
 		{
+			CAMsg::printMsg( LOG_DEBUG, "deleting m_AiName\n" );
 			delete[] m_AiName;
 		}
 		m_AiName = NULL;
 		
 		if (m_currentAccountsHashtable)
 		{
+			CAMsg::printMsg( LOG_DEBUG, "locking AccountHashtable\n" );
 			m_currentAccountsHashtable->getMutex().lock();
-			CAMsg::printMsg( LOG_DEBUG, "CAAccountingInstance: Clearing accounts hashtable...\n");
 			m_currentAccountsHashtable->clear(HASH_EMPTY_NONE, HASH_EMPTY_DELETE);
-			CAMsg::printMsg( LOG_DEBUG, "CAAccountingInstance: Deleting accounts hashtable...\n" );
 			m_currentAccountsHashtable->getMutex().unlock();
+			CAMsg::printMsg( LOG_DEBUG, "unlocking AccountHashtable\n" );
 			delete m_currentAccountsHashtable;
 		}
 		m_currentAccountsHashtable = NULL;
-		CAMsg::printMsg( LOG_DEBUG, "CAAccountingInstance: Accounts hashtable deleted.\n" );
-		
+				
 		if (m_currentCascade)
 		{
+			CAMsg::printMsg( LOG_DEBUG, "deleting m_currentCascade\n" );
 			delete[] m_currentCascade;
 		}
 		m_currentCascade = NULL;
+		
+		
 		if (m_allHashes)
 		{
 			for (UINT32 i = 0; i < m_allHashesLen; i++)
 			{
+				CAMsg::printMsg( LOG_DEBUG, "deleting m_allHashes\n" );
 				delete m_allHashes[i];
 			}
+			CAMsg::printMsg( LOG_DEBUG, "deleting m_allHashes exiting loop\n" );
 			delete m_allHashes;
 		}
 		m_allHashes = NULL;
@@ -205,7 +215,14 @@ UINT32 CAAccountingInstance::getNrOfUsers()
 	{
 		ms_pInstance->m_Mutex.lock();
 		// getting the size is an atomic operation and does not need synchronization
-		users = ms_pInstance->m_currentAccountsHashtable->getSize();
+		if(ms_pInstance->m_currentAccountsHashtable != NULL)
+		{
+			users = ms_pInstance->m_currentAccountsHashtable->getSize();
+		}
+		else
+		{
+			CAMsg::printMsg(LOG_CRIT, "CAAccountingInstance: Trying to access Hashtable after it has been disposed!!.\n");
+		}
 		ms_pInstance->m_Mutex.unlock();
 	}
 	

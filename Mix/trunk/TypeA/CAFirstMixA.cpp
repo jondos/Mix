@@ -46,6 +46,13 @@ void CAFirstMixA::shutDown()
 #ifdef PAYMENT
 	UINT32 connectionsClosed = 0;
 	fmHashTableEntry* timeoutHashEntry;
+	
+	if(m_pInfoService != NULL)
+	{
+		CAMsg::printMsg(LOG_DEBUG,"Shutting down infoservice.\n");		
+		m_pInfoService->stop();
+	}
+	
 	if(m_pChannelList!=NULL)
 	{
 		while ((timeoutHashEntry = m_pChannelList->popTimeoutEntry(true)) != NULL)
@@ -160,17 +167,18 @@ SINT32 CAFirstMixA::loop()
 		CAMsg::printMsg(LOG_DEBUG,"1. Close received from user (times in micros) - 1:Channel-ID,Connection-ID,PacketsIn (only data and open),PacketsOut (only data),ChannelDuration (open packet received --> close packet put into send queue to next mix)\n");
 		CAMsg::printMsg(LOG_DEBUG,"2. Channel close from Mix(times in micros)- 2.:Channel-ID,Connection-ID,PacketsIn (only data and open), PacketsOut (only data),ChannelDuration (open packet received)--> close packet put into send queue to next user\n");
 #endif
-#ifdef _DEBUG
+/*#ifdef _DEBUG
 		CAThread* pLogThread=new CAThread((UINT8*)"CAFirstMixA - LogLoop");
 		pLogThread->setMainLoop(fm_loopLog);
 		pLogThread->start(this);
-#endif
+#endif*/
 //		CAThread threadReadFromUsers;
 //		threadReadFromUsers.setMainLoop(loopReadFromUsers);
 //		threadReadFromUsers.start(this);
 		while(!m_bRestart) /* the main mix loop as long as there are things that are not handled by threads. */
 			{
 				bAktiv=false;
+				
 #ifdef PAYMENT
 				// check the timeout for all connections
 				fmHashTableEntry* timeoutHashEntry;
@@ -211,6 +219,8 @@ SINT32 CAFirstMixA::loop()
 // Now in a separate Thread (see loopReadFromUsers())
 //Only proccess user data, if queue to next mix is not to long!!
 #define MAX_NEXT_MIX_QUEUE_SIZE 50000000 //50 MByte
+
+								
 				if(m_pQueueSendToMix->getSize()<MAX_NEXT_MIX_QUEUE_SIZE)
 					{
 						countRead=m_psocketgroupUsersRead->select(/*false,*/0);				// how many JAP<->mix connections have received data from their coresponding JAP
@@ -552,7 +562,7 @@ NEXT_USER:
 							}
 					}
 
-//Step 5 
+				//Step 5 
 //Writing to users...
 				countRead=m_psocketgroupUsersWrite->select(/*true,*/0);
 #ifdef HAVE_EPOLL		
@@ -679,7 +689,7 @@ NEXT_USER_WRITING:
 				  msSleep(100);
 			}
 //ERR:
-		CAMsg::printMsg(LOG_CRIT,"Seams that we are restarting now!!\n");
+		CAMsg::printMsg(LOG_CRIT,"Seems that we are restarting now!!\n");
 		m_bRunLog=false;
 		clean();
 		delete pQueueEntry;

@@ -30,6 +30,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAThread.hpp"
 #include "CAUtil.hpp"
 #include "CAMsg.hpp"
+#include "CAThreadList.hpp"
 
 #ifdef OS_TUDOS
 	const int l4thread_max_threads = 64;
@@ -41,6 +42,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	const char* CAThread::METHOD_BEGIN = "Begin of method";
 	const char* CAThread::METHOD_END = "End of method";
 #endif
+
+extern CAThreadList *pThreadList;
 
 CAThread::CAThread()
 	{
@@ -138,10 +141,18 @@ SINT32 CAThread::start(void* param,bool bDaemon,bool bSilent)
 				return E_UNKNOWN;
 			}
 		#endif
-
+		if(pThreadList != NULL)
+		{
+			pThreadList->put(this, *m_pThread);
+		}
+		else
+		{
+			CAMsg::printMsg(LOG_DEBUG, "CAThread::start() - Warning no thread list found\n");
+		}
 		#ifdef DEBUG
 			if(!bSilent)
 				CAMsg::printMsg(LOG_DEBUG, "CAThread::start() - thread created sucessful\n");
+				
 		#endif
 
 		#ifdef OS_TUDOS
@@ -165,4 +176,35 @@ SINT32 CAThread::start(void* param,bool bDaemon,bool bSilent)
 #endif
 		return E_SUCCESS;
 	}
+
+SINT32 CAThread::join()
+{
+#ifdef OS_TUDOS
+	CAMsg::printMsg(LOG_ERR,"CAThread - join() L4 implement me !\n");
+	if(m_Thread==L4THREAD_INVALID_ID)
+		return E_SUCCESS;
+	
+	return E_UNKNOWN;
+#else
+	if(m_pThread==NULL)
+		return E_SUCCESS;
+	if(pthread_join(*m_pThread,NULL)==0)
+	{
+#ifdef DEBUG
+			CAMsg::printMsg(LOG_DEBUG,"CAThread %s - join() successful\n", m_strName);
+#endif	
+		pThreadList->remove(*m_pThread);
+		
+		delete m_pThread;
+		m_pThread=NULL;
+		return E_SUCCESS;
+	}
+	else
+	{
+		CAMsg::printMsg(LOG_ERR,"CAThread - join() not successful\n");
+		return E_UNKNOWN;
+	}
+#endif
+}
 #endif //ONLY_LOCAL_PROXY
+

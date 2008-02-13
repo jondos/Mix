@@ -159,33 +159,7 @@ class CAThread
 				* @retval E_SUCCESS if successful
 				* @retval E_UNKNOWN otherwise
 				*/
-			SINT32 join()
-				{
-#ifdef OS_TUDOS
-					CAMsg::printMsg(LOG_ERR,"CAThread - join() L4 implement me !\n");
-					if(m_Thread==L4THREAD_INVALID_ID)
-						return E_SUCCESS;
-
-					return E_UNKNOWN;
-#else
-					if(m_pThread==NULL)
-						return E_SUCCESS;
-					if(pthread_join(*m_pThread,NULL)==0)
-						{
-							#ifdef DEBUG
-								CAMsg::printMsg(LOG_DEBUG,"CAThread - join() successful\n");
-							#endif	
-							delete m_pThread;
-							m_pThread=NULL;
-							return E_SUCCESS;
-						}
-					else
-						{
-							CAMsg::printMsg(LOG_ERR,"CAThread - join() not successful\n");
-							return E_UNKNOWN;
-						}
-#endif
-				}
+			SINT32 join();
 
 /*			SINT32 sleep(UINT32 msSeconds)
 				{
@@ -203,6 +177,10 @@ class CAThread
 					return E_SUCCESS;
 				}
 */
+			UINT8* getName()
+			{
+				return m_strName;
+			}
 #ifdef PRINT_THREAD_STACK_TRACE
 			static const char* METHOD_BEGIN;
 			static const char* METHOD_END;
@@ -221,8 +199,9 @@ class CAThread
 			l4thread_t m_Thread;
 #else	
 	 		pthread_t* m_pThread;
-#endif
+	 		#endif
 			UINT8* m_strName; //< a name mostly for debuging purpose...
+			//static CAThreadList *ms_pThreadList;
 	};
 #endif
 

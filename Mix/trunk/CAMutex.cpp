@@ -76,7 +76,7 @@ CAMutex::~CAMutex()
 		
 	#endif
 	
-	delete m_pMutex;
+	//delete m_pMutex;
 	//free(m_pMutex);
 	//CAMsg::printMsg(LOG_CRIT,"CAMutex deleted\n");
 	#ifdef HAVE_PTHREAD_MUTEXES

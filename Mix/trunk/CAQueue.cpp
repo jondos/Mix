@@ -403,8 +403,8 @@ SINT32 CAQueue::test()
 			return E_UNKNOWN;
 		
 		//Multiple Threads....
-		CAThread* pthreadProducer=new CAThread();
-		CAThread* pthreadConsumer=new CAThread();
+		CAThread* pthreadProducer=new CAThread((UINT8*)"Queue Producer Thread");
+		CAThread* pthreadConsumer=new CAThread((UINT8*)"Queue Consumer Thread");
 		pthreadProducer->setMainLoop(producer);
 		pthreadConsumer->setMainLoop(consumer);
 		struct __queue_test t1,t2;

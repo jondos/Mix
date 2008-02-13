@@ -34,6 +34,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAMsg.hpp"
 #include "CALocalProxy.hpp"
 #include "CAQueue.hpp"
+#include "CAThreadList.hpp"
+
 #ifdef _DEBUG //For FreeBSD memory checking functionality
 	const char* _malloc_options="AX";
 #endif
@@ -60,6 +62,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 CAMix* pMix=NULL;
 #endif
 CACmdLnOptions* pglobalOptions;
+CAThreadList *pThreadList = new CAThreadList();
 
 //Global Locks required by OpenSSL-Library
 CAMutex* pOpenSSLMutexes;
@@ -156,14 +159,17 @@ void cleanup()
 		#ifdef _WIN32
 			WSACleanup();
 		#endif
+		CAMsg::printMsg(LOG_CRIT,"removing pidFile\n");
 		removePidFile();
+		CAMsg::printMsg(LOG_CRIT,"deleting pglobalOptions\n");
 		delete pglobalOptions;
 		pglobalOptions=NULL;
 //OpenSSL Cleanup
 		CRYPTO_set_locking_callback(NULL);
+		CAMsg::printMsg(LOG_CRIT,"deleting pOpenSSLMutexes\n");
 		delete []pOpenSSLMutexes;
 		pOpenSSLMutexes=NULL;
-		CASocketAddrINet::cleanup();
+		//CASocketAddrINet::cleanup();
 		CAMsg::printMsg(LOG_CRIT,"CASocketAddrINet::cleanup()\n");
 //XML Cleanup
 		//Note: We have to destroy all XML Objects and all objects that uses XML Objects BEFORE
@@ -171,28 +177,25 @@ void cleanup()
 #ifndef ONLY_LOCAL_PROXY
 		XMLPlatformUtils::Terminate();
 #endif //ONLY_LOCAL_PROXY
-		CAMsg::cleanup();
-		CAMsg::printMsg(LOG_CRIT,"CAMsg::cleanup()\n");
+		//CAMsg::cleanup();
+		//CAMsg::printMsg(LOG_CRIT,"CAMsg::cleanup()\n");
+		
 	}
 
 ///Remark: terminate() might be already defined by the c lib -- do not use this name...
 void my_terminate(void)
 {	
-	CAMsg::printMsg(LOG_CRIT,"Calling my_terminate\n");
 	if(!bTriedTermination && pMix!=NULL)
 	{
 		bTriedTermination = true;
-		CAMsg::printMsg(LOG_CRIT,"Calling pMix->shutdown\n");
 		pMix->shutDown();
 		for (UINT32 i = 0; i < 20 && !(pMix->isShutDown()); i++)
 		{
 			msSleep(100);
 		}
-		CAMsg::printMsg(LOG_CRIT,"Deleting pMix\n");
 		delete pMix;
 		pMix=NULL;
 	}
-	CAMsg::printMsg(LOG_CRIT,"Doing cleanup\n");
 	cleanup();
 }
 
@@ -229,7 +232,12 @@ void signal_term( int )
 void signal_interrupt( int)
 	{
 		CAMsg::printMsg(LOG_INFO,"Hm.. Strg+C pressed... exiting!\n");
+		CAMsg::printMsg(LOG_INFO,"%d threads listed.\n",pThreadList->getSize());
+		pThreadList->showAll();
 		my_terminate();
+		CAMsg::printMsg(LOG_INFO,"After cleanup %d threads listed.\n",pThreadList->getSize());
+		//pThreadList->showAll();
+		//delete pThreadList;
 		exit(0);
 	}
 
@@ -689,7 +697,7 @@ int main(int argc, const char* argv[])
 #endif
 		signal(SIGINT,signal_interrupt);
 		signal(SIGTERM,signal_term);
-		//signal(SIGSEGV,signal_segv);
+		signal(SIGSEGV,signal_segv);
 
 		//Try to write pidfile....
 		UINT8 strPidFile[512];

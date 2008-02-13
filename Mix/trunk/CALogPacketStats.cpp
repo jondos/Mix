@@ -58,7 +58,7 @@ THREAD_RETURN loopLogPacketStats(void* param)
 SINT32 CALogPacketStats::start()
 	{
 		resetTimeingStats();
-		m_pthreadLog=new CAThread();
+		m_pthreadLog=new CAThread((UINT8*)"Packet Stats Logging Thread");
 		m_pthreadLog->setMainLoop(loopLogPacketStats);
 		m_bRunLog=true;
 		return m_pthreadLog->start(this);
@@ -136,10 +136,10 @@ SINT32 CALogPacketStats::addToTimeingStats(const tQueueEntry& oQueueEntry,UINT32
 		#endif
 		#ifdef _DEBUG
 			#ifndef USE_POOL
-				CAMsg::printMsg(LOG_CRIT,"Upload Packet processing time (arrival --> send): %u µs -- Queue out --> Queue in %u µs\n",
+				CAMsg::printMsg(LOG_CRIT,"Upload Packet processing time (arrival --> send): %u ï¿½s -- Queue out --> Queue in %u ï¿½s\n",
 																	proccessingTime,proccessingTimeOP);
 			#else
-				CAMsg::printMsg(LOG_CRIT,"Upload Packet processing time (arrival --> send): %u µs -- Queue out --> Queue in %u µs -- Pool Time: %u µs\n",
+				CAMsg::printMsg(LOG_CRIT,"Upload Packet processing time (arrival --> send): %u ï¿½s -- Queue out --> Queue in %u ï¿½s -- Pool Time: %u ï¿½s\n",
 																	proccessingTime,proccessingTimeOP,poolTime);
 			#endif
 		#endif
@@ -169,10 +169,10 @@ SINT32 CALogPacketStats::addToTimeingStats(const tQueueEntry& oQueueEntry,UINT32
 			#endif
 			#ifdef _DEBUG
 				#ifndef USE_POOL
-					CAMsg::printMsg(LOG_CRIT,"Download Packet processing time (arrival --> send): %u µs -- Queue out --> Queue in %u µs\n",
+					CAMsg::printMsg(LOG_CRIT,"Download Packet processing time (arrival --> send): %u ï¿½s -- Queue out --> Queue in %u ï¿½s\n",
 																		proccessingTime,proccessingTimeOP);
 				#else
-					CAMsg::printMsg(LOG_CRIT,"Download Packet processing time (arrival --> send): %u µs -- Queue out --> Queue in %u µs -- Pool Time: %u µs\n",
+					CAMsg::printMsg(LOG_CRIT,"Download Packet processing time (arrival --> send): %u ï¿½s -- Queue out --> Queue in %u ï¿½s -- Pool Time: %u ï¿½s\n",
 																		proccessingTime,proccessingTimeOP,poolTime);
 				#endif
 			#endif
@@ -222,19 +222,19 @@ SINT32 CALogPacketStats::logTimeingStats()
 		if(m_timingCountPoolPacketsDownStream>0)
 			aveDataDownStream=div64(m_timingSumPoolPacketDownStream,m_timingCountPoolPacketsDownStream);
 	#endif
-	CAMsg::printMsg(LOG_DEBUG,"Packet timeing stats [µs] -- Data Packets Upstream [%u] (Min/Max/Ave): %u/%u/%u -- Open Packets Upstream [%u]: %u/%u/%u Close Packets Upstream [%u] %u/%u/%u -- Data Packets Downstream [%u]: %u/%u/%u \n",
+	CAMsg::printMsg(LOG_DEBUG,"Packet timeing stats [ï¿½s] -- Data Packets Upstream [%u] (Min/Max/Ave): %u/%u/%u -- Open Packets Upstream [%u]: %u/%u/%u Close Packets Upstream [%u] %u/%u/%u -- Data Packets Downstream [%u]: %u/%u/%u \n",
 	m_timingCountDataPacketsUpstream,m_timingMinDataPacketUpstream,m_timingMaxDataPacketUpstream,aveDataUpstream,
 	m_timingCountOpenPacketsUpstream,m_timingMinOpenPacketUpstream,m_timingMaxOpenPacketUpstream,aveOpenUpstream,
 	m_timingCountClosePacketsUpstream,m_timingMinClosePacketUpstream,m_timingMaxClosePacketUpstream,aveCloseUpstream,
 	m_timingCountDataPacketsDownStream,m_timingMinDataPacketDownStream,m_timingMaxDataPacketDownStream,aveDataDownStream);
 
-	CAMsg::printMsg(LOG_DEBUG,"Packet timeing stats (only Queue out --> Queue in)[µs] -- Data Packets Upstream [%u] (Min/Max/Ave): %u/%u/%u -- Open Packets Upstream [%u]: %u/%u/%u Close Packets Upstream [%u] %u/%u/%u -- Data Packets Downstream [%u]: %u/%u/%u \n",
+	CAMsg::printMsg(LOG_DEBUG,"Packet timeing stats (only Queue out --> Queue in)[ï¿½s] -- Data Packets Upstream [%u] (Min/Max/Ave): %u/%u/%u -- Open Packets Upstream [%u]: %u/%u/%u Close Packets Upstream [%u] %u/%u/%u -- Data Packets Downstream [%u]: %u/%u/%u \n",
 	m_timingCountDataPacketsUpstream,m_timingMinDataPacketUpstreamOP,m_timingMaxDataPacketUpstreamOP,aveDataUpstreamOP,
 	m_timingCountOpenPacketsUpstream,m_timingMinOpenPacketUpstreamOP,m_timingMaxOpenPacketUpstreamOP,aveOpenUpstreamOP,
 	m_timingCountClosePacketsUpstream,m_timingMinClosePacketUpstreamOP,m_timingMaxClosePacketUpstreamOP,aveCloseUpstreamOP,
 	m_timingCountDataPacketsDownStream,m_timingMinDataPacketDownStreamOP,m_timingMaxDataPacketDownStreamOP,aveDataDownStreamOP);
 	#ifdef USE_POOL
-		CAMsg::printMsg(LOG_DEBUG,"Pool timeing stats [µs] -- Upstream [%u] (Min/Max/Ave): %u/%u/%u -- Downstream [%u]: %u/%u/%u\n",
+		CAMsg::printMsg(LOG_DEBUG,"Pool timeing stats [ï¿½s] -- Upstream [%u] (Min/Max/Ave): %u/%u/%u -- Downstream [%u]: %u/%u/%u\n",
 		m_timingCountPoolPacketsUpstream,m_timingMinPoolPacketUpstream,m_timingMaxPoolPacketUpstream,avePoolUpstream,
 		m_timingCountPoolPacketsDownStream,m_timingMinPoolPacketDownStream,m_timingMaxPoolPacketDownStream,avePoolDownStream);
 	#endif
