@@ -16,6 +16,7 @@ CAThreadList::~CAThreadList()
 	m_pListLock->unlock();
 	
 	delete m_pListLock;
+	m_pListLock = NULL;
 }
 
 
@@ -82,32 +83,7 @@ UINT32 CAThreadList::__put(CAThread *thread, pthread_t thread_id)
 	new_entry->tle_next = m_pHead;
 	
 	m_pHead = new_entry;	
-	
-	
-	/*if(m_pHead == NULL)
-	{
-		CAMsg::printMsg(LOG_INFO, "CAThreadList::put - new Head inserted: Thread %s, id %x\n",
-				thread->getName(), thread_id);
-		m_pHead = new_entry;
-		return ret;
-	}*/
-	
-	
-			
-	/*for(iterator = m_pHead; iterator->tle_next != NULL; iterator = iterator->tle_next)
-	{
-		if(iterator->tle_thread_id == thread_id)
-		{
-			CAMsg::printMsg(LOG_INFO, 
-					"CAThreadList::put - already inserted thread %s with id %x! Appending to the list nevertheless\n",
-					thread->getName(), thread_id);
-			ret = 1;
-		}
-	}*/
-	
-	//CAMsg::printMsg(LOG_INFO, "CAThreadList::put: Succesfully added Thread %s, id %x\n", 
-	//							m_pHead->tle_thread->getName(), m_pHead->tle_thread_id);
-	//iterator->tle_next = new_entry;
+		
 	return 0;
 }
 
@@ -124,14 +100,12 @@ CAThread *CAThreadList::__remove(pthread_t thread_id)
 		return NULL;
 	}
 	
-	for(iterator = m_pHead, prev = NULL;
-		iterator->tle_next != NULL; 
-		prev = iterator, iterator = iterator->tle_next) 
+	iterator = m_pHead;
+	prev = NULL;
+	do 
 	{
-		//found a thread with the corresponding id
 		if(iterator->tle_thread_id == thread_id)
 		{
-			
 			match = iterator->tle_thread;
 			//CAMsg::printMsg(LOG_INFO, "CAThreadList::remove: found Thread %s, id %x to remove\n",
 			//		match->getName(), thread_id);
@@ -144,17 +118,24 @@ CAThread *CAThreadList::__remove(pthread_t thread_id)
 			{
 				//Head holds the corresponding thread;
 				m_pHead = iterator->tle_next;
+				//if(m_pHead==NULL)
+				//	CAMsg::printMsg(LOG_INFO, "CAThreadList::remove: Thread %s, id %x emptied list\n",
+				//								match->getName(), thread_id);
 			}
 			//dispose the entry
 			iterator->tle_thread = NULL;
 			iterator->tle_next = NULL;
 			
 			delete iterator;
+			iterator = NULL;
 			//CAMsg::printMsg(LOG_INFO, "CAThreadList::remove: Thread %s, id %x successfully removed\n",
 			//					match->getName(), thread_id);
 			return match;
 		}
-	}
+		prev = iterator;
+		iterator = iterator->tle_next;
+	} while(iterator != NULL);
+	
 	
 	//CAMsg::printMsg(LOG_INFO, "CAThreadList::remove: no thread found with id %x\n", thread_id);
 	
@@ -170,13 +151,16 @@ CAThread *CAThreadList::__get(pthread_t thread_id)
 		return NULL;
 	}
 	
-	for(iterator = m_pHead; iterator->tle_next != NULL; iterator = iterator->tle_next)
+	iterator = m_pHead;
+	do 
 	{
 		if(iterator->tle_thread_id == thread_id)
 		{
 			return iterator->tle_thread;
 		}
-	}
+		iterator = iterator->tle_next;
+	} while(iterator != NULL);
+	
 	return NULL;
 }
 
@@ -187,17 +171,17 @@ void CAThreadList::__showAll()
 	if(m_pHead == NULL)
 	{
 		CAMsg::printMsg(LOG_INFO, "CAThreadList::showAll: list is empty, no threads found\n");
+		return;
 	}
 	
-	for(iterator = m_pHead; iterator->tle_next != NULL; iterator = iterator->tle_next)
+	iterator = m_pHead;
+	do 
 	{
-		if(iterator->tle_thread!=NULL)
-		{
-			CAMsg::printMsg(LOG_INFO, "CAThreadList::showAll: Thread %s, id %x\n", 
-									iterator->tle_thread->getName(),
-									iterator->tle_thread_id);
-		}
-	}
+		CAMsg::printMsg(LOG_INFO, "CAThreadList::showAll: Thread %s, id %x\n", 
+											iterator->tle_thread->getName(),
+											iterator->tle_thread_id);
+		iterator = iterator->tle_next;
+	} while(iterator != NULL);
 }
 
 // This only deletes the list entries not the corresponding threads!
@@ -218,6 +202,7 @@ void CAThreadList::__removeAll()
 			iterator->tle_thread = NULL;
 			iterator->tle_next = NULL;
 			delete iterator;
+			iterator = NULL;
 		}
 		
 		CAMsg::printMsg(LOG_INFO, "CAThreadList::removeAll: Thread %s, id %x\n", 
@@ -225,26 +210,31 @@ void CAThreadList::__removeAll()
 									m_pHead->tle_thread_id);
 		m_pHead->tle_thread = NULL;
 		delete m_pHead;
+		m_pHead = NULL;
 	}
 	else 
 	{
-		CAMsg::printMsg(LOG_INFO, "CAThreadList::removeAll: list is already\n");
+		CAMsg::printMsg(LOG_INFO, "CAThreadList::removeAll: list is already empty\n");
 	}
 }
 
 UINT32 CAThreadList::__getSize()
 {
 	thread_list_entry_t *iterator;
-	UINT32 count; 
+	UINT32 count = 0; 
 		
 	if(m_pHead == NULL)
 	{
-		return 0;
+		return count;
 	}
-		
-	for(iterator = m_pHead, count = 0; 
-		iterator->tle_next != NULL; 
-		iterator = iterator->tle_next, count++);
 	
+	iterator = m_pHead;
+	
+	do 
+	{
+		count++;
+		iterator = iterator->tle_next;
+	} while(iterator != NULL);
+		
 	return count;
 }
