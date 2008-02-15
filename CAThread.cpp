@@ -141,10 +141,12 @@ SINT32 CAThread::start(void* param,bool bDaemon,bool bSilent)
 				return E_UNKNOWN;
 			}
 		#endif
+#ifdef _DEBUG
 		if(pThreadList != NULL)
 		{
 			pThreadList->put(this, *m_pThread);
 		}
+#endif
 		else
 		{
 			CAMsg::printMsg(LOG_DEBUG, "CAThread::start() - Warning no thread list found\n");
@@ -192,9 +194,9 @@ SINT32 CAThread::join()
 	{
 #ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"CAThread %s - join() successful\n", m_strName);
+			pThreadList->remove(*m_pThread);
 #endif	
-		pThreadList->remove(*m_pThread);
-		
+				
 		delete m_pThread;
 		m_pThread=NULL;
 		return E_SUCCESS;
