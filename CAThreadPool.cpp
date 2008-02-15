@@ -36,7 +36,7 @@ CAThreadPool::CAThreadPool(	UINT32 num_worker_threads,
 		/* create threads */
 		for (i = 0; i != num_worker_threads; i++) 
 			{
-				snprintf(thread_str, 23, "Queue Worker Thread %d", i);
+				snprintf(thread_str, 24, "Queue Worker Thread %3d", i);
 				m_parThreads[i]=new CAThread((UINT8*)thread_str);
 				m_parThreads[i]->setMainLoop(worker_thread_main_loop);
 				m_parThreads[i]->start(this);
