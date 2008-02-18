@@ -375,7 +375,7 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 			 */
 			if (entry)
 			{
-				m_pAccountingSettleThread->m_accountingHashtable->getMutex().lock();
+				m_pAccountingSettleThread->m_accountingHashtable->getMutex()->lock();
 				while (entry)
 				{			
 					AccountLoginHashEntry* loginEntry = 
@@ -420,7 +420,7 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 					delete entry;
 					entry = nextEntry;									
 				}
-				m_pAccountingSettleThread->m_accountingHashtable->getMutex().unlock();		
+				m_pAccountingSettleThread->m_accountingHashtable->getMutex()->unlock();		
 			}
 						
 		}//main while run loop
