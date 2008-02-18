@@ -70,18 +70,20 @@ CAMutex::CAMutex()
 
 CAMutex::~CAMutex()
 {
+	
+	//lock();
+	//unlock();
 	#ifdef HAVE_PTHREAD_MUTEXES
 		pthread_mutex_destroy(m_pMutex);
 		pthread_mutexattr_destroy(m_pMutexAttributes);					
 		
 	#endif
 	
-	//delete m_pMutex;
-	//free(m_pMutex);
-	//CAMsg::printMsg(LOG_CRIT,"CAMutex deleted\n");
+		delete m_pMutex;
+	
+	
 	#ifdef HAVE_PTHREAD_MUTEXES
 		delete m_pMutexAttributes;
-		//free(m_pMutexAttributes);
 	#endif
 }
 
