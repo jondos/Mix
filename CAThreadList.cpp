@@ -1,4 +1,7 @@
 #include "StdAfx.h"
+
+#ifdef _DEBUG
+
 #include "CAThread.hpp"
 #include "CAThreadList.hpp"
 #include "CAMsg.hpp"
@@ -212,10 +215,10 @@ void CAThreadList::__removeAll()
 		delete m_pHead;
 		m_pHead = NULL;
 	}
-	else 
+	/*else 
 	{
 		CAMsg::printMsg(LOG_INFO, "CAThreadList::removeAll: list is already empty\n");
-	}
+	}*/
 }
 
 UINT32 CAThreadList::__getSize()
@@ -238,3 +241,5 @@ UINT32 CAThreadList::__getSize()
 		
 	return count;
 }
+
+#endif
