@@ -1385,12 +1385,11 @@ SINT32 CAFirstMix::clean()
 
 		if(m_pChannelList!=NULL)
 			{
-				CAMsg::printMsg(LOG_CRIT,"Before deleting CAFirstMixChannelList()!\n");
-				CAMsg::printMsg	(LOG_CRIT,"Memory usage before: %u\n",getMemoryUsage());	
+				//CAMsg::printMsg(LOG_CRIT,"Before deleting CAFirstMixChannelList()!\n");
+				//CAMsg::printMsg	(LOG_CRIT,"Memory usage before: %u\n",getMemoryUsage());	
 				fmHashTableEntry* pHashEntry=m_pChannelList->getFirst();
 				while(pHashEntry!=NULL)
 					{
-						CAMsg::printMsg	(LOG_CRIT,"Entering pHashloop\n");	
 						CAMuxSocket * pMuxSocket=pHashEntry->pMuxSocket;
 						delete pHashEntry->pQueueSend;
 						delete pHashEntry->pSymCipher; 
@@ -1402,7 +1401,7 @@ SINT32 CAFirstMix::clean()
 								pEntry=m_pChannelList->getNextChannel(pEntry);
 							}
 						m_pChannelList->remove(pHashEntry->pMuxSocket);
-						CAMsg::printMsg	(LOG_CRIT,"pMuxSocket ref %0x%x\n", (UINT32) pMuxSocket);	
+						//CAMsg::printMsg	(LOG_CRIT,"pMuxSocket ref %0x%x\n", (UINT32) pMuxSocket);	
 						pMuxSocket->close();
 						delete pMuxSocket;
 						pHashEntry=m_pChannelList->getNext();
@@ -1411,7 +1410,7 @@ SINT32 CAFirstMix::clean()
 		if(m_pChannelList!=NULL)
 			delete m_pChannelList;
 		m_pChannelList=NULL;
-		CAMsg::printMsg	(LOG_CRIT,"Memory usage after: %u\n",getMemoryUsage());	
+		//CAMsg::printMsg	(LOG_CRIT,"Memory usage after: %u\n",getMemoryUsage());	
 
 		if(m_psocketgroupUsersRead!=NULL)
 			delete m_psocketgroupUsersRead;
@@ -1430,10 +1429,8 @@ SINT32 CAFirstMix::clean()
 			{
 				for(UINT32 i=0;i<m_u32MixCount-1;i++)
 					{
-						CAMsg::printMsg	(LOG_CRIT,"In m_arMixParameters-loop now.\n",getMemoryUsage());	
 						delete[] m_arMixParameters[i].m_strMixID;
 					}
-				CAMsg::printMsg	(LOG_CRIT,"Out of m_arMixParameters-loop.\n",getMemoryUsage());	
 				delete[] m_arMixParameters;
 			}
 			m_arMixParameters=NULL;
