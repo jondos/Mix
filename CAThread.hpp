@@ -201,7 +201,6 @@ class CAThread
 	 		pthread_t* m_pThread;
 	 		#endif
 			UINT8* m_strName; //< a name mostly for debuging purpose...
-			//static CAThreadList *ms_pThreadList;
-	};
+		};
 #endif
 
