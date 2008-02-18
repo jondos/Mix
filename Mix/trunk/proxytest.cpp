@@ -167,21 +167,27 @@ void cleanup()
 		CRYPTO_set_locking_callback(NULL);
 		delete []pOpenSSLMutexes;
 		pOpenSSLMutexes=NULL;
-		//CASocketAddrINet::cleanup();
-		CAMsg::printMsg(LOG_CRIT,"CASocketAddrINet::cleanup()\n");
-//XML Cleanup
+		CASocketAddrINet::cleanup();
+		//XML Cleanup
 		//Note: We have to destroy all XML Objects and all objects that uses XML Objects BEFORE
 		//we terminate the XML lib!
-#ifndef ONLY_LOCAL_PROXY
+		//TODO: Fix: Still causes segmentation fault when exiting.	
+/*#ifndef ONLY_LOCAL_PROXY
 		XMLPlatformUtils::Terminate();
-#endif //ONLY_LOCAL_PROXY
+#endif //ONLY_LOCAL_PROXY */
 		
 #ifdef _DEBUG
-				CAMsg::printMsg(LOG_INFO,"After cleanup %d threads listed.\n",pThreadList->getSize());
-				pThreadList->showAll();
-				CAMsg::printMsg(LOG_INFO,"Doing Threadlist cleanup.\n");
+			if(pThreadList != NULL)
+			{
+				int nrOfThreads = pThreadList->getSize();
+				CAMsg::printMsg(LOG_INFO,"After cleanup %d threads listed.\n", nrOfThreads);
+				if(nrOfThreads > 0)
+				{
+					pThreadList->showAll();
+				}
 				delete pThreadList;
-				CAMsg::printMsg(LOG_INFO,"Threadlist cleanup finished.\n");
+				pThreadList = NULL;
+			}
 #endif
 		CAMsg::cleanup();
 		
@@ -242,12 +248,6 @@ void signal_interrupt( int)
 		pThreadList->showAll();
 #endif
 		my_terminate();
-/*#ifdef _DEBUG
-		CAMsg::printMsg(LOG_INFO,"After cleanup %d threads listed.\n",pThreadList->getSize());
-		pThreadList->showAll();
-		delete pThreadList;
-#endif*/
-		puts("Exiting now");
 		exit(0);
 	}
 
@@ -707,7 +707,7 @@ int main(int argc, const char* argv[])
 #endif
 		signal(SIGINT,signal_interrupt);
 		signal(SIGTERM,signal_term);
-		//signal(SIGSEGV,signal_segv);
+		signal(SIGSEGV,signal_segv);
 
 		//Try to write pidfile....
 		UINT8 strPidFile[512];
