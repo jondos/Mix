@@ -146,11 +146,12 @@ SINT32 CAThread::start(void* param,bool bDaemon,bool bSilent)
 		{
 			pThreadList->put(this, *m_pThread);
 		}
-#endif
+
 		else
 		{
 			CAMsg::printMsg(LOG_DEBUG, "CAThread::start() - Warning no thread list found\n");
 		}
+#endif
 		#ifdef DEBUG
 			if(!bSilent)
 				CAMsg::printMsg(LOG_DEBUG, "CAThread::start() - thread created sucessful\n");
