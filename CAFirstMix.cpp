@@ -1385,8 +1385,8 @@ SINT32 CAFirstMix::clean()
 
 		if(m_pChannelList!=NULL)
 			{
-				//CAMsg::printMsg(LOG_CRIT,"Before deleting CAFirstMixChannelList()!\n");
-				//CAMsg::printMsg	(LOG_CRIT,"Memory usage before: %u\n",getMemoryUsage());	
+				CAMsg::printMsg(LOG_CRIT,"Before deleting CAFirstMixChannelList()!\n");
+				CAMsg::printMsg	(LOG_CRIT,"Memory usage before: %u\n",getMemoryUsage());	
 				fmHashTableEntry* pHashEntry=m_pChannelList->getFirst();
 				while(pHashEntry!=NULL)
 					{
@@ -1410,7 +1410,7 @@ SINT32 CAFirstMix::clean()
 		if(m_pChannelList!=NULL)
 			delete m_pChannelList;
 		m_pChannelList=NULL;
-		//CAMsg::printMsg	(LOG_CRIT,"Memory usage after: %u\n",getMemoryUsage());	
+		CAMsg::printMsg	(LOG_CRIT,"Memory usage after: %u\n",getMemoryUsage());	
 
 		if(m_psocketgroupUsersRead!=NULL)
 			delete m_psocketgroupUsersRead;
@@ -1433,11 +1433,11 @@ SINT32 CAFirstMix::clean()
 					}
 				delete[] m_arMixParameters;
 			}
-			m_arMixParameters=NULL;
-			m_u32MixCount=0;
-		#ifdef _DEBUG
-			CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::clean() finished\n");
-		#endif
+		m_arMixParameters=NULL;
+		m_u32MixCount=0;
+#ifdef _DEBUG
+		CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::clean() finished\n");
+#endif
 		return E_SUCCESS;
 	}
 

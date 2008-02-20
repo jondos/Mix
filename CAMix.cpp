@@ -91,120 +91,111 @@ SINT32 CAMix::start()
 	        bool needReconf = needAutoConfig();
 	
 	        m_pInfoService->setConfiguring(allowReconf && needReconf);
-					CAMsg::printMsg(LOG_DEBUG, "CAMix start: starting InfoService\n");
-	        m_pInfoService->start();
-// 	LERNGRUPPE: Moved this loop to the beginning of the main loop to allow reconfiguration
-//         while(allowReconf && needReconf)
-//         {
-//             CAMsg::printMsg(LOG_INFO, "No next mix or no prev. mix certificate specified. Waiting for auto-config from InfoService.\n");
-// 
-//             sSleep(20);
-//             needReconf = needAutoConfig();
-//         }
-        }
+			CAMsg::printMsg(LOG_DEBUG, "CAMix start: starting InfoService\n");
+			m_pInfoService->start();
+		}
 		else
 		{
 			m_pInfoService = NULL;
 		}
 		bool allowReconf = pglobalOptions->acceptReconfiguration();
-//     bool needReconf = needAutoConfig();
 #ifdef DYNAMIC_MIX
 		/* LERNGRUPPE: We might want to break out of this loop if the mix-type changes */
 		while(m_bLoop)
 #else
-    while(true)
+    	while(true)
 #endif
-    {
-    	if (m_pInfoService != NULL)
-    		m_pInfoService->setConfiguring(allowReconf && needAutoConfig());
-		while(allowReconf && (needAutoConfig() || m_bReconfiguring))
-		{
-			CAMsg::printMsg(LOG_DEBUG, "Not configured -> sleeping\n");
-            sSleep(20);
-        }
+	    {
+	    	if (m_pInfoService != NULL)
+	    		m_pInfoService->setConfiguring(allowReconf && needAutoConfig());
+			while(allowReconf && (needAutoConfig() || m_bReconfiguring))
+			{
+				CAMsg::printMsg(LOG_DEBUG, "Not configured -> sleeping\n");
+	            sSleep(20);
+	        }
 #ifdef DYNAMIC_MIX
-		// if we change the mix type, we must not enter init!
-		if(!m_bLoop) goto SKIP;
+			// if we change the mix type, we must not enter init!
+			if(!m_bLoop) goto SKIP;
 #endif
-		CAMsg::printMsg(LOG_DEBUG, "CAMix main: before init()\n");
-		initStatus = init();
-        if(initStatus == E_SUCCESS)
-        {
-					CAMsg::printMsg(LOG_DEBUG, "CAMix main: init() returned success\n");
-            if(m_pInfoService != NULL)
-            {
-                m_pInfoService->setConfiguring(false);
-                if( ! m_pInfoService->isRunning())
-                    m_pInfoService->start();
-            }
-
-            CAMsg::printMsg(LOG_INFO, "The mix is now on-line.\n");
+			CAMsg::printMsg(LOG_DEBUG, "CAMix main: before init()\n");
+			initStatus = init();
+	        if(initStatus == E_SUCCESS)
+	        {
+				CAMsg::printMsg(LOG_DEBUG, "CAMix main: init() returned success\n");
+	            if(m_pInfoService != NULL)
+	            {
+	                m_pInfoService->setConfiguring(false);
+	                if( ! m_pInfoService->isRunning())
+	                    m_pInfoService->start();
+	            }
+	
+	            CAMsg::printMsg(LOG_INFO, "The mix is now on-line.\n");
 #ifdef DYNAMIC_MIX
-						m_bReconfiguring = false;
-						m_bCascadeEstablished = true;
-						m_bReconfigured = false;
-						if(pglobalOptions->isFirstMix() && pglobalOptions->isDynamic())
-							m_pInfoService->sendCascadeHelo();
+							m_bReconfiguring = false;
+							m_bCascadeEstablished = true;
+							m_bReconfigured = false;
+							if(pglobalOptions->isFirstMix() && pglobalOptions->isDynamic())
+								m_pInfoService->sendCascadeHelo();
 #endif
-						loop();
+							loop();
 #ifdef DYNAMIC_MIX
-						m_bCascadeEstablished = false;
-						/** If the cascade breaks down, some mix might have been reconfigured. Let's have a look if there is new information */
-						if(!m_bReconfiguring)
-							m_pInfoService->dynamicCascadeConfiguration();
+							m_bCascadeEstablished = false;
+							/** If the cascade breaks down, some mix might have been reconfigured. Let's have a look if there is new information */
+							if(!m_bReconfiguring)
+								m_pInfoService->dynamicCascadeConfiguration();
 #endif
-						CAMsg::printMsg(LOG_DEBUG, "CAMix main: loop() returned, maybe connection lost.\n");
-        }
-        else if (initStatus == E_SHUTDOWN)
-        {
-        	CAMsg::printMsg(LOG_DEBUG, "Mix has been stopped. Waiting for shutdown...\n");
-        }
-        else
-        {
-            CAMsg::printMsg(LOG_DEBUG, "init() failed, maybe no connection.\n");
-        }
+							CAMsg::printMsg(LOG_DEBUG, "CAMix main: loop() returned, maybe connection lost.\n");
+	        }
+	        else if (initStatus == E_SHUTDOWN)
+	        {
+	        	CAMsg::printMsg(LOG_DEBUG, "Mix has been stopped. Waiting for shutdown...\n");
+	        }
+	        else
+	        {
+	            CAMsg::printMsg(LOG_DEBUG, "init() failed, maybe no connection.\n");
+	        }
 #ifdef DYNAMIC_MIX
 SKIP:
 #endif
-        if(m_pInfoService != NULL)
-        {
+	        if(m_pInfoService != NULL)
+	        {
 #ifndef DYNAMIC_MIX
-            if(pglobalOptions->acceptReconfiguration())
+	            if(pglobalOptions->acceptReconfiguration())
 #else
-			// Only keep the InfoService alive if the Mix-Type doesn't change
-			if(pglobalOptions->acceptReconfiguration() && m_bLoop)
+				// Only keep the InfoService alive if the Mix-Type doesn't change
+				if(pglobalOptions->acceptReconfiguration() && m_bLoop)
 #endif
-                m_pInfoService->setConfiguring(true);
-            else
-			{
-				CAMsg::printMsg(LOG_DEBUG, "CAMix main: stopping InfoService\n");
-                m_pInfoService->stop();
-			}
-            // maybe Cascade information (e.g. certificate validity) will change on next connection
-            UINT64 currentMillis;
-            if (getcurrentTimeMillis(currentMillis) != E_SUCCESS)
-            {
-            	currentMillis = 0;
-            }
-            m_pInfoService->setSerial(currentMillis);            
-        }
-		CAMsg::printMsg(LOG_DEBUG, "CAMix main: before clean()\n");
-		clean();
-		CAMsg::printMsg(LOG_DEBUG, "CAMix main: after clean()\n");
+                	m_pInfoService->setConfiguring(true);
+	            else
+				{
+					CAMsg::printMsg(LOG_DEBUG, "CAMix main: stopping InfoService\n");
+	                m_pInfoService->stop();
+				}
+	            // maybe Cascade information (e.g. certificate validity) will change on next connection
+	            UINT64 currentMillis;
+	            if (getcurrentTimeMillis(currentMillis) != E_SUCCESS)
+	            {
+	            	currentMillis = 0;
+	            }
+	            m_pInfoService->setSerial(currentMillis);            
+	        }
+			CAMsg::printMsg(LOG_DEBUG, "CAMix main: before clean()\n");
+			clean();
+			CAMsg::printMsg(LOG_DEBUG, "CAMix main: after clean()\n");
 #ifdef DYNAMIC_MIX
-		if(m_bLoop)
+			if(m_bLoop)
 #endif
-		sSleep(10);
-    }
+			sSleep(10);
+    	}
 #ifdef DYNAMIC_MIX
-	if(m_pInfoService != NULL && m_pInfoService->isRunning())
-	{
-		m_pInfoService->stop();
-		delete m_pInfoService;
-    }
-	return E_SUCCESS;
+		if(m_pInfoService != NULL && m_pInfoService->isRunning())
+		{
+			m_pInfoService->stop();
+			delete m_pInfoService;
+	    }
+		return E_SUCCESS;
 #endif
-}
+	}
 
 
 /**

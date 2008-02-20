@@ -95,12 +95,10 @@ SINT32 CAMsg::printMsg(UINT32 type,const char* format,...)
 			va_list ap;
 			va_start(ap,format);
 			SINT32 ret=E_SUCCESS;
-			
+	
 			//Date is: yyyy/mm/dd-hh:mm:ss   -- the size is: 19 
 			time_t currtime=time(NULL);
-			
 			strftime(pMsg->m_strMsgBuff+1,255,"%Y/%m/%d-%H:%M:%S",localtime(&currtime));
-			
 			switch(type)
 				{
 					case LOG_DEBUG:
@@ -123,9 +121,6 @@ SINT32 CAMsg::printMsg(UINT32 type,const char* format,...)
 						pMsg->m_pcsPrint->unlock();
 						return E_UNKNOWN;
 				}
-				//sprintf(fthread_str, " Thread %x: ", pthread_self());
-				//strncat(pMsg->m_strMsgBuff, fthread_str, 18);
-				
 	#ifdef HAVE_VSNPRINTF
 			vsnprintf(pMsg->m_strMsgBuff+20+STRMSGTYPES_SIZE,MAX_MSG_SIZE,format,ap);
 	#else

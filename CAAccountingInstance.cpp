@@ -121,7 +121,6 @@ CAAccountingInstance::~CAAccountingInstance()
 		m_pMutex->lock();
 		
 		CAMsg::printMsg( LOG_DEBUG, "AccountingInstance dying\n" );
-		
 		if (m_pSettleThread)
 		{
 			CAMsg::printMsg( LOG_DEBUG, "deleting m_pSettleThread\n" );
@@ -155,21 +154,19 @@ CAAccountingInstance::~CAAccountingInstance()
 		
 		if (m_currentAccountsHashtable)
 		{
-			
 			m_currentAccountsHashtable->getMutex()->lock();
 			m_currentAccountsHashtable->clear(HASH_EMPTY_NONE, HASH_EMPTY_DELETE);
 			m_currentAccountsHashtable->getMutex()->unlock();
 			delete m_currentAccountsHashtable;
 		}
 		m_currentAccountsHashtable = NULL;
-				
+		CAMsg::printMsg( LOG_DEBUG, "CAAccountingInstance: Accounts hashtable deleted.\n" );
+		
 		if (m_currentCascade)
 		{
 			delete[] m_currentCascade;
 		}
 		m_currentCascade = NULL;
-		
-		
 		if (m_allHashes)
 		{
 			for (UINT32 i = 0; i < m_allHashesLen; i++)
@@ -177,7 +174,6 @@ CAAccountingInstance::~CAAccountingInstance()
 				delete m_allHashes[i];
 				m_allHashes[i] = NULL;
 			}
-			
 			delete m_allHashes;
 		}
 		m_allHashes = NULL;

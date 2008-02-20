@@ -787,11 +787,13 @@ int main(int argc, const char* argv[])
 						pMix=new CAMiddleMix();
 					}
 				else
+				{
 						#if !defined(NEW_MIX_TYPE)
 							pMix=new CALastMixA();
 						#else
 							pMix=new CALastMixB();
 						#endif
+				}
 #else
 				CAMsg::printMsg(LOG_ERR,"this Mix is compile to work only as local proxy!\n");
 				goto EXIT;
