@@ -127,7 +127,6 @@ CAAccountingInstance::~CAAccountingInstance()
 			m_pSettleThread->settle();
 			delete m_pSettleThread;
 		}
-		
 		m_pSettleThread = NULL;
 		
 		if (m_aiThreadPool)
@@ -155,7 +154,9 @@ CAAccountingInstance::~CAAccountingInstance()
 		if (m_currentAccountsHashtable)
 		{
 			m_currentAccountsHashtable->getMutex()->lock();
+			CAMsg::printMsg( LOG_DEBUG, "CAAccountingInstance: Clearing accounts hashtable...\n");
 			m_currentAccountsHashtable->clear(HASH_EMPTY_NONE, HASH_EMPTY_DELETE);
+			CAMsg::printMsg( LOG_DEBUG, "CAAccountingInstance: Deleting accounts hashtable...\n" );
 			m_currentAccountsHashtable->getMutex()->unlock();
 			delete m_currentAccountsHashtable;
 		}
@@ -174,7 +175,7 @@ CAAccountingInstance::~CAAccountingInstance()
 				delete m_allHashes[i];
 				m_allHashes[i] = NULL;
 			}
-			delete m_allHashes;
+			delete[] m_allHashes;
 		}
 		m_allHashes = NULL;
 		
@@ -210,10 +211,10 @@ UINT32 CAAccountingInstance::getNrOfUsers()
 	
 	if (ms_pInstance != NULL)
 	{
-		ms_pInstance->m_pMutex->lock();
-		// getting the size is an atomic operation and does not need synchronization
+		ms_pInstance->m_pMutex->lock();	
 		if(ms_pInstance->m_currentAccountsHashtable != NULL)
 		{
+			// getting the size is an atomic operation and does not need synchronization
 			users = ms_pInstance->m_currentAccountsHashtable->getSize();
 		}
 		else

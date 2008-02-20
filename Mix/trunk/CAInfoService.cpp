@@ -374,9 +374,11 @@ CAInfoService::~CAInfoService()
 	{
 		stop();
 		delete m_pLoopCV;
-		delete m_pthreadRunLoop;
+		m_pLoopCV = NULL;
 		delete m_pcertstoreOwnCerts;
+		m_pcertstoreOwnCerts = NULL;
 		delete m_pthreadRunLoop;
+		m_pthreadRunLoop = NULL;
 	}
 /** Sets the signature used to sign the messages send to Infoservice.
 	* If pOwnCert!=NULL this Certifcate is included in the Signature

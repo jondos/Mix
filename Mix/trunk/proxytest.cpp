@@ -171,7 +171,7 @@ void cleanup()
 		//XML Cleanup
 		//Note: We have to destroy all XML Objects and all objects that uses XML Objects BEFORE
 		//we terminate the XML lib!
-		//TODO: Fix: Still causes segmentation fault when exiting.	
+		/** @todo Fix: Causes segmentation fault when exiting.	*/
 /*#ifndef ONLY_LOCAL_PROXY
 		XMLPlatformUtils::Terminate();
 #endif //ONLY_LOCAL_PROXY */
