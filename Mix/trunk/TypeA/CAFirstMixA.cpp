@@ -219,8 +219,6 @@ SINT32 CAFirstMixA::loop()
 // Now in a separate Thread (see loopReadFromUsers())
 //Only proccess user data, if queue to next mix is not to long!!
 #define MAX_NEXT_MIX_QUEUE_SIZE 50000000 //50 MByte
-
-								
 				if(m_pQueueSendToMix->getSize()<MAX_NEXT_MIX_QUEUE_SIZE)
 					{
 						countRead=m_psocketgroupUsersRead->select(/*false,*/0);				// how many JAP<->mix connections have received data from their coresponding JAP
@@ -562,7 +560,7 @@ NEXT_USER:
 							}
 					}
 
-				//Step 5 
+//Step 5 
 //Writing to users...
 				countRead=m_psocketgroupUsersWrite->select(/*true,*/0);
 #ifdef HAVE_EPOLL		

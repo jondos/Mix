@@ -63,7 +63,8 @@ class CAMsg
 		public:
 			~CAMsg();
 			static SINT32 init(){pMsg=new CAMsg();return E_SUCCESS;}
-			static SINT32 cleanup(){
+			static SINT32 cleanup()
+			{
 				delete pMsg;
 				pMsg = NULL;
 				return E_SUCCESS;

@@ -199,8 +199,8 @@ class CAThread
 			l4thread_t m_Thread;
 #else	
 	 		pthread_t* m_pThread;
-	 		#endif
+#endif
 			UINT8* m_strName; //< a name mostly for debuging purpose...
-		};
+	};
 #endif
 

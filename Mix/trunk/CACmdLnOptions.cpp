@@ -1420,16 +1420,13 @@ SINT32 CACmdLnOptions::processXmlConfiguration(DOM_Document& docConfig)
 		UINT32 tmpLen=255;
 		
 		
-		
-		
-		DOM_Element elem;
 		//getMixType
+		DOM_Element elem;
 		if (getDOMChildByName(elemGeneral,(UINT8*)"MixType",elem,false) != E_SUCCESS)
 		{
 			CAMsg::printMsg(LOG_CRIT,"No \"MixType\" node found in configuration file!\n");
 			return E_UNKNOWN;
 		}
-		
 		tmpLen=255;
 		if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS)
 		{
