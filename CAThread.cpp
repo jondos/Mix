@@ -30,7 +30,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAThread.hpp"
 #include "CAUtil.hpp"
 #include "CAMsg.hpp"
+#ifdef _DEBUG
 #include "CAThreadList.hpp"
+#endif
 
 #ifdef OS_TUDOS
 	const int l4thread_max_threads = 64;
@@ -43,7 +45,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	const char* CAThread::METHOD_END = "End of method";
 #endif
 
+#ifdef _DEBUG
 extern CAThreadList *pThreadList;
+#endif
 
 CAThread::CAThread()
 	{
@@ -155,7 +159,6 @@ SINT32 CAThread::start(void* param,bool bDaemon,bool bSilent)
 		#ifdef DEBUG
 			if(!bSilent)
 				CAMsg::printMsg(LOG_DEBUG, "CAThread::start() - thread created sucessful\n");
-				
 		#endif
 
 		#ifdef OS_TUDOS

@@ -42,7 +42,7 @@ class CAFirstMixA:public CAFirstMix
 			SINT32 closeConnection(fmHashTableEntry* pHashEntry);	
 			
 #ifdef _DEBUG
-		CAThread* pLogThread;
+		CAThread* m_pLogThread;
 #endif
 };
 

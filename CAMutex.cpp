@@ -27,42 +27,19 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 */
 #include "StdAfx.h"
 #include "CAMutex.hpp"
-//#if defined (DEBUG) && defined(HAVE_PTHREAD_MUTEXES)
 #include "CAMsg.hpp"
 
-/*CAMutex::CAMutex()
-	{
-		m_pMutex=new pthread_mutex_t;
-		SINT32 ret=pthread_mutex_init(m_pMutex,NULL);
-		ASSERT(ret==0,"Mutex initialization failed!");
-	}
-
-CAMutex::~CAMutex()
-	{
-		CAMsg::printMsg(LOG_CRIT,"Trying to destroy CAMutex\n");
-		SINT32 ret=pthread_mutex_destroy(m_pMutex);
-		CAMsg::printMsg(LOG_CRIT,"CAMutex destroyed\n");
-		ASSERT(ret==0,"Mutex destruction failed!");
-		delete m_pMutex;
-	}
-	*/
-//#else
 
 CAMutex::CAMutex()
 {
 	#ifdef HAVE_PTHREAD_MUTEXES
 		m_pMutex=new pthread_mutex_t;
-		m_pMutexAttributes = new pthread_mutexattr_t;			
-		
-		//m_pMutex = (pthread_mutex_t*) malloc(sizeof(pthread_mutex_t));
-		//m_pMutexAttributes = (pthread_mutexattr_t*) malloc(sizeof(pthread_mutexattr_t));	
-		
+		m_pMutexAttributes = new pthread_mutexattr_t;
 		pthread_mutexattr_init(m_pMutexAttributes);  
 		pthread_mutexattr_settype(m_pMutexAttributes, PTHREAD_MUTEX_RECURSIVE);
 		//pthread_mutexattr_settype(m_pMutexAttributes, PTHREAD_MUTEX_ERRORCHECK);
 		pthread_mutex_init(m_pMutex, m_pMutexAttributes);
 		pthread_mutex_init(m_pMutex, NULL);
-			
 	#else
 		m_pMutex=new CASemaphore(1);
 	#endif
@@ -70,21 +47,13 @@ CAMutex::CAMutex()
 
 CAMutex::~CAMutex()
 {
-	
-	//lock();
-	//unlock();
 	#ifdef HAVE_PTHREAD_MUTEXES
-		pthread_mutex_destroy(m_pMutex);
-		pthread_mutexattr_destroy(m_pMutexAttributes);					
-		
+	pthread_mutex_destroy(m_pMutex);
+	pthread_mutexattr_destroy(m_pMutexAttributes);					
 	#endif
-	
-		delete m_pMutex;
-	
+	delete m_pMutex;
 	
 	#ifdef HAVE_PTHREAD_MUTEXES
-		delete m_pMutexAttributes;
+	delete m_pMutexAttributes;
 	#endif
 }
-
-//#endif

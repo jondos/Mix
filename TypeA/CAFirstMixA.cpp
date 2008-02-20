@@ -53,7 +53,7 @@ void CAFirstMixA::shutDown()
 		m_pInfoService->stop();
 	}
 	
-	if(m_pChannelList!=NULL)
+	if(m_pChannelList!=NULL) // may happen if mixes did not yet connect to each other
 	{
 		while ((timeoutHashEntry = m_pChannelList->popTimeoutEntry(true)) != NULL)
 		{			
@@ -167,18 +167,18 @@ SINT32 CAFirstMixA::loop()
 		CAMsg::printMsg(LOG_DEBUG,"1. Close received from user (times in micros) - 1:Channel-ID,Connection-ID,PacketsIn (only data and open),PacketsOut (only data),ChannelDuration (open packet received --> close packet put into send queue to next mix)\n");
 		CAMsg::printMsg(LOG_DEBUG,"2. Channel close from Mix(times in micros)- 2.:Channel-ID,Connection-ID,PacketsIn (only data and open), PacketsOut (only data),ChannelDuration (open packet received)--> close packet put into send queue to next user\n");
 #endif
-/*#ifdef _DEBUG
+/** @todo check if thread is closed */
+#ifdef _DEBUG
 		CAThread* pLogThread=new CAThread((UINT8*)"CAFirstMixA - LogLoop");
 		pLogThread->setMainLoop(fm_loopLog);
 		pLogThread->start(this);
-#endif*/
+#endif
 //		CAThread threadReadFromUsers;
 //		threadReadFromUsers.setMainLoop(loopReadFromUsers);
 //		threadReadFromUsers.start(this);
 		while(!m_bRestart) /* the main mix loop as long as there are things that are not handled by threads. */
 			{
 				bAktiv=false;
-				
 #ifdef PAYMENT
 				// check the timeout for all connections
 				fmHashTableEntry* timeoutHashEntry;

@@ -149,7 +149,7 @@ SINT32 CAMix::start()
 	        else if (initStatus == E_SHUTDOWN)
 	        {
 	        	CAMsg::printMsg(LOG_DEBUG, "Mix has been stopped. Waiting for shutdown...\n");
-	        }
+			}
 	        else
 	        {
 	            CAMsg::printMsg(LOG_DEBUG, "init() failed, maybe no connection.\n");
@@ -187,14 +187,14 @@ SKIP:
 #endif
 			sSleep(10);
     	}
-#ifdef DYNAMIC_MIX
-		if(m_pInfoService != NULL && m_pInfoService->isRunning())
+
+		if(m_pInfoService != NULL)
 		{
 			m_pInfoService->stop();
 			delete m_pInfoService;
+			m_pInfoService = NULL;
 	    }
 		return E_SUCCESS;
-#endif
 	}
 
 

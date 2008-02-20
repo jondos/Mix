@@ -88,7 +88,6 @@ SINT32 CAMsg::setLogOptions(UINT32 opt)
 
 SINT32 CAMsg::printMsg(UINT32 type,const char* format,...)
 	{
-		//char fthread_str[18];
 		if(pMsg != NULL) 
 		{
 			pMsg->m_pcsPrint->lock();
