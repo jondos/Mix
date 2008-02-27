@@ -630,12 +630,12 @@ SINT32 CAAccountingDBInterface::getPrepaidAmount(UINT64 accountNumber, UINT8* ca
 	/* upon receiving an ErrorMesage from the jpi, save the account status to the database table accountstatus
 	 * uses the same error codes defined in CAXMLErrorMessage
 	 */
-	SINT32 CAAccountingDBInterface::storeAccountStatus(UINT64 accountNumber, UINT32 statuscode)
+	SINT32 CAAccountingDBInterface::storeAccountStatus(UINT64 accountNumber, UINT32 statuscode, char *expires)
 	{
-		const char* previousStatusQuery = "SELECT COUNT(*) FROM ACCOUNTSTATUS WHERE ACCOUNTNUMBER=%s ";
+		const char* previousStatusQuery = "SELECT COUNT(*) FROM ACCOUNTSTATUS WHERE ACCOUNTNUMBER='%s' ";
 		//reverse order of columns, so insertQuery and updateQuery can be used with the same sprintf parameters
-		const char* insertQuery         = "INSERT INTO ACCOUNTSTATUS(STATUSCODE,ACCOUNTNUMBER) VALUES (%u, %s)";
-	 	const char* updateQuery         = "UPDATE ACCOUNTSTATUS SET STATUSCODE=%u WHERE ACCOUNTNUMBER=%s";
+		const char* insertQuery         = "INSERT INTO ACCOUNTSTATUS(STATUSCODE,EXPIRES,ACCOUNTNUMBER) VALUES ('%u', '%s', '%s')";
+	 	const char* updateQuery         = "UPDATE ACCOUNTSTATUS SET (STATUSCODE,EXPIRES)=('%u','%s') WHERE ACCOUNTNUMBER='%s'";
 	 	const char* query;
 	 	
 		PGresult* result;
@@ -652,7 +652,7 @@ SINT32 CAAccountingDBInterface::getPrepaidAmount(UINT64 accountNumber, UINT8* ca
 		
 		len = max(strlen(previousStatusQuery), strlen(insertQuery));
 		len = max(len, strlen(updateQuery));
-		finalQuery = new UINT8[len + 32 + 32];
+		finalQuery = new UINT8[len + 32 + 32 + 32];
 		sprintf( (char *)finalQuery, previousStatusQuery, tmp);
 		
 		if (checkCountAllQuery(finalQuery, count) != E_SUCCESS)
@@ -670,7 +670,7 @@ SINT32 CAAccountingDBInterface::getPrepaidAmount(UINT64 accountNumber, UINT8* ca
 		{
 			query = updateQuery;
 		}
-		sprintf((char*)finalQuery, query, statuscode, tmp);
+		sprintf((char*)finalQuery, query, statuscode, expires, tmp);
 		result = PQexec(m_dbConn, (char *)finalQuery);	
 		if (PQresultStatus(result) != PGRES_COMMAND_OK) // || PQntuples(result) != 1)
 		{
@@ -691,16 +691,16 @@ SINT32 CAAccountingDBInterface::getPrepaidAmount(UINT64 accountNumber, UINT8* ca
 		}
 		delete[] finalQuery;
 		PQclear(result);
-		CAMsg::printMsg(LOG_DEBUG, "Stored status code %u for account nr. %s \n",statuscode, tmp); 
+		CAMsg::printMsg(LOG_DEBUG, "Stored status code %u and expire date %s, for account nr. %s \n",statuscode, expires, tmp); 
 		return E_SUCCESS;	 	
 	}
 	
 	/* retrieve account status, e.g. to see if the user's account is empty
 	 * will return 0 if everything is OK (0 is defined as status ERR_OK, but is also returned if no entry is found for this account)
 	 */
-	SINT32 CAAccountingDBInterface::getAccountStatus(UINT64 accountNumber, UINT32& a_statusCode)
+	SINT32 CAAccountingDBInterface::getAccountStatus(UINT64 accountNumber, UINT32& a_statusCode, char *expires)
 	{
-		const char* selectQuery = "SELECT STATUSCODE FROM ACCOUNTSTATUS WHERE ACCOUNTNUMBER = %s";
+		const char* selectQuery = "SELECT STATUSCODE, EXPIRES FROM ACCOUNTSTATUS WHERE ACCOUNTNUMBER = %s";
 		PGresult* result;
 		UINT8* finalQuery;
 		UINT8 accountNumberAsString[32];
@@ -727,8 +727,27 @@ SINT32 CAAccountingDBInterface::getPrepaidAmount(UINT64 accountNumber, UINT8* ca
 		
 		if(PQntuples(result) == 1) 
 		{
-			a_statusCode = atoi(PQgetvalue(result, 0, 0)); //first row, first column
+			int statusCodeIndex = PQfnumber(result,"STATUSCODE");
+			int expiresIndex = PQfnumber(result,"EXPIRES");
+			if(statusCodeIndex != -1 )
+			{
+				a_statusCode = atoi(PQgetvalue(result, 0, statusCodeIndex)); //first row, first column
+			}
+			else
+			{
+				CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: no status code found while reading account status\n");
+			}
+			
+			if(expiresIndex != -1)
+			{
+				expires = strncpy(expires, (const char*)PQgetvalue(result, 0, expiresIndex), 10);
+			}
+			else
+			{
+				CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: no expire date found while reading account status\n");
+			}
 		}
+		
 		PQclear(result);		
 		
 		return E_SUCCESS;				
