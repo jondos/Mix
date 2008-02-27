@@ -113,7 +113,7 @@ public:
 	 * This should be called by the FirstMix for every incoming Jap packet
 	 */
 	static SINT32 handleJapPacket(fmHashTableEntry *pHashEntry, bool a_bControlMessage, bool a_bMessageToJAP);
-
+		
 	/**
 	 * Check if an IP address is temporarily blocked by the accounting instance.
 	 * This should be called by the FirstMix when a JAP is connecting.
@@ -134,8 +134,10 @@ public:
 	* function to the ai thread.
 	*/
 	SINT32 static processJapMessage(fmHashTableEntry * pHashEntry,const DOM_Document& a_DomDoc);
-	
+		
 	UINT32 static getNrOfUsers();
+	
+	static SINT32 loginProcessStatus(fmHashTableEntry *pHashEntry);
 	
 	static const SINT32 HANDLE_PACKET_CONNECTION_OK; // this packet has been checked and is OK
 	static const SINT32 HANDLE_PACKET_CONNECTION_UNCHECKED; // the packet might be OK (is it not checked)
@@ -157,25 +159,28 @@ private:
 	typedef struct t_aiqueueitem aiQueueItem;
 
 	static SINT32 handleJapPacket_internal(fmHashTableEntry *pHashEntry, bool a_bControlMessage, bool a_bMessageToJAP);
-
+	
+	static void processJapMessageLoginHelper(fmHashTableEntry *pHashEntry, 
+											 SINT32 handlerReturnvalue, 
+											 bool finishLogin);
 	/**
-	* Handles a cost confirmation sent by a jap
-	*/
-	void handleCostConfirmation(tAiAccountingInfo* pAccInfo, DOM_Element &root );
-	void handleCostConfirmation_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root );
+	 * Handles a cost confirmation sent by a jap
+	 */
+	int handleCostConfirmation(tAiAccountingInfo* pAccInfo, DOM_Element &root );
+	int handleCostConfirmation_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root );
 
 	/**
 	* Handles an account certificate of a newly connected Jap.
 	*/
-	void handleAccountCertificate(tAiAccountingInfo* pAccInfo, DOM_Element &root );
-	void handleAccountCertificate_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root );
+	int handleAccountCertificate(tAiAccountingInfo* pAccInfo, DOM_Element &root );
+	int handleAccountCertificate_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root );
 	
 	
 	/**
 	 * Checks the response of the challenge-response auth.
 	 */
-	void handleChallengeResponse(tAiAccountingInfo* pAccInfo, DOM_Element &root);
-	void handleChallengeResponse_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root);
+	int handleChallengeResponse(tAiAccountingInfo* pAccInfo, DOM_Element &root);
+	int handleChallengeResponse_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root);
 
 	static SINT32 getPrepaidBytes(tAiAccountingInfo* pAccInfos);
 	SINT32 prepareCCRequest(CAMix* callingMix, UINT8* a_AiName);			
@@ -188,7 +193,7 @@ private:
 	static SINT32 returnWait(tAiAccountingInfo* pAccInfo);
 	static SINT32 returnKickout(tAiAccountingInfo* pAccInfo);
 	static SINT32 returnPrepareKickout(tAiAccountingInfo* pAccInfo, CAXMLErrorMessage* a_error);
-	
+		
 	/**
 	 * The main loop of the AI thread - reads messages from the queue 
 	 * and starts process threads for these messages.
