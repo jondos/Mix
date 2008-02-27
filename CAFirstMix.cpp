@@ -50,6 +50,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #endif
 #ifdef PAYMENT
 	#include "CAAccountingControlChannel.hpp"
+	#include "CAAccountingInstance.hpp"
 #endif
 extern CACmdLnOptions* pglobalOptions;
 #include "CAReplayControlChannel.hpp"
@@ -1111,6 +1112,10 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			CAMsg::printMsg(LOG_DEBUG,"User login: registering payment control channel\n");
 		#endif
 		pHashEntry->pControlChannelDispatcher->registerControlChannel(new CAAccountingControlChannel(pHashEntry));
+		/* @todo: Before we continue, we have to accomplish a full login to the accounting instance, comprising:
+		 * procedure not complete yet, still need a forced settlement and what todo with data packets sent
+		 * before login is completed.
+		 */
 		SAVE_STACK("CAFirstMix::doUserLogin", "payment registered");
 #endif
 		pHashEntry->pSymCipher=new CASymCipher();
@@ -1119,6 +1124,87 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		pNewUser->setReceiveKey(linkKey,32);
 		pNewUser->setSendKey(linkKey+32,32);
 		pNewUser->setCrypt(true);
+		
+#ifdef PAYMENT	
+		/* 
+		 * Here we can go on with our Payment Instance login procedure 
+		 * This procedure is tradeoff between integrating the AI login procedure 
+		 * in the global login process and handling AI login packets separately
+		 * over the AI control channel.
+		 * We have to get the AI login messages over the control channel for 
+		 * backward compatibility reasons of the JAP Proxy.
+		 */
+		MIXPACKET *paymentLoginPacket = new MIXPACKET;
+		tQueueEntry *aiAnswerQueueEntry=new tQueueEntry;
+		UINT32 qlen=sizeof(tQueueEntry);
+		SINT32 aiLoginStatus = 0;
+		aiLoginStatus = CAAccountingInstance::loginProcessStatus(pHashEntry);
+		while(aiLoginStatus & AUTH_LOGIN_NOT_FINISHED)
+		{
+			
+			if(pNewUser->receive(paymentLoginPacket, 10) != MIXPACKET_SIZE)
+			{
+				CAMsg::printMsg(LOG_ERR,"User login: timeout receiving payment login packet\n", paymentLoginPacket->channel);
+				aiLoginStatus = AUTH_LOGIN_FAILED;
+				break;
+			}
+			
+			CAMsg::printMsg(LOG_DEBUG,"User login: received payment login packet for channel: %u\n", paymentLoginPacket->channel);
+			if(paymentLoginPacket->channel>0&&paymentLoginPacket->channel<256)
+			{
+				if(!pHashEntry->pControlChannelDispatcher->proccessMixPacket(paymentLoginPacket))
+				{
+					CAMsg::printMsg(LOG_ERR,"User login: dispatcher couldn't process payment login packet\n");
+					aiLoginStatus = AUTH_LOGIN_FAILED;
+					break;
+				}
+				/*
+				 * This queue is registered for the user's control channel dispatcher
+				 * So fetch the answers from there (even though asynchronous packet 
+				 * processing is not required here).
+				 */
+				while(tmpQueue->getSize()>0)
+				{
+					tmpQueue->get((UINT8*)aiAnswerQueueEntry,&qlen); 
+					if(pNewUser->send(&(aiAnswerQueueEntry->packet)) != MIXPACKET_SIZE)
+					{
+						CAMsg::printMsg(LOG_ERR,"User login: couldn't send ai answer back to client\n");
+						aiLoginStatus = AUTH_LOGIN_FAILED;
+						break;
+					}
+					CAMsg::printMsg(LOG_DEBUG,"User login: send ai answer back to client\n");
+				}
+				if(aiLoginStatus == AUTH_LOGIN_FAILED)
+				{
+					break;
+				}
+			}
+			else
+			{
+				/*
+				 * User sends data channel mix packets and thus violates our login protocol 
+				 * @todo: kick him out or buffer packets?
+				 */
+			}
+			aiLoginStatus = CAAccountingInstance::loginProcessStatus(pHashEntry);
+		}
+		delete paymentLoginPacket;
+		paymentLoginPacket = NULL;
+		delete aiAnswerQueueEntry;
+		aiAnswerQueueEntry = NULL;
+		
+		if(aiLoginStatus == AUTH_LOGIN_FAILED)
+		{
+			CAMsg::printMsg(LOG_ERR,"User AI login failed\n");
+			m_pChannelList->remove(pNewUser);
+			delete pNewUser;
+			pNewUser = NULL;
+			m_pIPList->removeIP(peerIP);
+			return E_UNKNOWN;
+		}
+		CAMsg::printMsg(LOG_DEBUG,"User AI login successful\n");
+#endif
+		
 #ifdef WITH_CONTROL_CHANNELS_TEST
 		pHashEntry->pControlChannelDispatcher->registerControlChannel(new CAControlChannelTest());
 #endif
