@@ -33,6 +33,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 CAXMLErrorMessage::CAXMLErrorMessage(const UINT32 errorCode, UINT8 * message)
 	: CAAbstractXMLEncodable()
 	{
+		m_strExpires = new char[10];
 		m_iErrorCode = errorCode;
 		m_strErrMsg = new UINT8[strlen((char *)message)+1];
 		strcpy((char *)m_strErrMsg, (char *)message);
@@ -81,6 +82,7 @@ CAXMLErrorMessage::CAXMLErrorMessage(UINT32 errorCode)
 			strcpy((char *)m_strErrMsg, (char *)errors[errorCode]);
 		}
 		m_messageObject = NULL;
+		m_strExpires = new char[10];
 	}
 
 
@@ -91,7 +93,8 @@ CAXMLErrorMessage::CAXMLErrorMessage(const UINT32 errorCode, UINT8* message, CAA
 	m_strErrMsg = new UINT8[strlen((char *)message)+1];
 	strcpy((char *)m_strErrMsg, (char *)message);
 	
-	m_messageObject = messageObject;	
+	m_messageObject = messageObject;
+	m_strExpires = new char[10];
 }
 
 
@@ -106,10 +109,12 @@ CAXMLErrorMessage::CAXMLErrorMessage(UINT8 * strXmlData)
 	DOM_Element elemRoot = doc.getDocumentElement();
 	m_strErrMsg=NULL;
 	m_messageObject = NULL;
+	m_strExpires = new char[10];
 	if (setValues(elemRoot) != E_SUCCESS)
 	{
 		m_iErrorCode = ERR_NO_ERROR_GIVEN;
 	}
+	
 }
 
 
@@ -117,9 +122,15 @@ SINT32 CAXMLErrorMessage::setValues(DOM_Element &elemRoot)
 {	
 	UINT8 strGeneral[256];
 	UINT32 strGeneralLen = 256;
+	
+	char strExp[10];
+	UINT32 strExpLen = 10;
+	
 	SINT32 tmp;
 	SINT32 rc;
+		
 	if( ((rc=getDOMElementAttribute(elemRoot, "code", &tmp)) !=E_SUCCESS) ||
+			((rc=getDOMElementAttribute(elemRoot, "expires", (UINT8*) strExp, &strExpLen)) !=E_SUCCESS) ||
 			((rc=getDOMElementValue(elemRoot, strGeneral, &strGeneralLen)) !=E_SUCCESS)
 		)
 	{
@@ -130,11 +141,14 @@ SINT32 CAXMLErrorMessage::setValues(DOM_Element &elemRoot)
 		
 		return rc;
 	}
+	
 	m_iErrorCode = (UINT32)tmp;
 	if(m_strErrMsg) delete [] m_strErrMsg;
 	m_strErrMsg = new UINT8[strGeneralLen+1];
 	strcpy((char*)m_strErrMsg, (char*)strGeneral);
 	
+	strncpy(m_strExpires, strExp, 10); 
+		
 	DOM_Element objectRootElem;
 	getDOMChildByName(elemRoot, (UINT8*)"MessageObject", objectRootElem, false);
 	
@@ -172,9 +186,21 @@ SINT32 CAXMLErrorMessage::setValues(DOM_Element &elemRoot)
 CAXMLErrorMessage::~CAXMLErrorMessage()
 	{
 		if(m_strErrMsg)
+		{
 			delete [] m_strErrMsg;
+			m_strErrMsg = NULL;
+		}
 		if (m_messageObject != NULL)
+		{
 			delete m_messageObject;
+			m_messageObject = NULL;
+		}
+		
+		if (m_strExpires !=NULL)
+		{
+			delete m_strExpires;
+			m_strExpires = NULL;
+		}
 	}
 
 
