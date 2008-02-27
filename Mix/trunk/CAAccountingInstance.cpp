@@ -315,6 +315,13 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 			return HANDLE_PACKET_CLOSE_CONNECTION;
 		}
 		
+		if ( (pAccInfo->authFlags & AUTH_LOGIN_NOT_FINISHED) && !a_bMessageToJAP )
+		{
+			CAMsg::printMsg(LOG_ERR, "CAAccountingInstance:  User violates login protocol");	
+			pAccInfo->mutex->unlock();
+			return HANDLE_PACKET_CLOSE_CONNECTION;
+		}
+		
 		//kick user out after previous error
 		if(pAccInfo->authFlags & AUTH_FATAL_ERROR)
 		{			
@@ -343,8 +350,12 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 #ifdef SDTFA			
 			IncrementShmPacketCount();
 #endif			
-		}		
+		}
 		
+		/*if (pAccInfo->authFlags & AUTH_SENT_CC_REQUEST)
+		{
+			CAMsg::printMsg( LOG_DEBUG, "We already sent a CCRequest. Perhaps we should wait until client is able to deliver?\n");
+		}*/
 		/*
 		UINT8 tmp[32];
 		//print64(tmp,pAccInfo->transferredBytes - m_countTransferred);
@@ -358,20 +369,15 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 		*/
 		
 		
-		
 		// do the following tests after a lot of Mix packets only (gain speed...)
-		if (!(pAccInfo->authFlags & (AUTH_HARD_LIMIT_REACHED | AUTH_ACCOUNT_EMPTY | AUTH_WAITING_FOR_FIRST_SETTLED_CC)) &&
+		if (!(pAccInfo->authFlags & (AUTH_TIMEOUT_STARTED | AUTH_HARD_LIMIT_REACHED | AUTH_ACCOUNT_EMPTY | AUTH_WAITING_FOR_FIRST_SETTLED_CC)) &&
 			pAccInfo->sessionPackets % PACKETS_BEFORE_NEXT_CHECK != 0)
 		{
-			//CAMsg::printMsg( LOG_DEBUG, "Now we gain some speed after %d session packets...\n", pAccInfo->sessionPackets);
+			//CAMsg::printMsg( LOG_DEBUG, "Now we gain some speed after %d session packets..., auth-flags: %x\n", pAccInfo->sessionPackets, pAccInfo->authFlags);
 			pAccInfo->mutex->unlock();
 			return HANDLE_PACKET_CONNECTION_UNCHECKED;
 		}
-	
-		
-		
-		//CAMsg::printMsg( LOG_DEBUG, "Checking after %d session packets...\n", pAccInfo->sessionPackets);
-		
+						
 		/** @todo We need this trick so that the program does not freeze with active AI ThreadPool!!!! */
 		//pAccInfo->mutex->unlock();
 			
@@ -444,6 +450,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 					 * If confirmedBytes > 0,  any remaining prepaid bytes may be used.
 					 */
 					pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
+					CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: Account is empty!\n");	
 				}
 				else if (loginEntry->authFlags & AUTH_INVALID_ACCOUNT)
 				{
@@ -520,6 +527,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 	
 		//CAMsg::printMsg(LOG_INFO, "CAAccountingInstance: handleJapPacket auth for account %s.\n", accountNrAsString);
 	
+		
 		if (!(pAccInfo->authFlags & AUTH_GOT_ACCOUNTCERT))
 		{
 			//dont let the packet through for now, but still wait for an account cert
@@ -538,7 +546,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 	//#endif											
 				return returnPrepareKickout(pAccInfo, new CAXMLErrorMessage(CAXMLErrorMessage::ERR_NO_ACCOUNTCERT));				
 			}						
-					
+			
 			pAccInfo->mutex->unlock();
 			return HANDLE_PACKET_HOLD_CONNECTION;
 		}
@@ -1002,7 +1010,7 @@ SINT32 CAAccountingInstance::processJapMessage(fmHashTableEntry * pHashEntry,con
 		char* docElementName = root.getTagName().transcode();		
 		aiQueueItem* pItem;
 		void (CAAccountingInstance::*handleFunc)(tAiAccountingInfo*,DOM_Element&) = NULL;
-		SINT32 ret;
+		SINT32 ret, hf_ret = 0;
 
 
 		// what type of message is it?
@@ -1011,24 +1019,27 @@ SINT32 CAAccountingInstance::processJapMessage(fmHashTableEntry * pHashEntry,con
 				#ifdef DEBUG
 					CAMsg::printMsg( LOG_DEBUG, "Received an AccountCertificate. Calling handleAccountCertificate()\n" );
 				#endif
-				handleFunc = &CAAccountingInstance::handleAccountCertificate;
-				//ms_pInstance->handleAccountCertificate( pHashEntry->pAccountingInfo, root );
+				//handleFunc = &CAAccountingInstance::handleAccountCertificate;
+				hf_ret = ms_pInstance->handleAccountCertificate( pHashEntry->pAccountingInfo, root );
+				processJapMessageLoginHelper(pHashEntry, hf_ret, false);
 			}
 		else if ( strcmp( docElementName, "Response" ) == 0)
 			{
 				#ifdef DEBUG
-					CAMsg::printMsg( LOG_DEBUG, "Received a Response (challenge-response)\n");
+					CAMsg::printMsg( LOG_DEBUG, "Received a Response (challenge-response)\n" );
 				#endif
-				handleFunc = &CAAccountingInstance::handleChallengeResponse;
-				//ms_pInstance->handleChallengeResponse( pHashEntry->pAccountingInfo, root );
+				//handleFunc = &CAAccountingInstance::handleChallengeResponse;
+				hf_ret = ms_pInstance->handleChallengeResponse( pHashEntry->pAccountingInfo, root );
+				processJapMessageLoginHelper(pHashEntry, hf_ret, false);	
 			}
 		else if ( strcmp( docElementName, "CC" ) == 0 )
 			{
 				#ifdef DEBUG
 					CAMsg::printMsg( LOG_DEBUG, "Received a CC. Calling handleCostConfirmation()\n" );
 				#endif
-				handleFunc = &CAAccountingInstance::handleCostConfirmation;
-				//ms_pInstance->handleCostConfirmation( pHashEntry->pAccountingInfo, root );
+				//handleFunc = &CAAccountingInstance::handleCostConfirmation;
+				hf_ret = ms_pInstance->handleCostConfirmation( pHashEntry->pAccountingInfo, root );
+				processJapMessageLoginHelper(pHashEntry, hf_ret, true);				
 			}
 		else
 		{
@@ -1040,7 +1051,8 @@ SINT32 CAAccountingInstance::processJapMessage(fmHashTableEntry * pHashEntry,con
 			SAVE_STACK("CAAccountingInstance::processJapMessage", "error");
 			return E_UNKNOWN;
 		}
-
+		
+		
 		delete [] docElementName;
 
 		/** @todo this does not work yet due to errors in CAMutex!!!
@@ -1066,15 +1078,47 @@ SINT32 CAAccountingInstance::processJapMessage(fmHashTableEntry * pHashEntry,con
 		}*/
 	
 		// remove these lines if AI thread pool is used (see @todo above)
-		(ms_pInstance->*handleFunc)(pHashEntry->pAccountingInfo, root );
+		//(ms_pInstance->*handleFunc)(pHashEntry->pAccountingInfo, root );
 		
 		FINISH_STACK("CAAccountingInstance::processJapMessage");
 		return E_SUCCESS;
 	}
 
-void CAAccountingInstance::handleAccountCertificate(tAiAccountingInfo* pAccInfo, DOM_Element &root)
+void CAAccountingInstance::processJapMessageLoginHelper(fmHashTableEntry *pHashEntry, 
+														  SINT32 handlerReturnvalue, 
+														  bool finishLogin)
 {
-	handleAccountCertificate_internal(pAccInfo, root);
+	if(pHashEntry->pAccountingInfo != NULL)
+	{
+		if(pHashEntry->pAccountingInfo->authFlags & AUTH_LOGIN_NOT_FINISHED)
+		{
+			if(handlerReturnvalue != CAXMLErrorMessage::ERR_OK)
+			{
+				CAMsg::printMsg( LOG_ERR, "User login not successful\n");
+				pHashEntry->pAccountingInfo->authFlags &= ~AUTH_LOGIN_NOT_FINISHED;
+				pHashEntry->pAccountingInfo->authFlags |= AUTH_LOGIN_FAILED;
+			} 
+			else if(finishLogin)
+			{
+				CAMsg::printMsg( LOG_ERR, "User successfully logged in\n");
+				pHashEntry->pAccountingInfo->authFlags &= ~AUTH_LOGIN_NOT_FINISHED;
+			}
+		}
+	}
+}
+
+SINT32 CAAccountingInstance::loginProcessStatus(fmHashTableEntry *pHashEntry)
+{
+	SINT32 ret;
+	pHashEntry->pAccountingInfo->mutex->lock();
+	ret = pHashEntry->pAccountingInfo->authFlags & (AUTH_LOGIN_NOT_FINISHED | AUTH_LOGIN_FAILED);
+	pHashEntry->pAccountingInfo->mutex->unlock();
+	return ret;
+}
+
+int CAAccountingInstance::handleAccountCertificate(tAiAccountingInfo* pAccInfo, DOM_Element &root)
+{
+	return handleAccountCertificate_internal(pAccInfo, root);
 	
 	INIT_STACK;
 	FINISH_STACK("CAAccountingInstance::handleAccountCertificate");
@@ -1090,7 +1134,7 @@ void CAAccountingInstance::handleAccountCertificate(tAiAccountingInfo* pAccInfo,
  * TODO: think about switching account without changing mixcascade
  *   (receive a new acc.cert. though we already have one)
  */
-void CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root)
+int CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root)
 	{			
 		INIT_STACK;
 		BEGIN_STACK("CAAccountingInstance::handleAccountCertificate");
@@ -1105,7 +1149,7 @@ void CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* 
 		// check authstate of this user
 		if (pAccInfo == NULL)
 		{
-			return;
+			return CAXMLErrorMessage::ERR_NO_RECORD_FOUND;
 		}
 							
 		pAccInfo->mutex->lock();
@@ -1113,7 +1157,7 @@ void CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* 
 		if (pAccInfo->authFlags & AUTH_DELETE_ENTRY)
 		{
 			pAccInfo->mutex->unlock();
-			return;
+			return CAXMLErrorMessage::ERR_NO_ERROR_GIVEN;
 		}
 		
 		if (pAccInfo->authFlags & AUTH_GOT_ACCOUNTCERT)
@@ -1129,7 +1173,7 @@ void CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* 
 			err.toXmlDocument(errDoc);
 			pAccInfo->pControlChannel->sendXMLMessage(errDoc);
 			pAccInfo->mutex->unlock();
-			return ;
+			return CAXMLErrorMessage::ERR_BAD_REQUEST;
 		}
 
 		// parse & set accountnumber
@@ -1142,7 +1186,7 @@ void CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* 
 			err.toXmlDocument(errDoc);
 			pAccInfo->pControlChannel->sendXMLMessage(errDoc);
 			pAccInfo->mutex->unlock();
-			return ;
+			return CAXMLErrorMessage::ERR_WRONG_FORMAT;
 		}		
 
 		// parse & set payment instance id
@@ -1159,7 +1203,7 @@ void CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* 
 				err.toXmlDocument(errDoc);
 				pAccInfo->pControlChannel->sendXMLMessage(errDoc);
 				pAccInfo->mutex->unlock();
-				return ;
+				return CAXMLErrorMessage::ERR_WRONG_FORMAT;
 			}
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG, "Stored payment instance ID: %s\n", pAccInfo->pstrBIID);
@@ -1175,7 +1219,7 @@ void CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* 
 			err.toXmlDocument(errDoc);
 			pAccInfo->pControlChannel->sendXMLMessage(errDoc);
 			pAccInfo->mutex->unlock();
-			return ;
+			return CAXMLErrorMessage::ERR_KEY_NOT_FOUND;
 		}
 	#ifdef DEBUG
 		UINT8* aij;
@@ -1193,7 +1237,7 @@ void CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* 
 		err.toXmlDocument(errDoc);
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
 		pAccInfo->mutex->unlock();
-		return ;
+		return CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR;
 	}
 
 	if ((!m_pJpiVerifyingInstance) ||
@@ -1203,7 +1247,7 @@ void CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* 
 		CAMsg::printMsg( LOG_INFO, "CAAccountingInstance::handleAccountCertificate(): Bad Jpi signature\n" );
 		pAccInfo->authFlags |= AUTH_FAKE | AUTH_GOT_ACCOUNTCERT | AUTH_TIMEOUT_STARTED;
 		pAccInfo->mutex->unlock();
-		return ;
+		return CAXMLErrorMessage::ERR_BAD_SIGNATURE;
 	}		
 	
 		
@@ -1248,12 +1292,13 @@ void CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* 
 	
 	
 	pAccInfo->mutex->unlock();
+	return CAXMLErrorMessage::ERR_OK;
 }
 
 
-void CAAccountingInstance::handleChallengeResponse(tAiAccountingInfo* pAccInfo, DOM_Element &root)
+int CAAccountingInstance::handleChallengeResponse(tAiAccountingInfo* pAccInfo, DOM_Element &root)
 {
-	handleChallengeResponse_internal(pAccInfo, root);
+	return handleChallengeResponse_internal(pAccInfo, root);
 	INIT_STACK;
 	FINISH_STACK("CAAccountingInstance::handleChallengeResponse");
 }
@@ -1265,7 +1310,7 @@ void CAAccountingInstance::handleChallengeResponse(tAiAccountingInfo* pAccInfo, 
  * Also gets the last CC of the user, and sends it to the JAP
  * accordingly.
  */
-void CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root)
+int CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root)
 {
 	INIT_STACK;
 	BEGIN_STACK("CAAccountingInstance::handleChallengeResponse");
@@ -1289,7 +1334,7 @@ void CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* p
 	
 	if (pAccInfo == NULL)
 	{
-		return;
+		return CAXMLErrorMessage::ERR_NO_RECORD_FOUND;
 	}
 
 	pAccInfo->mutex->lock();
@@ -1297,7 +1342,7 @@ void CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* p
 	if (pAccInfo->authFlags & AUTH_DELETE_ENTRY)
 	{
 		pAccInfo->mutex->unlock();
-		return;
+		return CAXMLErrorMessage::ERR_NO_ERROR_GIVEN;
 	}
 
 	if( (!(pAccInfo->authFlags & AUTH_GOT_ACCOUNTCERT)) ||
@@ -1305,7 +1350,7 @@ void CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* p
 		)
 	{
 		pAccInfo->mutex->unlock();
-		return ;
+		return CAXMLErrorMessage::ERR_NO_ERROR_GIVEN;
 	}
 	pAccInfo->authFlags &= ~AUTH_CHALLENGE_SENT;
 
@@ -1314,7 +1359,7 @@ void CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* p
 	{
 		CAMsg::printMsg( LOG_DEBUG, "ChallengeResponse has wrong XML format. Ignoring\n" );
 		pAccInfo->mutex->unlock();
-		return;
+		return CAXMLErrorMessage::ERR_WRONG_FORMAT;
 	}
 	usedLen = decodeBufferLen;
 	decodeBufferLen = 512;
@@ -1340,7 +1385,7 @@ void CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* p
 		pAccInfo->authFlags |= AUTH_FAKE;
 		pAccInfo->authFlags &= ~AUTH_ACCOUNT_OK;
 		pAccInfo->mutex->unlock();
-		return ;
+		return CAXMLErrorMessage::ERR_BAD_SIGNATURE;
 	}	
 	
 	
@@ -1467,7 +1512,8 @@ void CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* p
 	 * used and deleted before... 
 	 * There should be something like an expiration date for the account status, e.g. 1 month
 	 */
-	if (m_dbInterface->getAccountStatus(pAccInfo->accountNumber, status) != E_SUCCESS)
+	char expireBuf[10];
+	if (m_dbInterface->getAccountStatus(pAccInfo->accountNumber, status, expireBuf) != E_SUCCESS)
 	{
 		UINT8 tmp[32];
 		print64(tmp,pAccInfo->accountNumber);
@@ -1477,19 +1523,44 @@ void CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* p
 	{
 		UINT32 authFlags = 0;
 		UINT8 tmp[32];
-		print64(tmp,pAccInfo->accountNumber);
-		CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: The user with account %s should be kicked out due to error %u!\n", tmp, status);
-
-		/*if (status == CAXMLErrorMessage::ERR_KEY_NOT_FOUND)
-		{
-			authFlags |= AUTH_INVALID_ACCOUNT;
-		}
-		else if (status == CAXMLErrorMessage::ERR_ACCOUNT_EMPTY)
-		{
-			authFlags |= AUTH_ACCOUNT_EMPTY;
-			pAccInfo->authFlags |= AUTH_ACCOUNT_EMPTY;
-		}*/
 		
+		struct tm *expireDate = new struct tm;
+		time_t nowTime = time(NULL); 
+		struct tm *now = localtime(&nowTime);
+		char nowBuf[10];
+		
+		print64(tmp,pAccInfo->accountNumber);
+		
+		strptime((const char*)expireBuf,"%m/%d/%y", expireDate);
+		strftime(nowBuf, 9, "%m/%d/%y", now);
+		CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: account %s status %u expires on %s, today is %s\n", tmp, status, expireBuf, nowBuf);
+		
+		SINT32 dateComp= compDate(expireDate, now);
+		
+		// Accountstatus is valid
+		if(dateComp >= 0)
+		{
+			CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: Illegal status %u for account %s is still valid, user is not allowed to login\n", status, tmp);
+			if (status == CAXMLErrorMessage::ERR_KEY_NOT_FOUND)
+			{
+				authFlags |= AUTH_INVALID_ACCOUNT;
+			}
+			else if (status == CAXMLErrorMessage::ERR_ACCOUNT_EMPTY)
+			{
+				authFlags |= AUTH_ACCOUNT_EMPTY;
+				pAccInfo->authFlags |= AUTH_ACCOUNT_EMPTY;
+			}
+		} 
+		else
+		{
+			//@todo:  perhaps forcing settlement
+		}
+		
+		delete expireDate;
+		expireDate = NULL;
+		
+		CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: The user with account %s should be kicked out due to error %u, expDate %s!\n", tmp, status, expireBuf);
+				
 		if (authFlags)
 		{	
 			loginEntry->authFlags |= authFlags;
@@ -1498,6 +1569,9 @@ void CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* p
 				loginEntry->confirmedBytes = pAccInfo->confirmedBytes;
 			}
 		}
+		m_currentAccountsHashtable->getMutex()->unlock();
+		pAccInfo->mutex->unlock();
+		return status;
 	}	
 	m_currentAccountsHashtable->getMutex()->unlock();	
 	
@@ -1540,11 +1614,12 @@ void CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* p
 	//CAMsg::printMsg( LOG_ERR, "CAAccountingInstance::handleChallengeResponse stop\n");
 	
 	pAccInfo->mutex->unlock();
+	return CAXMLErrorMessage::ERR_OK;
 }
 
-void CAAccountingInstance::handleCostConfirmation(tAiAccountingInfo* pAccInfo, DOM_Element &root)
+int CAAccountingInstance::handleCostConfirmation(tAiAccountingInfo* pAccInfo, DOM_Element &root)
 {
-	handleCostConfirmation_internal(pAccInfo, root);
+	return handleCostConfirmation_internal(pAccInfo, root);
 	INIT_STACK;
 	FINISH_STACK("CAAccountingInstance::handleCostConfirmation");
 }
@@ -1552,7 +1627,7 @@ void CAAccountingInstance::handleCostConfirmation(tAiAccountingInfo* pAccInfo, D
 /**
  * Handles a cost confirmation sent by a jap
  */
-void CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root)
+int CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root)
 {
 	INIT_STACK;
 	BEGIN_STACK("CAAccountingInstance::handleCostConfirmation");
@@ -1560,7 +1635,7 @@ void CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pA
 
 	if (pAccInfo == NULL)
 	{
-		return;
+		return CAXMLErrorMessage::ERR_NO_RECORD_FOUND;
 	}
 
 	pAccInfo->mutex->lock();
@@ -1570,7 +1645,7 @@ void CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pA
 	{
 		// ignore CCs for this account!
 		pAccInfo->mutex->unlock();
-		return ;
+		return CAXMLErrorMessage::ERR_NO_ERROR_GIVEN;
 	}
 	
 	// check authstate	
@@ -1582,14 +1657,14 @@ void CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pA
 			"CAAccountingInstance::handleCostConfirmation CC was received but has not been requested! Ignoring...\n");
 		
 		pAccInfo->mutex->unlock();
-		return ;
+		return CAXMLErrorMessage::ERR_NO_ERROR_GIVEN;
 	}
 		
 	CAXMLCostConfirmation* pCC = CAXMLCostConfirmation::getInstance(root);
 	if(pCC==NULL)
 	{
 		pAccInfo->mutex->unlock();
-		return ;
+		return CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR;
 	}
 	
 	
@@ -1607,7 +1682,7 @@ void CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pA
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
 		delete pCC;
 		pAccInfo->mutex->unlock();
-		return;
+		return CAXMLErrorMessage::ERR_BAD_SIGNATURE;
 	}
 	#ifdef DEBUG
 	else
@@ -1627,7 +1702,7 @@ void CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pA
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
 		delete pCC;
 		pAccInfo->mutex->unlock();
-		return;
+		return CAXMLErrorMessage::ERR_WRONG_FORMAT;
 	}
 	
 	Hashtable* certHashCC = 
@@ -1671,7 +1746,7 @@ void CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pA
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
 		delete pCC;
 		pAccInfo->mutex->unlock();
-		return;
+		return CAXMLErrorMessage::ERR_WRONG_DATA;
 	}
 	
 
@@ -1752,12 +1827,11 @@ void CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pA
 	
 	pAccInfo->bytesToConfirm = 0;
 	pAccInfo->authFlags &= ~AUTH_SENT_CC_REQUEST;
-
-	
+		
 	delete pCC;
 	pAccInfo->mutex->unlock();
 	
-	return;
+	return CAXMLErrorMessage::ERR_OK;
 }
 
 
@@ -1789,7 +1863,7 @@ SINT32 CAAccountingInstance::initTableEntry( fmHashTableEntry * pHashEntry )
 	pHashEntry->pAccountingInfo->authFlags = 
 		AUTH_SENT_ACCOUNT_REQUEST | AUTH_TIMEOUT_STARTED | 
 		AUTH_HARD_LIMIT_REACHED | AUTH_WAITING_FOR_FIRST_SETTLED_CC	| 
-		AUTH_SENT_CC_REQUEST; // prevents multiple CC requests on login
+		AUTH_SENT_CC_REQUEST | AUTH_LOGIN_NOT_FINISHED; // prevents multiple CC requests on login
 	pHashEntry->pAccountingInfo->authTimeoutStartSeconds = time(NULL);
 	pHashEntry->pAccountingInfo->lastHardLimitSeconds = time(NULL);
 	pHashEntry->pAccountingInfo->sessionPackets = 0;
@@ -1971,7 +2045,5 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 		
 		return E_SUCCESS;
 	}
-
-
 
 #endif /* ifdef PAYMENT */
