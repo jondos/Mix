@@ -68,6 +68,16 @@ struct AccountLoginHashEntry
 	UINT32 count;
 };
 
+struct SettleEntry
+{
+	UINT64 accountNumber;
+	UINT32 authFlags;
+	UINT32 authRemoveFlags;
+	UINT64 confirmedBytes;
+	UINT64 diffBytes;
+	SettleEntry* nextEntry;
+};
+
 /**
  * This is the AI (accounting instance or abrechnungsinstanz in german)
  * class. Its purpose is to count packets for every user and to decide
@@ -138,13 +148,18 @@ public:
 	UINT32 static getNrOfUsers();
 	
 	static SINT32 loginProcessStatus(fmHashTableEntry *pHashEntry);
+	static SINT32 finishLoginProcess(fmHashTableEntry *pHashEntry);
+	//static void forcedSettle();
+	
+	static SINT32 settlementTransaction();
 	
 	static const SINT32 HANDLE_PACKET_CONNECTION_OK; // this packet has been checked and is OK
 	static const SINT32 HANDLE_PACKET_CONNECTION_UNCHECKED; // the packet might be OK (is it not checked)
 	static const SINT32 HANDLE_PACKET_HOLD_CONNECTION; // queue packets until JAP has authenticated
 	static const SINT32 HANDLE_PACKET_PREPARE_FOR_CLOSING_CONNECTION; // small grace period until kickout
 	static const SINT32 HANDLE_PACKET_CLOSE_CONNECTION; // this connection should be closed immediatly
-
+	
+	
 private:
 
 	CAAccountingInstance(CAMix* callingMix); //Singleton!
@@ -161,7 +176,7 @@ private:
 	static SINT32 handleJapPacket_internal(fmHashTableEntry *pHashEntry, bool a_bControlMessage, bool a_bMessageToJAP);
 	
 	static void processJapMessageLoginHelper(fmHashTableEntry *pHashEntry, 
-											 SINT32 handlerReturnvalue, 
+											 UINT32 handlerReturnvalue, 
 											 bool finishLogin);
 	/**
 	 * Handles a cost confirmation sent by a jap
@@ -232,6 +247,7 @@ private:
 
 	/** the interface to the database */
 	CAAccountingDBInterface * m_dbInterface;
+	CAAccountingBIInterface *m_pPiInterface;
 	
 	UINT32 m_iSoftLimitBytes;
 	UINT32 m_iHardLimitBytes;
@@ -261,6 +277,8 @@ private:
 	static SINT32 m_prepaidBytesMinimum;
 	
 	bool m_bThreadRunning;
+	
+	CAMutex *m_pSettlementMutex;
 };
 
 
