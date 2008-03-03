@@ -1126,8 +1126,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		pNewUser->setCrypt(true);
 		
 #ifdef PAYMENT	
+		CAMsg::printMsg(LOG_DEBUG,"Starting AI login procedure.\n");
 		/* 
-		 * Here we can go on with our Payment Instance login procedure 
+		 * Here we can go on with our Accounting Instance login procedure 
 		 * This procedure is tradeoff between integrating the AI login procedure 
 		 * in the global login process and handling AI login packets separately
 		 * over the AI control channel.
@@ -1141,20 +1142,15 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		aiLoginStatus = CAAccountingInstance::loginProcessStatus(pHashEntry);
 		while(aiLoginStatus & AUTH_LOGIN_NOT_FINISHED)
 		{
-			
-			if(pNewUser->receive(paymentLoginPacket, 10) != MIXPACKET_SIZE)
+			if(pNewUser->receive(paymentLoginPacket, 5000) != MIXPACKET_SIZE)
 			{
-				CAMsg::printMsg(LOG_ERR,"User login: timeout receiving payment login packet\n", paymentLoginPacket->channel);
 				aiLoginStatus = AUTH_LOGIN_FAILED;
 				break;
 			}
-			
-			CAMsg::printMsg(LOG_DEBUG,"User login: received payment login packet for channel: %u\n", paymentLoginPacket->channel);
 			if(paymentLoginPacket->channel>0&&paymentLoginPacket->channel<256)
 			{
 				if(!pHashEntry->pControlChannelDispatcher->proccessMixPacket(paymentLoginPacket))
 				{
-					CAMsg::printMsg(LOG_ERR,"User login: dispatcher couldn't process payment login packet\n");
 					aiLoginStatus = AUTH_LOGIN_FAILED;
 					break;
 				}
@@ -1168,11 +1164,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 					tmpQueue->get((UINT8*)aiAnswerQueueEntry,&qlen); 
 					if(pNewUser->send(&(aiAnswerQueueEntry->packet)) != MIXPACKET_SIZE)
 					{
-						CAMsg::printMsg(LOG_ERR,"User login: couldn't send ai answer back to client\n");
 						aiLoginStatus = AUTH_LOGIN_FAILED;
 						break;
 					}
-					CAMsg::printMsg(LOG_DEBUG,"User login: send ai answer back to client\n");
 				}
 				if(aiLoginStatus == AUTH_LOGIN_FAILED)
 				{
@@ -1182,8 +1176,10 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			else
 			{
 				/*
-				 * User sends data channel mix packets and thus violates our login protocol 
-				 * @todo: kick him out or buffer packets?
+				 * User sends data channel mix packets instead of ai control channel packets
+				 * and thus violates our ai login protocol. May be an attacker or an old JAP which is 
+				 * not aware that ai login has to be finished before sending data channel packets. 
+				 * @todo: kick user out or buffer his packets?
 				 */
 			}
 			aiLoginStatus = CAAccountingInstance::loginProcessStatus(pHashEntry);
@@ -1193,7 +1189,27 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		delete aiAnswerQueueEntry;
 		aiAnswerQueueEntry = NULL;
 		
-		if(aiLoginStatus == AUTH_LOGIN_FAILED)
+		/* We have exchanged all AI login packets:
+		 * 1. AccountCert
+		 * 2. ChallengeResponse 
+		 * 3. Cost confirmation.
+		 * Now start settlement to ensure that the clients account is balanced 
+		 */
+		if(!(aiLoginStatus & AUTH_LOGIN_FAILED))
+		{
+			CAMsg::printMsg(LOG_ERR,"AI login messages successfully exchanged: now starting settlement for user account balancing check\n");
+			aiLoginStatus = CAAccountingInstance::settlementTransaction();
+		}
+		if(!(aiLoginStatus & AUTH_LOGIN_FAILED))
+		{
+			aiLoginStatus = CAAccountingInstance::finishLoginProcess(pHashEntry);
+			if(aiLoginStatus & AUTH_LOGIN_FAILED)
+			{
+				CAMsg::printMsg(LOG_ERR,"Settlement showed that user is not allowed to login: %x \n", aiLoginStatus);
+			}
+		}
+		
+		if(aiLoginStatus & AUTH_LOGIN_FAILED)
 		{
 			CAMsg::printMsg(LOG_ERR,"User AI login failed\n");
 			m_pChannelList->remove(pNewUser);
@@ -1202,7 +1218,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			m_pIPList->removeIP(peerIP);
 			return E_UNKNOWN;
 		}
-		CAMsg::printMsg(LOG_DEBUG,"User AI login successful\n");
+		CAMsg::printMsg(LOG_ERR,"User AI login successful\n");
 #endif
 		
 #ifdef WITH_CONTROL_CHANNELS_TEST
@@ -1369,6 +1385,43 @@ SINT32 CAFirstMix::clean()
 		#endif
 		m_bRunLog=false;
 		m_bRestart=true;
+		if(m_pthreadAcceptUsers!=NULL)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Wait for LoopAcceptUsers!\n");
+			m_pthreadAcceptUsers->join();
+			delete m_pthreadAcceptUsers;
+		}
+		m_pthreadAcceptUsers=NULL;
+		
+		CAMsg::printMsg(LOG_DEBUG,"Cleaning up login threads\n");
+		if(m_pthreadsLogin!=NULL)
+		{
+			delete m_pthreadsLogin;
+			m_pthreadsLogin=NULL;
+		}
+		
+		if(m_pQueueSendToMix!=NULL)
+		{
+			UINT8 b[sizeof(tQueueEntry)+1];
+			m_pQueueSendToMix->add(b,sizeof(tQueueEntry)+1);
+		}
+		
+		if(m_pthreadSendToMix!=NULL)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Wait for LoopSendToMix!\n");
+			m_pthreadSendToMix->join();
+			delete m_pthreadSendToMix;
+		}
+		m_pthreadSendToMix=NULL;
+		
+		if(m_pthreadReadFromMix!=NULL)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Wait for LoopReadFromMix!\n");
+			m_pthreadReadFromMix->join();
+			delete m_pthreadReadFromMix;
+		}
+		m_pthreadReadFromMix=NULL;
+		
 		if(m_pMuxOut!=NULL)
 			{
 				m_pMuxOut->close();
@@ -1378,23 +1431,11 @@ SINT32 CAFirstMix::clean()
 				for(UINT32 i=0;i<m_nSocketsIn;i++)
 					m_arrSocketsIn[i].close();
 			}
-		//writng some bytes to the queue...
-		if(m_pQueueSendToMix!=NULL)
-			{
-				UINT8 b[sizeof(tQueueEntry)+1];
-				m_pQueueSendToMix->add(b,sizeof(tQueueEntry)+1);
-			}
+		//writing some bytes to the queue...
+		/**/
 
-		if(m_pthreadAcceptUsers!=NULL)
-				{
-					CAMsg::printMsg(LOG_CRIT,"Wait for LoopAcceptUsers!\n");
-					m_pthreadAcceptUsers->join();
-					delete m_pthreadAcceptUsers;
-				}
-		m_pthreadAcceptUsers=NULL;
-		if(m_pthreadsLogin!=NULL)
-			delete m_pthreadsLogin;
-		m_pthreadsLogin=NULL;
+		
+		
     //     if(m_pInfoService!=NULL)
     //     {
     //         CAMsg::printMsg(LOG_CRIT,"Stopping InfoService....\n");
@@ -1406,24 +1447,6 @@ SINT32 CAFirstMix::clean()
     //     }
     //     m_pInfoService=NULL;
 
-	if(m_pthreadSendToMix!=NULL)
-		{
-			CAMsg::printMsg(LOG_CRIT,"Wait for LoopSendToMix!\n");
-			m_pthreadSendToMix->join();
-			delete m_pthreadSendToMix;
-		}
-	m_pthreadSendToMix=NULL;
-	if(m_pthreadReadFromMix!=NULL)
-		{
-			CAMsg::printMsg(LOG_CRIT,"Wait for LoopReadFromMix!\n");
-			m_pthreadReadFromMix->join();
-			delete m_pthreadReadFromMix;
-		}
-	m_pthreadReadFromMix=NULL;
-
-#ifdef PAYMENT
-	CAAccountingInstance::clean();
-#endif
 #ifdef LOG_PACKET_TIMES
 		if(m_pLogPacketStats!=NULL)
 			{
@@ -1498,6 +1521,9 @@ SINT32 CAFirstMix::clean()
 		m_pChannelList=NULL;
 		CAMsg::printMsg	(LOG_CRIT,"Memory usage after: %u\n",getMemoryUsage());	
 
+#ifdef PAYMENT
+	CAAccountingInstance::clean();
+#endif
 		if(m_psocketgroupUsersRead!=NULL)
 			delete m_psocketgroupUsersRead;
 		m_psocketgroupUsersRead=NULL;
