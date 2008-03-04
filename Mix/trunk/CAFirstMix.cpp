@@ -785,7 +785,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 #ifdef REPLAY_DETECTION //before we can start to accept users we have to ensure that we received the replay timestamps form the over mixes
 		CAMsg::printMsg(LOG_DEBUG,"Waiting for Replay Timestamp from next mixes\n");
 		i=0;
-		while(!pFirstMix->getRestart()&&i<pFirstMix->m_u32MixCount-1)
+		while(!pFirstMix->m_bRestart && i < pFirstMix->m_u32MixCount-1)
 		{
 			if(pFirstMix->m_arMixParameters[i].m_u32ReplayRefTime==0)//not set yet
 				{
@@ -796,12 +796,12 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 		}
 		CAMsg::printMsg(LOG_DEBUG,"All Replay Timestamp received\n");
 #endif
-		while(!pFirstMix->getRestart())
+		while(!pFirstMix->m_bRestart)
 			{
 				countRead=psocketgroupAccept->select(10000);
 				if(countRead<0)
 					{ //check for Error - are we restarting ?
-						if(pFirstMix->getRestart()||countRead!=E_TIMEDOUT)
+						if(pFirstMix->m_bRestart ||countRead!=E_TIMEDOUT)
 							goto END_THREAD;
 					}
 				i=0;
@@ -870,7 +870,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 						{
 							delete pNewMuxSocket;
 							pFirstMix->m_newConnections--;
-							if(ret==E_SOCKETCLOSED&&pFirstMix->getRestart()) //Hm, should we restart ??
+							if(ret==E_SOCKETCLOSED&&pFirstMix->m_bRestart) //Hm, should we restart ??
 							{
 								goto END_THREAD;
 							}
@@ -1275,7 +1275,7 @@ THREAD_RETURN loopReadFromUsers(void* param)
 				countRead=psocketgroupUsersRead->select(false,1000); //if we sleep here forever, we will not notice new sockets...
 				if(countRead<0)
 					{ //check for error
-						if(pFirstMix->getRestart()||countRead!=E_TIMEDOUT)
+						if(pFirstMix->m_bRestart ||countRead!=E_TIMEDOUT)
 							goto END_THREAD;
 					}
 				pHashEntry=pChannelList->getFirst();
@@ -1400,6 +1400,7 @@ SINT32 CAFirstMix::clean()
 			m_pthreadsLogin=NULL;
 		}
 		
+		//writing some bytes to the queue...
 		if(m_pQueueSendToMix!=NULL)
 		{
 			UINT8 b[sizeof(tQueueEntry)+1];
@@ -1431,7 +1432,7 @@ SINT32 CAFirstMix::clean()
 				for(UINT32 i=0;i<m_nSocketsIn;i++)
 					m_arrSocketsIn[i].close();
 			}
-		//writing some bytes to the queue...
+		
 		/**/
 
 		
