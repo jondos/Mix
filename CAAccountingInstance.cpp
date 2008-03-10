@@ -79,16 +79,20 @@ CAAccountingInstance::CAAccountingInstance(CAMix* callingMix)
 		
 		m_pMutex = new CAMutex();
 		//m_pIPBlockList = new CATempIPBlockList(60000);
-		m_pSettlementMutex = new CAMutex;
+		m_pSettlementMutex = new CAConditionVariable();
+		//m_loginHashTableChangeInProgress = false; //for synchronizing settlementTransactions of loginThreads and SettlementThread. 
+		m_nextSettleNr = 0; //The next thread's number to alter the login hash table
+		m_settleWaitNr = 0; //The wait number when it is equal to nextSettle number it's the thread's turn has to to 
+							//alter the login hash table
 		// initialize Database connection
-		m_dbInterface = new CAAccountingDBInterface();
+		//m_dbInterface = new CAAccountingDBInterface();
 		m_pPiInterface = new CAAccountingBIInterface();
 		
-		if(m_dbInterface->initDBConnection() != E_SUCCESS)
+		/*if(m_dbInterface->initDBConnection() != E_SUCCESS)
 		{
 			CAMsg::printMsg( LOG_ERR, "**************** AccountingInstance: Could not connect to DB!\n");
 			exit(1);
-		}
+		}*/
 	
 		// initialize JPI signature tester
 		m_AiName = new UINT8[256];
@@ -122,7 +126,8 @@ CAAccountingInstance::~CAAccountingInstance()
 		INIT_STACK;
 		BEGIN_STACK("~CAAccountingInstance");
 		
-		m_pMutex->lock();
+		//@todo: Why locks? concurrent processing of a destructor is nonsense !!
+		m_pMutex->lock(); 
 		
 		CAMsg::printMsg( LOG_DEBUG, "AccountingInstance dying\n" );
 		if (m_pSettleThread)
@@ -140,13 +145,13 @@ CAAccountingInstance::~CAAccountingInstance()
 		}
 		m_aiThreadPool = NULL;
 		
-		if (m_dbInterface)
+		/*if (m_dbInterface)
 		{
 			CAMsg::printMsg( LOG_DEBUG, "termintaing dbConnection\n" );
 			m_dbInterface->terminateDBConnection();
 			delete m_dbInterface;
 		}
-		m_dbInterface = NULL;
+		m_dbInterface = NULL;*/
 		
 		if(m_pPiInterface = NULL)
 		{
@@ -314,6 +319,8 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 		INIT_STACK;
 		BEGIN_STACK("CAAccountingInstance::handleJapPacket");
 		
+		CAAccountingDBInterface *dbInterface = NULL;
+		
 		if (pHashEntry == NULL || pHashEntry->pAccountingInfo == NULL)
 		{
 			return HANDLE_PACKET_CLOSE_CONNECTION;
@@ -433,8 +440,20 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 					// we had stored an outdated CC; insert confirmed bytes from current CC here and also update client					
 					CAXMLCostConfirmation * pCC = NULL;
 					bool bSettled;
-					ms_pInstance->m_dbInterface->getCostConfirmation(pAccInfo->accountNumber, 
-						ms_pInstance->m_currentCascade, &pCC, bSettled);
+					
+					dbInterface = CAAccountingDBInterface::getConnection();//new CAAccountingDBInterface();
+					if(dbInterface != NULL)
+					{
+						dbInterface->getCostConfirmation(pAccInfo->accountNumber, 
+														 ms_pInstance->m_currentCascade, 
+														 &pCC, 
+														 bSettled);
+						CAAccountingDBInterface::releaseConnection(dbInterface);
+						dbInterface = NULL;
+					}
+					/*ms_pInstance->m_dbInterface->getCostConfirmation(pAccInfo->accountNumber, 
+						ms_pInstance->m_currentCascade, &pCC, bSettled);*/
+					
 					if (pCC != NULL)
 					{				
 						if (bSettled)
@@ -451,6 +470,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 								"another CC was received! Waiting for settlement... \n");
 						}
 						delete pCC;
+						pCC = NULL;
 					}
 					else
 					{
@@ -1003,6 +1023,26 @@ SINT32 CAAccountingInstance::makeCCRequest(const UINT64 accountNumber, const UIN
 	}
 
 
+SINT32 CAAccountingInstance::sendAILoginConfirmation(tAiAccountingInfo* pAccInfo, 
+													 const UINT32 code, 
+													 UINT8 * message)
+	{
+		DOM_Document doc = DOM_Document::createDocument();
+		DOM_Element elemRoot = doc.createElement("LoginConfirmation");
+		setDOMElementAttribute(elemRoot, "code", code);
+		setDOMElementValue(elemRoot, message);
+		doc.appendChild(elemRoot);
+		
+		UINT32 debuglen = 3000;
+		UINT8 debugout[3000];
+		DOM_Output::dumpToMem(doc,debugout,&debuglen);
+		debugout[debuglen] = 0;			
+		CAMsg::printMsg(LOG_DEBUG, "the AILogin Confirmation sent looks like this: %s \n",debugout);
+		
+		return pAccInfo->pControlChannel->sendXMLMessage(doc);
+		
+		return E_SUCCESS;
+	}
 
 
 /**
@@ -1106,6 +1146,11 @@ void CAAccountingInstance::processJapMessageLoginHelper(fmHashTableEntry *pHashE
 {
 	if(pHashEntry->pAccountingInfo != NULL)
 	{
+		if(pHashEntry->pAccountingInfo->mutex == NULL)
+		{
+			return;
+		}
+		pHashEntry->pAccountingInfo->mutex->lock();
 		if(pHashEntry->pAccountingInfo->authFlags & AUTH_LOGIN_NOT_FINISHED)
 		{
 			if(handlerReturnValue != CAXMLErrorMessage::ERR_OK)
@@ -1113,13 +1158,50 @@ void CAAccountingInstance::processJapMessageLoginHelper(fmHashTableEntry *pHashE
 				CAMsg::printMsg( LOG_ERR, "User login not successful\n");
 				pHashEntry->pAccountingInfo->authFlags &= ~AUTH_LOGIN_NOT_FINISHED;
 				pHashEntry->pAccountingInfo->authFlags |= AUTH_LOGIN_FAILED;
+				
+				CAXMLErrorMessage *err = NULL;
+				DOM_Document errDoc;
+				
+				if(pHashEntry->pAccountingInfo->authFlags & AUTH_BLOCKED )
+				{
+					err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_BLOCKED,
+												(UINT8 *) "AI login: access denied because your account is blocked");
+				}
+				else if(pHashEntry->pAccountingInfo->authFlags & AUTH_ACCOUNT_EMPTY )
+				{
+					err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_ACCOUNT_EMPTY,
+												(UINT8 *) "AI login: access denied because your account is empty");
+				}
+				else if(pHashEntry->pAccountingInfo->authFlags & AUTH_INVALID_ACCOUNT )
+				{
+					err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_NO_BALANCE,
+												(UINT8 *) "AI login: access denied because your account is not valid");
+				} 
+				else
+				{
+					err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR,
+												(UINT8 *) "AI login: error occured while connecting, access denied");
+				}
+												
+				err->toXmlDocument(errDoc);
+				pHashEntry->pAccountingInfo->pControlChannel->sendXMLMessage(errDoc);
+				if(err != NULL)
+				{
+					delete err;
+					err = NULL;
+				}
+				/*sendAILoginConfirmation(pHashEntry->pAccountingInfo,
+										CAXMLErrorMessage::ERR_BLOCKED, 
+										(UINT8*) "AI access denied");*/
 			} 
 			else if(lastLoginMessage)
 			{
 				//CAMsg::printMsg( LOG_ERR, "User successfully logged in\n");
 				pHashEntry->pAccountingInfo->authFlags &= ~AUTH_LOGIN_NOT_FINISHED;
 			}
+			
 		}
+		pHashEntry->pAccountingInfo->mutex->unlock();
 	}
 }
 
@@ -1148,6 +1230,8 @@ SINT32 CAAccountingInstance::loginProcessStatus(fmHashTableEntry *pHashEntry)
 SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 {
 	SINT32 ret = 0;
+	UINT64 accountNumber = 0;
+	UINT32 authFlags = 0;
 	AccountLoginHashEntry *loginEntry;
 	tAiAccountingInfo* pAccInfo = pHashEntry->pAccountingInfo;
 		
@@ -1175,13 +1259,17 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 	{
 		return ret |= AUTH_LOGIN_FAILED;
 	}
+	pAccInfo->mutex->lock();
+	accountNumber = pAccInfo->accountNumber;
+	pAccInfo->mutex->unlock();
 	
 	ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
-	loginEntry = (AccountLoginHashEntry*)ms_pInstance->m_currentAccountsHashtable->getValue(&(pAccInfo->accountNumber));
+	loginEntry = (AccountLoginHashEntry*)ms_pInstance->m_currentAccountsHashtable->getValue(&accountNumber);
 	if (loginEntry)
 	{
+		authFlags = loginEntry->authFlags;
 		ret |= (loginEntry->authFlags & (AUTH_INVALID_ACCOUNT | AUTH_BLOCKED | AUTH_ACCOUNT_EMPTY));
-		ret |= ret==0 ? 0 : AUTH_LOGIN_FAILED;
+		ret |= (ret==0) ? 0 : AUTH_LOGIN_FAILED;
 	}
 	else
 	{
@@ -1190,6 +1278,63 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 	/*ret = pHashEntry->pAccountingInfo->authFlags & 
 		(AUTH_LOGIN_NOT_FINISHED | AUTH_LOGIN_FAILED);*/
 	ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
+	if(ret)
+	{
+		CAXMLErrorMessage *err = NULL;
+		DOM_Document errDoc;
+		/* Instead of using special login confirmation messages
+		 * we rather send XMLErrorMessages for backward compatibility reasons 
+		 * because old JAPs (version <= 00.09.021) can handle them
+		 */  
+		CAMsg::printMsg(LOG_DEBUG, "Finishing AI login with an error message for the client, flags: %x\n",loginEntry->authFlags);
+		if(authFlags & AUTH_BLOCKED )
+		{
+			err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_BLOCKED,
+										(UINT8 *) "AI login: access denied because your account is blocked");
+		}
+		else if(authFlags & AUTH_ACCOUNT_EMPTY )
+		{
+			err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_ACCOUNT_EMPTY,
+										(UINT8 *) "AI login: access denied because your account is empty");
+		}
+		else if(authFlags & AUTH_INVALID_ACCOUNT )
+		{
+			err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_NO_BALANCE,
+										(UINT8 *) "AI login: access denied because your account is not valid");
+		} 
+		else
+		{
+			err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR,
+										(UINT8 *) "AI login: error occured while connecting, access denied");
+		}
+		
+		err->toXmlDocument(errDoc);
+		pHashEntry->pAccountingInfo->pControlChannel->sendXMLMessage(errDoc);
+		
+		if(err != NULL)
+		{
+			delete err;
+			err = NULL;
+		}
+		/*sendAILoginConfirmation(pAccInfo, 
+								CAXMLErrorMessage::ERR_BLOCKED, 
+								(UINT8*) "AI access denied");*/
+	}
+	else
+	{
+		//send login confirmation to user, but if the message could not be send, login will fail
+		/* These login confirmation messages are necessary for the new AI login protocol to indicate
+		 * that the process is finished after a settlement.
+		 * They won't bother old JAPs (version <= 00.09.021) because they will ignore 
+		 * these confirmations.
+		 */
+		if(sendAILoginConfirmation(pAccInfo,
+									CAXMLErrorMessage::ERR_OK, 
+									(UINT8*) "AI login successful") != E_SUCCESS)
+		{
+			ret |= AUTH_LOGIN_FAILED;
+		}
+	}
 	return ret;
 }
 
@@ -1352,7 +1497,17 @@ int CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo* p
 	elemRoot.appendChild( elemPanic );
 	elemRoot.appendChild( elemPrepaid );
 	setDOMElementValue( elemPanic, b64Challenge );
-	SINT32 prepaidAmount = m_dbInterface->getPrepaidAmount(pAccInfo->accountNumber, m_currentCascade, false);
+	SINT32 prepaidAmount = 0;  //m_dbInterface->getPrepaidAmount(pAccInfo->accountNumber, m_currentCascade, false);
+	
+	CAAccountingDBInterface *dbInterface = CAAccountingDBInterface::getConnection();
+	
+	if(dbInterface != NULL)
+	{
+		prepaidAmount = dbInterface->getPrepaidAmount(pAccInfo->accountNumber, m_currentCascade, false);
+		CAAccountingDBInterface::releaseConnection(dbInterface);
+		dbInterface = NULL;
+	}
+		
 	if (prepaidAmount < 0)
 	{
 		prepaidAmount = 0;
@@ -1469,7 +1624,13 @@ int CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* pA
 	
 	// fetch cost confirmation from last session if available, and retrieve information; synchronized with settle thread
 	bool bSettled;
-	m_dbInterface->getCostConfirmation(pAccInfo->accountNumber, m_currentCascade, &pCC, bSettled);
+	CAAccountingDBInterface *dbInterface = CAAccountingDBInterface::getConnection();
+	if(dbInterface != NULL)
+	{	
+		dbInterface->getCostConfirmation(pAccInfo->accountNumber, m_currentCascade, &pCC, bSettled);
+	}
+	
+	
 	if (pCC != NULL)
 	{
 		if (bSettled)
@@ -1554,7 +1715,16 @@ int CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* pA
 	#ifdef DEBUG		
 	CAMsg::printMsg(LOG_DEBUG, "Checking database for previously prepaid bytes...\n");
 	#endif
-	prepaidAmount = m_dbInterface->getPrepaidAmount(pAccInfo->accountNumber, m_currentCascade, true);
+	//prepaidAmount = m_dbInterface->getPrepaidAmount(pAccInfo->accountNumber, m_currentCascade, true);
+	if(dbInterface != NULL)
+	{
+		prepaidAmount = dbInterface->getPrepaidAmount(pAccInfo->accountNumber, m_currentCascade, true);
+	}
+	else
+	{
+		prepaidAmount = 0;
+	}
+		
 	UINT8 tmp[32];
 	print64(tmp,pAccInfo->accountNumber);
 	if (prepaidAmount > 0)
@@ -1588,7 +1758,15 @@ int CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* pA
 	 * There should be something like an expiration date for the account status, e.g. 1 month
 	 */
 	char expireBuf[10];
-	if (m_dbInterface->getAccountStatus(pAccInfo->accountNumber, status, expireBuf) != E_SUCCESS)
+	SINT32 dbRet;
+	if(dbInterface != NULL);
+	{
+		dbRet = dbInterface->getAccountStatus(pAccInfo->accountNumber, status, expireBuf);
+		CAAccountingDBInterface::releaseConnection(dbInterface);
+		dbInterface = NULL;
+	}
+		
+	if (dbRet != E_SUCCESS)
 	{
 		UINT8 tmp[32];
 		print64(tmp,pAccInfo->accountNumber);
@@ -1616,7 +1794,12 @@ int CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* pA
 		if(dateComp >= 0)
 		{
 			CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: Illegal status %u for account %s is still valid, user is not allowed to login\n", status, tmp);
-			if (status == CAXMLErrorMessage::ERR_KEY_NOT_FOUND)
+			if (status == CAXMLErrorMessage::ERR_BLOCKED)
+			{
+				authFlags |= AUTH_BLOCKED;
+				pAccInfo->authFlags |= AUTH_BLOCKED;
+			}
+			else if (status == CAXMLErrorMessage::ERR_KEY_NOT_FOUND)
 			{
 				authFlags |= AUTH_INVALID_ACCOUNT;
 			}
@@ -1706,7 +1889,6 @@ int CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pAc
 {
 	INIT_STACK;
 	BEGIN_STACK("CAAccountingInstance::handleCostConfirmation");
-
 
 	if (pAccInfo == NULL)
 	{
@@ -1856,8 +2038,15 @@ int CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pAc
 		print64(tmp,pCC->getTransferredBytes());
 		CAMsg::printMsg( LOG_ERR, "Transferredbytes in CC: %s\n", tmp);
 		*/
-		
-		if (m_dbInterface->storeCostConfirmation(*pCC, m_currentCascade) != E_SUCCESS)
+		SINT32 dbRet = E_UNKNOWN;
+		CAAccountingDBInterface *dbInterface = CAAccountingDBInterface::getConnection();
+		if(dbInterface != NULL)
+		{
+			dbRet = dbInterface->storeCostConfirmation(*pCC, m_currentCascade);
+			CAAccountingDBInterface::releaseConnection(dbInterface);
+			dbInterface = NULL;
+		}
+		if (dbRet != E_SUCCESS)
 		{
 			UINT8 tmp[32];
 			print64(tmp,pCC->getAccountNumber());
@@ -2030,9 +2219,18 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 							}
 						}												
 						
-						if (ms_pInstance->m_dbInterface)
+						/*if (ms_pInstance->m_dbInterface)
 						{
 							ms_pInstance->m_dbInterface->storePrepaidAmount(pAccInfo->accountNumber,prepaidBytes, ms_pInstance->m_currentCascade);
+						}*/
+						CAAccountingDBInterface *dbInterface = CAAccountingDBInterface::getConnection();
+						if(dbInterface != NULL)
+						{
+							dbInterface->storePrepaidAmount(pAccInfo->accountNumber,
+															prepaidBytes, 
+															ms_pInstance->m_currentCascade);
+							CAAccountingDBInterface::releaseConnection(dbInterface);
+							dbInterface = NULL;
 						}
 					}					
 
@@ -2112,6 +2310,7 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 			delete pAccInfo->mutex;
 			pAccInfo->mutex = NULL;
 			delete pAccInfo;
+			pAccInfo = NULL;
 		}
 		else
 		{
@@ -2141,6 +2340,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	UINT32 authRemoveFlags = 0;
 	UINT64 confirmedBytes = 0;							
 	UINT64 diffBytes = 0;
+	CAAccountingDBInterface *dbInterface = NULL;
 	
 	/* This should never happen */
 	if(ms_pInstance == NULL)
@@ -2152,15 +2352,11 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	{
 		return E_UNKNOWN;
 	}
-	
+	CAMsg::printMsg(LOG_ERR, "Settlement transaction: starting settlement\n");
 	ms_pInstance->m_pSettlementMutex->lock();
-	
+	dbInterface = CAAccountingDBInterface::getConnection();
 	/* First part get unsettled CCs from the AI database */
-	if(!ms_pInstance->m_dbInterface->isDBConnected())
-	{
-		ret = ms_pInstance->m_dbInterface->initDBConnection();
-	}
-	if(ret!=E_SUCCESS)
+	if(dbInterface == NULL)
 	{
 		CAMsg::printMsg(LOG_ERR, "Settlement transaction: could not connect to Database. Retry later...\n");
 		ms_pInstance->m_pSettlementMutex->unlock();
@@ -2170,10 +2366,15 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	CAMsg::printMsg(LOG_DEBUG, "Settlement transaction: DB connections established!\n");
 	#endif
 
-	ms_pInstance->m_dbInterface->getUnsettledCostConfirmations(q, ms_pInstance->m_currentCascade);
+	dbInterface->getUnsettledCostConfirmations(q, ms_pInstance->m_currentCascade);
 	if (q.isEmpty())
 	{
 		CAMsg::printMsg(LOG_DEBUG, "Settlement transaction: finished gettings CCs, found no CCs to settle\n");
+		if(dbInterface != NULL)
+		{
+			CAAccountingDBInterface::releaseConnection(dbInterface);
+			dbInterface = NULL;
+		}
 		ms_pInstance->m_pSettlementMutex->unlock();
 		return E_SUCCESS;
 	}
@@ -2192,7 +2393,11 @@ SINT32 CAAccountingInstance::settlementTransaction()
 		{
 			CAMsg::printMsg(LOG_ERR, "Settlement transaction: could not get next item from queue\n");
 			q.clean();
-			//ms_pInstance->m_dbInterface->terminateDBConnection();
+			if(dbInterface != NULL)
+			{
+				CAAccountingDBInterface::releaseConnection(dbInterface);
+				dbInterface = NULL;
+			}
 			ms_pInstance->m_pSettlementMutex->unlock();
 			return ret;
 			//break;
@@ -2256,8 +2461,8 @@ SINT32 CAAccountingInstance::settlementTransaction()
 					print64(tmp, confirmedBytes);
 					CAMsg::printMsg(LOG_ERR, "Settlement transaction: Received %s confirmed bytes!\n", tmp);
 				}
-				ms_pInstance->m_dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_ACCOUNT_EMPTY, pErrMsg->getExpTimeString());				
-				ms_pInstance->m_dbInterface->markAsSettled(pCC->getAccountNumber(), ms_pInstance->m_currentCascade, 
+				dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_ACCOUNT_EMPTY, pErrMsg->getExpTimeString());				
+				dbInterface->markAsSettled(pCC->getAccountNumber(), ms_pInstance->m_currentCascade, 
 				pCC->getTransferredBytes());
 			}
 			/*
@@ -2277,10 +2482,10 @@ SINT32 CAAccountingInstance::settlementTransaction()
 					authFlags |= AUTH_OUTDATED_CC;
 					CAMsg::printMsg(LOG_DEBUG, "Settlement transaction: tried outdated CC, received last valid CC back\n");
 					//store it in DB
-					if (ms_pInstance->m_dbInterface->storeCostConfirmation(*attachedCC, 
+					if (dbInterface->storeCostConfirmation(*attachedCC, 
 							ms_pInstance->m_currentCascade) == E_SUCCESS)
 					{
-						if (ms_pInstance->m_dbInterface->markAsSettled(attachedCC->getAccountNumber(), ms_pInstance->m_currentCascade,
+						if (dbInterface->markAsSettled(attachedCC->getAccountNumber(), ms_pInstance->m_currentCascade,
 												attachedCC->getTransferredBytes()) != E_SUCCESS)
 						{
 							CAMsg::printMsg(LOG_ERR, "Settlement transaction: Could not mark last valid CC as settled." 
@@ -2303,6 +2508,8 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			{
 				authFlags |= AUTH_BLOCKED;
 				bDeleteCC = true;
+				/* Don't forget to store the status when account is blocked */
+				dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_BLOCKED, pErrMsg->getExpTimeString());
 			}
 			else if (pErrMsg->getErrorCode() == CAXMLErrorMessage::ERR_DATABASE_ERROR)
 			{												
@@ -2327,7 +2534,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			if (bDeleteCC)
 			{
 				//delete costconfirmation to avoid trying to settle an unusable CC again and again					
-				if(ms_pInstance->m_dbInterface->deleteCC(pCC->getAccountNumber(), ms_pInstance->m_currentCascade) == E_SUCCESS)
+				if(dbInterface->deleteCC(pCC->getAccountNumber(), ms_pInstance->m_currentCascade) == E_SUCCESS)
 				{
 					CAMsg::printMsg(LOG_ERR, "Settlement transaction: unusable cost confirmation was deleted\n");
 				}	
@@ -2340,7 +2547,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 		else //settling was OK, so mark account as settled
 		{
 			authRemoveFlags |= AUTH_WAITING_FOR_FIRST_SETTLED_CC;
-			if (ms_pInstance->m_dbInterface->markAsSettled(pCC->getAccountNumber(), 
+			if (dbInterface->markAsSettled(pCC->getAccountNumber(), 
 									ms_pInstance->m_currentCascade, 
 									pCC->getTransferredBytes()) != E_SUCCESS)
 			 {
@@ -2374,25 +2581,44 @@ SINT32 CAAccountingInstance::settlementTransaction()
 		}
 	}
 	
-	/*
-	 * Now alter the hashtable entries if needed. This blocks communication with JAP clients
-	 * and should therefore be done as quickly as possible.
-	 */
 	SettleEntry *first = entry;
+	UINT64 myWaitNr = 0;
 	if (entry)
 	{
-		while (entry)
+		if(ms_pInstance->m_nextSettleNr == ms_pInstance->m_settleWaitNr)
+		{
+			//no one is waiting, we use this occasion to rest the wait numbers
+			ms_pInstance->m_nextSettleNr = 0;
+			ms_pInstance->m_settleWaitNr = 0;
+		}
+		else
+		{
+			//get global wait number and wait but release the DBConnection first.
+			CAAccountingDBInterface::releaseConnection(dbInterface);
+			dbInterface = NULL;
+			ms_pInstance->m_settleWaitNr++;
+			myWaitNr = ms_pInstance->m_settleWaitNr;
+			while(myWaitNr != ms_pInstance->m_nextSettleNr)
+			{
+				CAMsg::printMsg(LOG_INFO, "Thread must wait to alter login table after settling: %Lu before him in the queue\n", 
+										(myWaitNr - ms_pInstance->m_nextSettleNr));
+				ms_pInstance->m_pSettlementMutex->wait();
+			}
+			dbInterface = CAAccountingDBInterface::getConnection();
+		}
+		
+		while (entry && (dbInterface!=NULL))
 		{			
 			if (entry->authFlags & (AUTH_INVALID_ACCOUNT | AUTH_UNKNOWN))
 			{
-				ms_pInstance->m_dbInterface->storePrepaidAmount(
+				dbInterface->storePrepaidAmount(
 						entry->accountNumber, 0, ms_pInstance->m_currentCascade);
 			}
 			else if (entry->diffBytes)
 			{
 				// user is currently not logged in; set correct prepaid bytes in DB
 				SINT32 prepaidBytes = 
-					ms_pInstance->m_dbInterface->getPrepaidAmount(entry->accountNumber, 
+					dbInterface->getPrepaidAmount(entry->accountNumber, 
 							ms_pInstance->m_currentCascade, true);
 				if (prepaidBytes > 0)
 				{ 
@@ -2404,7 +2630,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 					{
 						prepaidBytes -= entry->diffBytes;
 					}
-					ms_pInstance->m_dbInterface->storePrepaidAmount(
+					dbInterface->storePrepaidAmount(
 						entry->accountNumber, prepaidBytes, ms_pInstance->m_currentCascade);
 				}
 			}
@@ -2412,11 +2638,15 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			entry = nextEntry;									
 		}
 	}
-	//ms_pInstance->m_dbInterface->terminateDBConnection();
+	//dbInterface->terminateDBConnection();
+	/* Before unlocking give the DB Connection free */
+	CAAccountingDBInterface::releaseConnection(dbInterface);
+	dbInterface = NULL;
 	ms_pInstance->m_pSettlementMutex->unlock();
 	
 	if(first)
 	{
+		CAMsg::printMsg(LOG_INFO, "Settlement thread with wait nr %Lu alters hashtable.\n", myWaitNr);
 		entry = first;
 		ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
 		while (entry)
@@ -2437,9 +2667,26 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			delete entry;
 			entry = nextEntry;
 		}
-			
+		ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
+		
+		/* In this case we get the next waiting thread to alter the table running */
+		ms_pInstance->m_pSettlementMutex->lock();
+		if(ms_pInstance->m_settleWaitNr != ms_pInstance->m_nextSettleNr)
+		{
+			//There are Threads waiting
+			CAMsg::printMsg(LOG_INFO, "Waking up next Thread %Lu are waiting.\n", 
+							(ms_pInstance->m_settleWaitNr - ms_pInstance->m_nextSettleNr));
+			ms_pInstance->m_nextSettleNr++;
+			ms_pInstance->m_pSettlementMutex->broadcast();
+		}
+		ms_pInstance->m_pSettlementMutex->unlock();
 	}
-	ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
+	
+	/*if(dbInterface != NULL)
+	{
+		CAAccountingDBInterface::releaseConnection(dbInterface);
+		dbInterface = NULL;
+	}*/
 	return E_SUCCESS;
 }
 
