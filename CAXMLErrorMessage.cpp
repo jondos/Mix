@@ -130,8 +130,7 @@ SINT32 CAXMLErrorMessage::setValues(DOM_Element &elemRoot)
 	SINT32 rc;
 		
 	if( ((rc=getDOMElementAttribute(elemRoot, "code", &tmp)) !=E_SUCCESS) ||
-			((rc=getDOMElementAttribute(elemRoot, "expires", (UINT8*) strExp, &strExpLen)) !=E_SUCCESS) ||
-			((rc=getDOMElementValue(elemRoot, strGeneral, &strGeneralLen)) !=E_SUCCESS)
+			 ((rc=getDOMElementValue(elemRoot, strGeneral, &strGeneralLen)) !=E_SUCCESS)
 		)
 	{
 		UINT8 buff[8192];
@@ -147,8 +146,13 @@ SINT32 CAXMLErrorMessage::setValues(DOM_Element &elemRoot)
 	m_strErrMsg = new UINT8[strGeneralLen+1];
 	strcpy((char*)m_strErrMsg, (char*)strGeneral);
 	
-	strncpy(m_strExpires, strExp, 10); 
-		
+	if((rc=getDOMElementAttribute(elemRoot, "expires", (UINT8*) strExp, &strExpLen)) ==E_SUCCESS)
+	{	
+		if(m_strExpires != NULL)
+		{
+			strncpy(m_strExpires, strExp, 10);
+		}
+	}
 	DOM_Element objectRootElem;
 	getDOMChildByName(elemRoot, (UINT8*)"MessageObject", objectRootElem, false);
 	
@@ -208,6 +212,13 @@ SINT32 CAXMLErrorMessage::toXmlElement(DOM_Document &a_doc, DOM_Element &elemRoo
 	{	
 		elemRoot = a_doc.createElement("ErrorMessage");
 		setDOMElementAttribute(elemRoot, "code", m_iErrorCode);
+		if(m_strExpires != NULL)
+		{
+			if(m_strExpires[0] != 0)
+			{
+				setDOMElementAttribute(elemRoot, "expires", (UINT8*)m_strExpires);
+			}
+		}
 		setDOMElementValue(elemRoot, m_strErrMsg);
 
 		if (m_messageObject)
