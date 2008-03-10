@@ -1142,7 +1142,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		aiLoginStatus = CAAccountingInstance::loginProcessStatus(pHashEntry);
 		while(aiLoginStatus & AUTH_LOGIN_NOT_FINISHED)
 		{
-			if(pNewUser->receive(paymentLoginPacket, 5000) != MIXPACKET_SIZE)
+			if(pNewUser->receive(paymentLoginPacket, AI_LOGIN_SO_TIMEOUT) != MIXPACKET_SIZE)
 			{
 				aiLoginStatus = AUTH_LOGIN_FAILED;
 				break;
