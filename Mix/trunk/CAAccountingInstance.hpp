@@ -152,7 +152,7 @@ public:
 	//static void forcedSettle();
 	
 	static SINT32 settlementTransaction();
-	
+		
 	static const SINT32 HANDLE_PACKET_CONNECTION_OK; // this packet has been checked and is OK
 	static const SINT32 HANDLE_PACKET_CONNECTION_UNCHECKED; // the packet might be OK (is it not checked)
 	static const SINT32 HANDLE_PACKET_HOLD_CONNECTION; // queue packets until JAP has authenticated
@@ -202,6 +202,7 @@ private:
 	static SINT32 makeCCRequest( const UINT64 accountNumber, const UINT64 transferredBytes, DOM_Document& doc);
 	static SINT32 sendCCRequest(tAiAccountingInfo* pAccInfo);
 	static SINT32 makeAccountRequest(DOM_Document &doc);
+	static SINT32 sendAILoginConfirmation(tAiAccountingInfo* pAccInfo, const UINT32 code, UINT8 * message);
 	
 	//possible replies to a JAP
 	static SINT32 returnOK(tAiAccountingInfo* pAccInfo);
@@ -246,7 +247,7 @@ private:
 	UINT32 m_allHashesLen;
 
 	/** the interface to the database */
-	CAAccountingDBInterface * m_dbInterface;
+	//CAAccountingDBInterface * m_dbInterface;
 	CAAccountingBIInterface *m_pPiInterface;
 	
 	UINT32 m_iSoftLimitBytes;
@@ -278,7 +279,12 @@ private:
 	
 	bool m_bThreadRunning;
 	
-	CAMutex *m_pSettlementMutex;
+	//bool m_loginHashTableChangeInProgress;
+	
+	/* For Thread synchronisation can only be set and read when m_pSettlementMutex lock is acquired */
+	volatile UINT64 m_nextSettleNr;
+	volatile UINT64 m_settleWaitNr;
+	CAConditionVariable *m_pSettlementMutex;
 };
 
 
