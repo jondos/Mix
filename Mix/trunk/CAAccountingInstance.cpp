@@ -844,7 +844,7 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
     pAccInfo->bytesToConfirm = (prepaidInterval) + pAccInfo->transferredBytes;
 	makeCCRequest(pAccInfo->accountNumber, pAccInfo->bytesToConfirm, doc);				
 	//pAccInfo->authFlags |= AUTH_SENT_CC_REQUEST;
-#ifdef DEBUG	
+//#ifdef DEBUG	
 	CAMsg::printMsg(LOG_DEBUG, "CC request sent for %u bytes \n",pAccInfo->bytesToConfirm);
 	CAMsg::printMsg(LOG_DEBUG, "transferrred bytes: %u bytes \n",pAccInfo->transferredBytes);
 	CAMsg::printMsg(LOG_DEBUG, "prepaid Interval: %u \n",prepaidInterval);	
@@ -856,7 +856,7 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
 	DOM_Output::dumpToMem(doc,debugout,&debuglen);
 	debugout[debuglen] = 0;			
 	CAMsg::printMsg(LOG_DEBUG, "the CC sent looks like this: %s \n",debugout);
-#endif			
+//#endif			
 	
 	//FINISH_STACK("CAAccountingInstance::sendCCRequest");
 	
@@ -1033,12 +1033,13 @@ SINT32 CAAccountingInstance::sendAILoginConfirmation(tAiAccountingInfo* pAccInfo
 		setDOMElementValue(elemRoot, message);
 		doc.appendChild(elemRoot);
 		
+#ifdef DEBUG
 		UINT32 debuglen = 3000;
 		UINT8 debugout[3000];
 		DOM_Output::dumpToMem(doc,debugout,&debuglen);
 		debugout[debuglen] = 0;			
 		CAMsg::printMsg(LOG_DEBUG, "the AILogin Confirmation sent looks like this: %s \n",debugout);
-		
+#endif		
 		return pAccInfo->pControlChannel->sendXMLMessage(doc);
 		
 		return E_SUCCESS;
@@ -1155,7 +1156,6 @@ void CAAccountingInstance::processJapMessageLoginHelper(fmHashTableEntry *pHashE
 		{
 			if(handlerReturnValue != CAXMLErrorMessage::ERR_OK)
 			{
-				CAMsg::printMsg( LOG_ERR, "User login not successful\n");
 				pHashEntry->pAccountingInfo->authFlags &= ~AUTH_LOGIN_NOT_FINISHED;
 				pHashEntry->pAccountingInfo->authFlags |= AUTH_LOGIN_FAILED;
 				
@@ -1176,6 +1176,12 @@ void CAAccountingInstance::processJapMessageLoginHelper(fmHashTableEntry *pHashE
 				{
 					err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_NO_BALANCE,
 												(UINT8 *) "AI login: access denied because your account is not valid");
+				} 
+				else if(pHashEntry->pAccountingInfo->authFlags & AUTH_FAKE )
+				{
+					err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_WRONG_DATA, 
+												(UINT8*)"Your CostConfirmation has a wrong number of transferred bytes");
+					
 				} 
 				else
 				{
@@ -1643,7 +1649,8 @@ int CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* pA
 		#ifdef DEBUG
 			UINT8 tmp[32];
 			print64(tmp,pAccInfo->transferredBytes);
-			CAMsg::printMsg(LOG_DEBUG, "TransferredBytes is now %s\n", tmp);
+			CAMsg::printMsg(LOG_DEBUG, "Setting confirmedBytes to %Lu\n", pAccInfo->confirmedBytes);
+			CAMsg::printMsg(LOG_DEBUG, "pAccInfo->transferredBytes is now %s\n", tmp);
 		#endif			
 		//delete pCC;
 	}
@@ -1776,6 +1783,7 @@ int CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* pA
 	{
 		UINT32 authFlags = 0;
 		UINT8 tmp[32];
+		SINT32 dateComp = -1;
 		
 		struct tm *expireDate = new struct tm;
 		time_t nowTime = time(NULL); 
@@ -1783,17 +1791,25 @@ int CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* pA
 		char nowBuf[10];
 		
 		print64(tmp,pAccInfo->accountNumber);
-		
-		strptime((const char*)expireBuf,"%m/%d/%y", expireDate);
+		if(expireBuf[0] != 0)
+		{
+			strptime((const char*)expireBuf,"%m/%d/%y", expireDate);
+			dateComp= compDate(expireDate, now);
+		}
+		else
+		{
+			CAMsg::printMsg(LOG_INFO, "CAAccountingInstance: Warning no expiration date was given for account %s with illegal status %u\n", tmp, status);
+			//@todo: delete this accountstatus. Right now we ignore this case.
+		}
+		/*
 		strftime(nowBuf, 9, "%m/%d/%y", now);
 		CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: account %s status %u expires on %s, today is %s\n", tmp, status, expireBuf, nowBuf);
-		
-		SINT32 dateComp= compDate(expireDate, now);
+		*/
 		
 		// Accountstatus is valid
 		if(dateComp >= 0)
 		{
-			CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: Illegal status %u for account %s is still valid, user is not allowed to login\n", status, tmp);
+			CAMsg::printMsg(LOG_INFO, "CAAccountingInstance: Illegal status %u for account %s is still valid, user is not allowed to login\n", status, tmp);
 			if (status == CAXMLErrorMessage::ERR_BLOCKED)
 			{
 				authFlags |= AUTH_BLOCKED;
@@ -1843,6 +1859,9 @@ int CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo* pA
 		//m_dbInterface->getCostConfirmation(pAccInfo->accountNumber, m_currentCascade, &pCC);
 		if(pCC != NULL)
 		{			
+#ifdef DEBUG
+			CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Sending pcc to sign with %Lu transferred bytes\n", pCC->getTransferredBytes());
+#endif
 			// the typical case; the user had logged in before
 			pAccInfo->pControlChannel->sendXMLMessage(pCC->getXMLDocument());
 			//delete pCC;
@@ -2013,16 +2032,22 @@ int CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* pAc
 	//The CC's transferredBytes should be equivalent to 
 	//AccInfo's confirmed bytes + the Config's PrepaidInterval - the number of bytes transferred between
 	//requesting and receiving the CC
-	if (pCC->getTransferredBytes() <= pAccInfo->confirmedBytes)
+#ifdef DEBUG
+	CAMsg::printMsg( LOG_DEBUG, "received cost confirmation for  %Lu transferred bytes where confirmed bytes are %Lu, we need %Lu bytes to confirm\n", 
+			pCC->getTransferredBytes(), pAccInfo->confirmedBytes, pAccInfo->bytesToConfirm );
+#endif
+	
+	if (pCC->getTransferredBytes() < pAccInfo->confirmedBytes)
 	{
-		if (pCC->getTransferredBytes() < pAccInfo->confirmedBytes)
-		{
-			UINT8 tmp[32], tmpOther[32];
-			print64(tmp,pCC->getTransferredBytes());
-			print64(tmpOther,pAccInfo->confirmedBytes);		
-			CAMsg::printMsg( LOG_ERR, "CostConfirmation has insufficient number of bytes (%s < %s). Ignoring...\n", 
-				tmp, tmpOther );
-		}
+			
+		CAMsg::printMsg( LOG_ERR, "CostConfirmation has insufficient number of bytes (%Lu < %Lu). kickout user...\n", 
+				pCC->getTransferredBytes(), pAccInfo->confirmedBytes );
+		
+		//@todo: perhaps we should use another flag to indicate that this user should be kicked out.
+		pAccInfo->authFlags |= AUTH_FAKE;
+		delete pCC;
+		pAccInfo->mutex->unlock();
+		return CAXMLErrorMessage::ERR_WRONG_DATA;
 		
 		/*
 		CAXMLErrorMessage err(CAXMLErrorMessage::ERR_WRONG_DATA, 
@@ -2352,16 +2377,16 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	{
 		return E_UNKNOWN;
 	}
-	CAMsg::printMsg(LOG_ERR, "Settlement transaction: starting settlement\n");
-	ms_pInstance->m_pSettlementMutex->lock();
+	
 	dbInterface = CAAccountingDBInterface::getConnection();
-	/* First part get unsettled CCs from the AI database */
 	if(dbInterface == NULL)
 	{
 		CAMsg::printMsg(LOG_ERR, "Settlement transaction: could not connect to Database. Retry later...\n");
-		ms_pInstance->m_pSettlementMutex->unlock();
-		return ret;
+		return E_NOT_CONNECTED;
 	}
+	
+	ms_pInstance->m_pSettlementMutex->lock();
+	/* First part get unsettled CCs from the AI database */
 	#ifdef DEBUG	
 	CAMsg::printMsg(LOG_DEBUG, "Settlement transaction: DB connections established!\n");
 	#endif
@@ -2460,10 +2485,23 @@ SINT32 CAAccountingInstance::settlementTransaction()
 					UINT8 tmp[32];
 					print64(tmp, confirmedBytes);
 					CAMsg::printMsg(LOG_ERR, "Settlement transaction: Received %s confirmed bytes!\n", tmp);
+					
 				}
-				dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_ACCOUNT_EMPTY, pErrMsg->getExpTimeString());				
+				
+				//check if expDate is set don't store status otherwise
+				if(pErrMsg->getExpTimeString()!=NULL)
+				{
+					if(*(pErrMsg->getExpTimeString())!=0)
+					{
+						dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_ACCOUNT_EMPTY, pErrMsg->getExpTimeString());				
+					}
+				}
 				dbInterface->markAsSettled(pCC->getAccountNumber(), ms_pInstance->m_currentCascade, 
-				pCC->getTransferredBytes());
+											pCC->getTransferredBytes());
+#ifdef DEBUG
+				CAMsg::printMsg(LOG_ERR, "Settlement transaction: settling %Lu bytes for account %Lu\n", 
+											pCC->getTransferredBytes(), pCC->getAccountNumber());
+#endif
 			}
 			/*
 			else if (pErrMsg->getErrorCode() == CAXMLErrorMessage::ERR_INVALID_PRICE_CERT)
@@ -2508,9 +2546,19 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			{
 				authFlags |= AUTH_BLOCKED;
 				bDeleteCC = true;
-				/* Don't forget to store the status when account is blocked */
-				dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_BLOCKED, pErrMsg->getExpTimeString());
+				
+				
+				/* Don't forget to store the status when account is blocked
+				  but first check if expDate is set, otherwise don't store status */
+				if(pErrMsg->getExpTimeString()!=NULL)
+				{
+					if(*(pErrMsg->getExpTimeString())!=0)
+					{
+						dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_BLOCKED, pErrMsg->getExpTimeString());
+					}
+				}
 			}
+			
 			else if (pErrMsg->getErrorCode() == CAXMLErrorMessage::ERR_DATABASE_ERROR)
 			{												
 				//authFlags |= AUTH_DATABASE;
@@ -2646,7 +2694,9 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	
 	if(first)
 	{
-		CAMsg::printMsg(LOG_INFO, "Settlement thread with wait nr %Lu alters hashtable.\n", myWaitNr);
+#ifdef DEBUG
+		CAMsg::printMsg(LOG_DEBUG, "Settlement thread with wait nr %Lu alters hashtable.\n", myWaitNr);
+#endif
 		entry = first;
 		ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
 		while (entry)
