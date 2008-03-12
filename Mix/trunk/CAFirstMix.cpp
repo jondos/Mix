@@ -51,6 +51,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifdef PAYMENT
 	#include "CAAccountingControlChannel.hpp"
 	#include "CAAccountingInstance.hpp"
+	#include "CAAccountingDBInterface.hpp"
 #endif
 extern CACmdLnOptions* pglobalOptions;
 #include "CAReplayControlChannel.hpp"
@@ -226,6 +227,10 @@ SINT32 CAFirstMix::init()
 #endif
 
 #ifdef PAYMENT
+		if(CAAccountingDBInterface::init() != E_SUCCESS)
+		{
+			exit(1);
+		}
 		CAAccountingInstance::init(this);
 #endif
 
@@ -1197,7 +1202,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		 */
 		if(!(aiLoginStatus & AUTH_LOGIN_FAILED))
 		{
-			CAMsg::printMsg(LOG_ERR,"AI login messages successfully exchanged: now starting settlement for user account balancing check\n");
+#ifdef DEBUG
+			CAMsg::printMsg(LOG_DEBUG,"AI login messages successfully exchanged: now starting settlement for user account balancing check\n");
+#endif
 			aiLoginStatus = CAAccountingInstance::settlementTransaction();
 		}
 		if(!(aiLoginStatus & AUTH_LOGIN_FAILED))
@@ -1205,20 +1212,22 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			aiLoginStatus = CAAccountingInstance::finishLoginProcess(pHashEntry);
 			if(aiLoginStatus & AUTH_LOGIN_FAILED)
 			{
-				CAMsg::printMsg(LOG_ERR,"Settlement showed that user is not allowed to login: %x \n", aiLoginStatus);
+#ifdef DEBUG
+				CAMsg::printMsg(LOG_DEBUG,"Settlement showed that user is not allowed to login: %x \n", aiLoginStatus);
+#endif
 			}
 		}
 		
 		if(aiLoginStatus & AUTH_LOGIN_FAILED)
 		{
-			CAMsg::printMsg(LOG_ERR,"User AI login failed\n");
+			CAMsg::printMsg(LOG_INFO,"User AI login failed\n");
 			m_pChannelList->remove(pNewUser);
 			delete pNewUser;
 			pNewUser = NULL;
 			m_pIPList->removeIP(peerIP);
 			return E_UNKNOWN;
 		}
-		CAMsg::printMsg(LOG_ERR,"User AI login successful\n");
+		CAMsg::printMsg(LOG_INFO,"User AI login successful\n");
 #endif
 		
 #ifdef WITH_CONTROL_CHANNELS_TEST
@@ -1524,6 +1533,7 @@ SINT32 CAFirstMix::clean()
 
 #ifdef PAYMENT
 	CAAccountingInstance::clean();
+	CAAccountingDBInterface::cleanup();
 #endif
 		if(m_psocketgroupUsersRead!=NULL)
 			delete m_psocketgroupUsersRead;

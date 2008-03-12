@@ -92,14 +92,18 @@ class CAAccountingDBInterface
 		SINT32 checkCountAllQuery(UINT8* a_query, UINT32& r_count);
 		
 		/* Requests a DB connection. Blocks until it is available and returns a 
-		 * connected DB Interface which is then owned by the requesting thread
+		 * DB Interface which is then owned by the requesting thread. In general the returned
+		 * interface is already connected but it is also returned if a connection could not be
+		 * established
 		 */
 		static CAAccountingDBInterface *getConnection();
+		
 		/* Requests a DB connection. Returns a connected DB Interface 
 		 * if it is available, which is then owned by the requesting thread.
 		 * Returns NULL otherwise.
 		 */
-		static CAAccountingDBInterface *getConnectionNB();
+		//static CAAccountingDBInterface *getConnectionNB();
+		
 		/* Release the DBConnection which must be owned by the calling thread
 		 * Connection will not be disconnected
 		 */
