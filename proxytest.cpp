@@ -39,10 +39,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifdef _DEBUG //For FreeBSD memory checking functionality
 	const char* _malloc_options="AX";
 #endif
-
-#ifdef PAYMENT
-#include "CAAccountingDBInterface.hpp"
-#endif
 	
 #ifndef ONLY_LOCAL_PROXY
 	#include "xml/DOM_Output.hpp"
@@ -161,9 +157,7 @@ void cleanup()
 #endif
 		CAMsg::printMsg(LOG_CRIT,"Terminating Programm!\n");
 		//		CASocketAddrINet::destroy();
-#ifdef PAYMENT
-		CAAccountingDBInterface::cleanup();
-#endif
+
 		#ifdef _WIN32
 			WSACleanup();
 		#endif
@@ -568,9 +562,7 @@ int main(int argc, const char* argv[])
 			CAMsg::printMsg(LOG_CRIT,"Error: Cannot parse configuration file!\n");
 			goto EXIT;
 		}
-#ifdef PAYMENT
-		CAAccountingDBInterface::init();
-#endif
+
 		if(!(pglobalOptions->isFirstMix()||pglobalOptions->isMiddleMix()||pglobalOptions->isLastMix()||pglobalOptions->isLocalProxy()))
 			{
 				CAMsg::printMsg(LOG_CRIT,"You must specifiy, which kind of Mix you want to run!\n");

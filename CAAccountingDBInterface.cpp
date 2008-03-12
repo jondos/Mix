@@ -119,7 +119,7 @@ SINT32 CAAccountingDBInterface::initDBConnection()
 		if(m_dbConn==NULL||PQstatus(m_dbConn) == CONNECTION_BAD) 
 		{
 			CAMsg::printMsg(
-				LOG_ERR, "CAAccountingDBInteface: Could not connect to Database. Reason: %s\n",
+				LOG_ERR, "CAAccountingDBInterface: Could not connect to Database. Reason: %s\n",
 				PQerrorMessage(m_dbConn)
 			);
 			PQfinish(m_dbConn);
@@ -140,19 +140,19 @@ bool CAAccountingDBInterface::checkConnectionStatus()
 	
 	if (PQstatus(m_dbConn) != CONNECTION_OK) 
 	{
-		CAMsg::printMsg(LOG_ERR, "CAAccountingDBInteface: Connection to database lost! Reason: %s\n", 
+		CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: Connection to database lost! Reason: %s\n", 
 			PQerrorMessage(m_dbConn));	
     	PQreset(m_dbConn);
     	
       	if (PQstatus(m_dbConn) != CONNECTION_OK) 
       	{
-      		CAMsg::printMsg(LOG_ERR, "CAAccountingDBInteface: Could not reset database connection! Reason: %s\n", 
+      		CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: Could not reset database connection! Reason: %s\n", 
       			PQerrorMessage(m_dbConn));	
 			terminateDBConnection();
       	}
       	else
       	{
-      		CAMsg::printMsg(LOG_INFO, "CAAccountingDBInteface: Database connection has been reset successfully!");
+      		CAMsg::printMsg(LOG_INFO, "CAAccountingDBInterface: Database connection has been reset successfully!");
       	}
 	}
 	
@@ -927,13 +927,13 @@ CAAccountingDBInterface *CAAccountingDBInterface::getConnection()
 			//wait until connection is free
 			ms_threadWaitNr++;
 			myWaitNr = ms_threadWaitNr;
-			CAMsg::printMsg(LOG_DEBUG, "CAAccountingDBInterface: Thread %x waits for connection with waitNr %Lu and %Lu Threads waiting before\n",
+			CAMsg::printMsg(LOG_INFO, "CAAccountingDBInterface: Thread %x waits for connection with waitNr %Lu and %Lu Threads waiting before\n",
 					pthread_self(), myWaitNr, (myWaitNr - ms_nextThreadNr));
 			while(ms_nextThreadNr != myWaitNr)
 			{
 				ms_pConnectionAvailable->wait();
 			}
-			CAMsg::printMsg(LOG_DEBUG, "CAAccountingDBInterface: Thread %x with waitNr %Lu continues\n",
+			CAMsg::printMsg(LOG_INFO, "CAAccountingDBInterface: Thread %x with waitNr %Lu continues\n",
 								pthread_self(), myWaitNr);
 			if(ms_threadWaitNr == ms_nextThreadNr)
 			{
@@ -951,7 +951,7 @@ CAAccountingDBInterface *CAAccountingDBInterface::getConnection()
 		{
 			if(returnedConnection->initDBConnection() != E_SUCCESS)
 			{
-				CAMsg::printMsg(LOG_DEBUG, "CAAccountingDBInterface: Warning requested DB connection can not be established\n"); 
+				CAMsg::printMsg(LOG_WARNING, "CAAccountingDBInterface: Warning requested DB connection can not be established\n"); 
 					
 				/*returnedConnection->testAndResetOwner();
 				return NULL;*/
@@ -963,11 +963,11 @@ CAAccountingDBInterface *CAAccountingDBInterface::getConnection()
 	return returnedConnection;
 }
 			
-CAAccountingDBInterface *CAAccountingDBInterface::getConnectionNB()
+/*CAAccountingDBInterface *CAAccountingDBInterface::getConnectionNB()
 {
 	//@todo: implementation
 	return NULL;
-}
+}*/
 			
 SINT32 CAAccountingDBInterface::releaseConnection(CAAccountingDBInterface *dbIf)
 {
@@ -996,7 +996,7 @@ SINT32 CAAccountingDBInterface::releaseConnection(CAAccountingDBInterface *dbIf)
 		{
 			ms_nextThreadNr++;
 			//There are threads waiting
-			CAMsg::printMsg(LOG_DEBUG, "CAAccountingDBInterface: There are %Lu Threads waiting. Waking up thread with waitNr. %Lu\n",
+			CAMsg::printMsg(LOG_INFO, "CAAccountingDBInterface: There are %Lu Threads waiting. Waking up thread with waitNr. %Lu\n",
 											 (ms_threadWaitNr - ms_nextThreadNr), ms_nextThreadNr);
 			ms_pConnectionAvailable->broadcast();
 		}
@@ -1064,7 +1064,7 @@ SINT32 CAAccountingDBInterface::init()
 		{
 			if(ms_pDBConnectionPool[i] != NULL)
 			{
-				CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: DBConnection initialization: Already initialized connections !?! Or someone forgot to do cleaunp?\n");
+				CAMsg::printMsg(LOG_WARNING, "CAAccountingDBInterface: DBConnection initialization: Already initialized connections !?! Or someone forgot to do cleaunp?\n");
 			}
 			ms_pDBConnectionPool[i] = new CAAccountingDBInterface();
 			dbConnStatus = ms_pDBConnectionPool[i]->initDBConnection();
@@ -1072,6 +1072,7 @@ SINT32 CAAccountingDBInterface::init()
 			if(dbConnStatus != E_SUCCESS)
 			{
 				CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: DBConnection initialization: could not connect to Database.\n");
+				return E_UNKNOWN;
 			}
 		}
 	}
@@ -1080,6 +1081,7 @@ SINT32 CAAccountingDBInterface::init()
 		CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: DBConnection initialization failed.\n");
 		return E_UNKNOWN;
 	}
+	return E_SUCCESS;
 }
 
 /* IMPORTANT: make that EVERY thread is terminated that could access the Database!
@@ -1089,7 +1091,7 @@ SINT32 CAAccountingDBInterface::init()
 SINT32 CAAccountingDBInterface::cleanup()
 {
 	UINT32 i;
-	SINT32 dbConnStatus;
+	SINT32 dbConnStatus, ret = E_SUCCESS;
 	if(ms_pDBConnectionPool != NULL)
 	{
 		for(i=0; i < MAX_DB_CONNECTIONS; i++)
@@ -1109,6 +1111,7 @@ SINT32 CAAccountingDBInterface::cleanup()
 			if(dbConnStatus != E_SUCCESS)
 			{
 				CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: DBConnection cleanup: an error occured while closing DBConnection.\n");
+				ret = dbConnStatus;
 			}
 		}
 	}
@@ -1121,7 +1124,7 @@ SINT32 CAAccountingDBInterface::cleanup()
 		delete ms_pConnectionAvailable;
 		ms_pConnectionAvailable = NULL;
 	}
-	return 0;
+	return ret;
 }
 
 #endif
