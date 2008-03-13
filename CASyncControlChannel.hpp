@@ -49,11 +49,11 @@ class CASyncControlChannel : public CAAbstractControlChannel
 				}
 
 		/**Override this method to receive a XML Message.
-			* Note: The DOM_Document reference is valid onyl within this call!
+			* Note: The DOMDocument reference is valid only within this call, i.e. will be delete afterwards form the caller!
 			* If you need to store it for later processing, make a copy of
-			* the DOM_Document using docMsg.cloneNode(true)
+			* the DOMDocument using docMsg->cloneNode(true)
 			*/
-		virtual SINT32 processXMLMessage(const DOM_Document& docMsg)=0;
+		virtual SINT32 processXMLMessage(const XERCES_CPP_NAMESPACE::DOMDocument* docMsg)=0;
 
 	protected:
 		SINT32 proccessMessage(const UINT8* msg, UINT32 msglen)
@@ -100,18 +100,21 @@ class CASyncControlChannel : public CAAbstractControlChannel
 					else
 						CAMsg::printMsg(LOG_DEBUG,"CASyncControlChannel::proccessMessageComplete() \n");
 				#endif
-				MemBufInputSource oInput(m_MsgBuff,m_aktIndex,"synchannel");
-				DOMParser oParser;
-				oParser.parse(oInput);
+				
+				XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(m_MsgBuff,m_aktIndex);
 				m_aktIndex=0;
 				m_MsgBytesLeft=0;
-				DOM_Document doc=oParser.getDocument();
 				if(doc==NULL)
+				{
+					CAMsg::printMsg(LOG_ERR,"CASyncControlChannel::proccessMessageComplete() cannot call processXMLMessage for null!\n");
 					return E_UNKNOWN;
+				}
 				#ifdef DEBUG
 					CAMsg::printMsg(LOG_DEBUG,"CASyncControlChannel::proccessMessageComplete() call processXMLMessage()\n");
 				#endif
-				return processXMLMessage(doc);
+				SINT32 ret=processXMLMessage(doc);
+				doc->release();
+				return ret;
 			}
 
 		///buffer for assembling the parts of the message

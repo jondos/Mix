@@ -29,7 +29,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifndef __CAXMLBI__
 #define __CAXMLBI__
 
-#ifndef ONLY_LOCAL_PROXY
+#if !defined (ONLY_LOCAL_PROXY) && defined(PAYMENT)
 #include "CAAbstractXMLEncodable.hpp"
 #include "CACertificate.hpp"
 #include "CASignature.hpp"
@@ -45,7 +45,7 @@ class CAXMLBI : public CAAbstractXMLEncodable
 {
 	public:
 		static CAXMLBI* getInstance(const UINT8 * biID, const UINT8 * hostName, const int portNumber, CACertificate * pCert);
-		static CAXMLBI* getInstance(DOM_Element & elemRoot);
+		static CAXMLBI* getInstance(DOMElement* elemRoot);
 		~CAXMLBI();
 			
 		/** returns the BI's unique name (identifier) */
@@ -79,28 +79,28 @@ class CAXMLBI : public CAAbstractXMLEncodable
 				return m_iPortNumber;
 			}
 			
-		SINT32 toXmlElement(DOM_Document &a_doc, DOM_Element &elemRoot);
+		SINT32 toXmlElement( XERCES_CPP_NAMESPACE::DOMDocument* a_doc, DOMElement* & elemRoot);
 		
 		CACertificate* getCertificate()
 		{
 			return m_pCert;
 		}
 		
-		static const UINT8* const getXMLElementName()
+		static const char* const getXMLElementName()
 			{
 				return CAXMLBI::ms_pXmlElemName;
 			}
 			
 	
 	private:
-		SINT32 setValues(DOM_Element &elemRoot);
+		SINT32 setValues(DOMElement* elemRoot);
 		UINT8 * m_pBiID;
 		UINT8 * m_pHostName;
 		CACertificate * m_pCert;
 		CASignature * m_pVeryfire;
 		UINT32 m_iPortNumber;
 		CAXMLBI();
-		static const UINT8* const ms_pXmlElemName;
+		static const char* const ms_pXmlElemName;
 };
 
 #endif //ONLY_LOCAL_PROXY

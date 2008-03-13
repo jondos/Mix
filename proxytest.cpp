@@ -39,7 +39,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifdef _DEBUG //For FreeBSD memory checking functionality
 	const char* _malloc_options="AX";
 #endif
-	
+
 #ifndef ONLY_LOCAL_PROXY
 	#include "xml/DOM_Output.hpp"
 	#include "CAMix.hpp"
@@ -61,12 +61,12 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 // The Mix....
 CAMix* pMix=NULL;
 #endif
-CACmdLnOptions* pglobalOptions;
-#ifdef _DEBUG
-CAThreadList *pThreadList = new CAThreadList();
+CACmdLnOptions* pglobalOptions=NULL;
+#if defined (_DEBUG) && ! defined (ONLY_LOCAL_PROXY)
+CAThreadList *pThreadList = NULL;
 #endif
 //Global Locks required by OpenSSL-Library
-CAMutex* pOpenSSLMutexes;
+CAMutex* pOpenSSLMutexes=NULL;
 
 bool bTriedTermination = false;
 
@@ -131,8 +131,13 @@ void init()
 		OpenSSL_add_all_algorithms();
 		pOpenSSLMutexes=new CAMutex[CRYPTO_num_locks()];
 		CRYPTO_set_locking_callback((void (*)(int,int,const char *,int))openssl_locking_callback);
+
 #ifndef ONLY_LOCAL_PROXY
 		SSL_library_init();
+#endif
+#if defined _DEBUG && ! defined (ONLY_LOCAL_PROXY)
+		pThreadList=new CAThreadList();
+		CAThread::setThreadList(pThreadList);
 #endif
 		CAMsg::init();
 		CASocketAddrINet::init();
@@ -144,40 +149,41 @@ void init()
 		#endif
 		initRandom();
 		pglobalOptions=new CACmdLnOptions();
+
 	}
 
 /**do necessary cleanups of libraries etc.*/
 void cleanup()
 	{
-//		delete pRTT;
+		
+	//		delete pRTT;
 #ifndef ONLY_LOCAL_PROXY
 		if(pMix!=NULL)
 			delete pMix;
 		pMix=NULL;
 #endif
 		CAMsg::printMsg(LOG_CRIT,"Terminating Programm!\n");
-		//		CASocketAddrINet::destroy();
-
+		CASocketAddrINet::cleanup();
 		#ifdef _WIN32
 			WSACleanup();
 		#endif
 		removePidFile();
 		delete pglobalOptions;
 		pglobalOptions=NULL;
-//OpenSSL Cleanup
+
+	//OpenSSL Cleanup
 		CRYPTO_set_locking_callback(NULL);
 		delete []pOpenSSLMutexes;
 		pOpenSSLMutexes=NULL;
-		CASocketAddrINet::cleanup();
 		//XML Cleanup
 		//Note: We have to destroy all XML Objects and all objects that uses XML Objects BEFORE
 		//we terminate the XML lib!
-		/** @todo Fix: Causes segmentation fault when exiting.	*/
-/*#ifndef ONLY_LOCAL_PROXY
+		releaseDOMParser();
+#ifndef ONLY_LOCAL_PROXY
 		XMLPlatformUtils::Terminate();
-#endif //ONLY_LOCAL_PROXY */
-		
-#ifdef _DEBUG
+#endif
+
+#if defined _DEBUG && ! defined (ONLY_LOCAL_PROXY)
 			if(pThreadList != NULL)
 			{
 				int nrOfThreads = pThreadList->getSize();
@@ -197,6 +203,7 @@ void cleanup()
 ///Remark: terminate() might be already defined by the c lib -- do not use this name...
 void my_terminate(void)
 {	
+#ifndef ONLY_LOCAL_PROXY
 	if(!bTriedTermination && pMix!=NULL)
 	{
 		bTriedTermination = true;
@@ -208,6 +215,7 @@ void my_terminate(void)
 		delete pMix;
 		pMix=NULL;
 	}
+#endif
 	cleanup();
 }
 
@@ -244,7 +252,7 @@ void signal_term( int )
 void signal_interrupt( int)
 	{
 		CAMsg::printMsg(LOG_INFO,"Hm.. Strg+C pressed... exiting!\n");
-#ifdef _DEBUG
+#if defined _DEBUG && ! defined (ONLY_LOCAL_PROXY)
 		CAMsg::printMsg(LOG_INFO,"%d threads listed.\n",pThreadList->getSize());
 		pThreadList->showAll();
 #endif
@@ -514,6 +522,15 @@ int main(int argc, const char* argv[])
 		//readPasswd(buff1,500);
 		//printf("%s\n",buff1);
 		//printf("Len: %i\n",strlen((char*)buff1));
+
+		/*UINT32 size=0;
+		UINT8* fg=readFile((UINT8*)"test.xml",&size);
+		XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(fg,size);
+		delete[] fg;
+		doc->release();
+		cleanup();
+		exit(0);
+		*/
 		checkSizesOfBaseTypes();
 #ifndef NEW_MIX_TYPE
 		if(MIXPACKET_SIZE!=sizeof(MIXPACKET))
@@ -557,12 +574,13 @@ int main(int argc, const char* argv[])
 		
 		exit(0);
 */
+		
 		if(pglobalOptions->parse(argc,argv) != E_SUCCESS)
 		{
 			CAMsg::printMsg(LOG_CRIT,"Error: Cannot parse configuration file!\n");
 			goto EXIT;
 		}
-
+				
 		if(!(pglobalOptions->isFirstMix()||pglobalOptions->isMiddleMix()||pglobalOptions->isLastMix()||pglobalOptions->isLocalProxy()))
 			{
 				CAMsg::printMsg(LOG_CRIT,"You must specifiy, which kind of Mix you want to run!\n");
@@ -636,11 +654,12 @@ int main(int argc, const char* argv[])
 			CAMsg::printMsg(LOG_INFO,"Warning - Running as root!\n");
 #endif
 
-			
+#ifndef ONLY_LOCAL_PROXY
 		if(pglobalOptions->isSyslogEnabled())
 		{
 			CAMsg::setLogOptions(MSG_LOG);
 		}
+#endif
 		if(pglobalOptions->getLogDir((UINT8*)buff,255)==E_SUCCESS)
 			{
 				if(pglobalOptions->getCompressLogs())
@@ -664,14 +683,15 @@ int main(int argc, const char* argv[])
 			}
 #endif
 
-
+		
+		
 #if defined (_DEBUG) &&!defined(ONLY_LOCAL_PROXY)
 		//		CADatabase::test();
 		if(CAQueue::test()!=E_SUCCESS)
 			CAMsg::printMsg(LOG_CRIT,"CAQueue::test() NOT passed! Exiting\n");
 		else
 			CAMsg::printMsg(LOG_DEBUG,"CAQueue::test() passed!\n");
-
+				
 		//CALastMixChannelList::test();
 		//exit(0);
 		//Testing msSleep
@@ -683,7 +703,7 @@ int main(int argc, const char* argv[])
 		CAMsg::printMsg(LOG_DEBUG,"done! Takes %u seconds\n",start);
 		//end Testin msSleep
 #endif
-
+		
 
 //			CAMsg::printMsg(LOG_ENCRYPTED,"Test: Anon proxy started!\n");
 //			CAMsg::printMsg(LOG_ENCRYPTED,"Test2: Anon proxy started!\n");
@@ -709,8 +729,9 @@ int main(int argc, const char* argv[])
 #endif
 		signal(SIGINT,signal_interrupt);
 		signal(SIGTERM,signal_term);
+#ifndef _DEBUG
 		//signal(SIGSEGV,signal_segv);
-
+#endif
 		//Try to write pidfile....
 		UINT8 strPidFile[512];
 		if(pglobalOptions->getPidFile(strPidFile,512)==E_SUCCESS)

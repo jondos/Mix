@@ -143,7 +143,7 @@ public:
 	* what type of message we have and sends the appropriate handle...() 
 	* function to the ai thread.
 	*/
-	SINT32 static processJapMessage(fmHashTableEntry * pHashEntry,const DOM_Document& a_DomDoc);
+	SINT32 static processJapMessage(fmHashTableEntry * pHashEntry,const  XERCES_CPP_NAMESPACE::DOMDocument* a_DomDoc);
 		
 	UINT32 static getNrOfUsers();
 	
@@ -167,9 +167,9 @@ private:
 
 	struct t_aiqueueitem
 	{
-		DOM_Document*			pDomDoc;
+		XERCES_CPP_NAMESPACE::DOMDocument*			pDomDoc;
 		tAiAccountingInfo*		pAccInfo;
-		void (CAAccountingInstance::*handleFunc)(tAiAccountingInfo*,DOM_Element&);
+		void (CAAccountingInstance::*handleFunc)(tAiAccountingInfo*,DOMElement*);
 	};
 	typedef struct t_aiqueueitem aiQueueItem;
 
@@ -181,27 +181,27 @@ private:
 	/**
 	 * Handles a cost confirmation sent by a jap
 	 */
-	int handleCostConfirmation(tAiAccountingInfo* pAccInfo, DOM_Element &root );
-	int handleCostConfirmation_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root );
+	UINT32 handleCostConfirmation(tAiAccountingInfo* pAccInfo, DOMElement* root );
+	UINT32 handleCostConfirmation_internal(tAiAccountingInfo* pAccInfo, DOMElement* root );
 
 	/**
 	* Handles an account certificate of a newly connected Jap.
 	*/
-	int handleAccountCertificate(tAiAccountingInfo* pAccInfo, DOM_Element &root );
-	int handleAccountCertificate_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root );
+	UINT32 handleAccountCertificate(tAiAccountingInfo* pAccInfo, DOMElement* root );
+	UINT32 handleAccountCertificate_internal(tAiAccountingInfo* pAccInfo, DOMElement* root );
 	
 	
 	/**
 	 * Checks the response of the challenge-response auth.
 	 */
-	int handleChallengeResponse(tAiAccountingInfo* pAccInfo, DOM_Element &root);
-	int handleChallengeResponse_internal(tAiAccountingInfo* pAccInfo, DOM_Element &root);
+	UINT32 handleChallengeResponse(tAiAccountingInfo* pAccInfo, DOMElement* root);
+	UINT32 handleChallengeResponse_internal(tAiAccountingInfo* pAccInfo, DOMElement* root);
 
 	static SINT32 getPrepaidBytes(tAiAccountingInfo* pAccInfos);
 	SINT32 prepareCCRequest(CAMix* callingMix, UINT8* a_AiName);			
-	static SINT32 makeCCRequest( const UINT64 accountNumber, const UINT64 transferredBytes, DOM_Document& doc);
+	static SINT32 makeCCRequest( const UINT64 accountNumber, const UINT64 transferredBytes,  XERCES_CPP_NAMESPACE::DOMDocument* & doc);
 	static SINT32 sendCCRequest(tAiAccountingInfo* pAccInfo);
-	static SINT32 makeAccountRequest(DOM_Document &doc);
+	static SINT32 makeAccountRequest( XERCES_CPP_NAMESPACE::DOMDocument* & doc);
 	static SINT32 sendAILoginConfirmation(tAiAccountingInfo* pAccInfo, const UINT32 code, UINT8 * message);
 	
 	//possible replies to a JAP
@@ -223,7 +223,7 @@ private:
 	
 	static const UINT32 MAX_TOLERATED_MULTIPLE_LOGINS;
 	
-	static DOM_Document m_preparedCCRequest;
+	static XERCES_CPP_NAMESPACE::DOMDocument* m_preparedCCRequest;
 	
 	/** reads messages from the queue and processes them */
 	CAThreadPool* m_aiThreadPool;

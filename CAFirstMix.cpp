@@ -330,18 +330,26 @@ SINT32 CAFirstMix::processKeyExchange()
     CAMsg::printMsg(LOG_INFO,"Received Key Info...\n");
     CAMsg::printMsg(LOG_DEBUG,"%s\n",recvBuff);
 
-    MemBufInputSource oInput(recvBuff,len,"tmp");
-    DOMParser oParser;
-    oParser.parse(oInput);
+    XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(recvBuff,len);
     delete []recvBuff;
-
-		DOM_Document doc=oParser.getDocument();
-    DOM_Element elemMixes=doc.getDocumentElement();
+    DOMElement* elemMixes=doc->getDocumentElement();
     if(elemMixes==NULL)
+    {
+		if(doc != NULL)
+		{
+			doc->release();
+		}
 		return E_UNKNOWN;
+    }
 		SINT32 count=0;
     if(getDOMElementAttribute(elemMixes,"count",&count)!=E_SUCCESS)
+    {
+    	if(doc != NULL)
+		{
+			doc->release();
+		}
         return E_UNKNOWN;
+    }
  /*
 		@todo Do not know why we do this here - probably it has something todo with the
 		dynamic mix config, but makes not sense at all for me...
@@ -356,18 +364,18 @@ SINT32 CAFirstMix::processKeyExchange()
     m_pRSA=new CAASymCipher;
     m_pRSA->generateKeyPair(1024);
 
-    DOM_Node child=elemMixes.getLastChild();
+    DOMNode* child=elemMixes->getLastChild();
 
     //tmp XML-Structure for constructing the XML which is sent to each user
-    DOM_Document docXmlKeyInfo=DOM_Document::createDocument();
-    DOM_Element elemRootKey=docXmlKeyInfo.createElement("MixCascade");
+    XERCES_CPP_NAMESPACE::DOMDocument* docXmlKeyInfo=createDOMDocument();
+    DOMElement* elemRootKey=createDOMElement(docXmlKeyInfo,"MixCascade");
     setDOMElementAttribute(elemRootKey,"version",(UINT8*)"0.2"); //set the Version of the XML to 0.2
-    docXmlKeyInfo.appendChild(elemRootKey);
-    DOM_Element elemMixProtocolVersion=docXmlKeyInfo.createElement("MixProtocolVersion");
+    docXmlKeyInfo->appendChild(elemRootKey);
+    DOMElement* elemMixProtocolVersion=createDOMElement(docXmlKeyInfo,"MixProtocolVersion");
     setDOMElementValue(elemMixProtocolVersion,(UINT8*)MIX_CASCADE_PROTOCOL_VERSION);
-    elemRootKey.appendChild(elemMixProtocolVersion);
-    DOM_Node elemMixesKey=docXmlKeyInfo.importNode(elemMixes,true);
-    elemRootKey.appendChild(elemMixesKey);
+    elemRootKey->appendChild(elemMixProtocolVersion);
+    DOMNode* elemMixesKey=docXmlKeyInfo->importNode(elemMixes,true);
+    elemRootKey->appendChild(elemMixesKey);
 
     //UINT32 tlen;
     /* //remove because it seems to be useless...
@@ -385,44 +393,45 @@ SINT32 CAFirstMix::processKeyExchange()
     //tlen=256;
 
     //Inserting own Key in XML-Key struct
-    DOM_DocumentFragment docfragKey;
+    DOMDocumentFragment* docfragKey=NULL;
     m_pRSA->getPublicKeyAsDocumentFragment(docfragKey);
     addMixInfo(elemMixesKey, true);
-    DOM_Element elemOwnMix;
-    	getDOMChildByName(elemMixesKey, (UINT8*)"Mix", elemOwnMix, false);
-		elemOwnMix.appendChild(docXmlKeyInfo.importNode(docfragKey,true));
+    DOMElement* elemOwnMix=NULL;
+    getDOMChildByName(elemMixesKey, "Mix", elemOwnMix, false);
+	elemOwnMix->appendChild(docXmlKeyInfo->importNode(docfragKey,true));
 	if (signXML(elemOwnMix) != E_SUCCESS)
 	{
 		CAMsg::printMsg(LOG_DEBUG,"Could not sign MixInfo sent to users...\n");
 	}
 	
-    setDOMElementAttribute((DOM_Element&)elemMixesKey,"count",count+1);
+	setDOMElementAttribute(elemMixesKey,"count",count+1);
     
     
-	  DOM_Node elemPayment=docXmlKeyInfo.createElement("Payment");
-		elemRootKey.appendChild(elemPayment);
-		#ifdef PAYMENT
-			setDOMElementAttribute(elemPayment,"required",(UINT8*)"true");
-			setDOMElementAttribute(elemPayment,"version",(UINT8*)PAYMENT_VERSION);
-			
-			UINT32 prepaidInterval;
-			pglobalOptions->getPrepaidInterval(&prepaidInterval);
-			setDOMElementAttribute(elemPayment,"prepaidInterval", prepaidInterval);
-			setDOMElementAttribute(elemPayment,"piid", pglobalOptions->getBI()->getID());
-			
-		#else
-			setDOMElementAttribute(elemPayment,"required",(UINT8*)"false");
-		#endif
+	DOMNode* elemPayment=createDOMElement(docXmlKeyInfo,"Payment");
+	elemRootKey->appendChild(elemPayment);
+#ifdef PAYMENT
+	setDOMElementAttribute(elemPayment,"required",(UINT8*)"true");
+	setDOMElementAttribute(elemPayment,"version",(UINT8*)PAYMENT_VERSION);
+	
+	UINT32 prepaidInterval;
+	pglobalOptions->getPrepaidInterval(&prepaidInterval);
+	setDOMElementAttribute(elemPayment,"prepaidInterval", prepaidInterval);
+	setDOMElementAttribute(elemPayment,"piid", pglobalOptions->getBI()->getID());
+	
+#else
+	setDOMElementAttribute(elemPayment,"required",(UINT8*)"false");
+#endif
 
 	// create signature
 	if (signXML(elemRootKey) != E_SUCCESS)
     {
 		CAMsg::printMsg(LOG_DEBUG,"Could not sign KeyInfo sent to users...\n");
-		}
+	}
 
     
     UINT32 tlen=0;
     UINT8* tmpB=DOM_Output::dumpToMem(docXmlKeyInfo,&tlen);
+    docXmlKeyInfo->release();
     m_xmlKeyInfoBuff=new UINT8[tlen+2];
     memcpy(m_xmlKeyInfoBuff+2,tmpB,tlen);
     UINT16 s=htons((UINT16)tlen);
@@ -431,10 +440,10 @@ SINT32 CAFirstMix::processKeyExchange()
     delete []tmpB;
 
     //Sending symetric key...
-    child=elemMixes.getFirstChild();
+    child=elemMixes->getFirstChild();
     while(child!=NULL)
     {
-        if(child.getNodeName().equals("Mix"))
+    	if(equals(child->getNodeName(),"Mix"))
         {
             //check Signature....
             CAMsg::printMsg(LOG_DEBUG,"Try to verify next mix signature...\n");
@@ -446,14 +455,15 @@ SINT32 CAFirstMix::processKeyExchange()
             if(ret!=E_SUCCESS)
             {
                 CAMsg::printMsg(LOG_DEBUG,"failed!\n");
+                doc->release();
                 return E_UNKNOWN;
             }
             CAMsg::printMsg(LOG_DEBUG,"success!\n");
-            DOM_Node rsaKey=child.getFirstChild();
+            DOMNode* rsaKey=child->getFirstChild();
             CAASymCipher oRSA;
             oRSA.setPublicKeyAsDOMNode(rsaKey);
-            DOM_Element elemNonce;
-            getDOMChildByName(child,(UINT8*)"Nonce",elemNonce,false);
+            DOMElement* elemNonce=NULL;
+            getDOMChildByName(child,"Nonce",elemNonce,false);
             UINT8 arNonce[1024];
             if(elemNonce!=NULL)
             {
@@ -471,68 +481,76 @@ SINT32 CAFirstMix::processKeyExchange()
             getRandom(key,64);
             //UINT8 buff[400];
             //UINT32 bufflen=400;
-            DOM_DocumentFragment docfragSymKey;
+            DOMDocumentFragment* docfragSymKey=NULL;
             encodeXMLEncryptedKey(key,64,docfragSymKey,&oRSA);
-            DOM_Document docSymKey=DOM_Document::createDocument();
-            docSymKey.appendChild(docSymKey.importNode(docfragSymKey,true));
-            DOM_Element elemRoot=docSymKey.getDocumentElement();
+            XERCES_CPP_NAMESPACE::DOMDocument* docSymKey=createDOMDocument();
+            docSymKey->appendChild(docSymKey->importNode(docfragSymKey->getFirstChild(),true));
+            docfragSymKey->getOwnerDocument()->release();
+            DOMElement* elemRoot=docSymKey->getDocumentElement();
             if(elemNonce!=NULL)
             {
-                DOM_Element elemNonceHash=docSymKey.createElement("Nonce");
+                DOMElement* elemNonceHash=createDOMElement(docSymKey,"Nonce");
                 setDOMElementValue(elemNonceHash,arNonce);
-                elemRoot.appendChild(elemNonceHash);
+                elemRoot->appendChild(elemNonceHash);
             }
             UINT32 outlen=5000;
             UINT8* out=new UINT8[outlen];
 						///Getting the KeepAlive Traffice...
-						DOM_Element elemKeepAlive;
-						DOM_Element elemKeepAliveSendInterval;
-						DOM_Element elemKeepAliveRecvInterval;
-						getDOMChildByName(child,(UINT8*)"KeepAlive",elemKeepAlive,false);
-						getDOMChildByName(elemKeepAlive,(UINT8*)"SendInterval",elemKeepAliveSendInterval,false);
-						getDOMChildByName(elemKeepAlive,(UINT8*)"ReceiveInterval",elemKeepAliveRecvInterval,false);
-						UINT32 tmpSendInterval,tmpRecvInterval;
-						getDOMElementValue(elemKeepAliveSendInterval,tmpSendInterval,0xFFFFFFFF); //if now send interval was given set it to "infinite"
-						getDOMElementValue(elemKeepAliveRecvInterval,tmpRecvInterval,0xFFFFFFFF); //if no recv interval was given --> set it to "infinite"
-						CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Getting offer -- SendInterval %u -- ReceiveInterval %u\n",tmpSendInterval,tmpRecvInterval);
-						// Add Info about KeepAlive traffic
-						UINT32 u32KeepAliveSendInterval=pglobalOptions->getKeepAliveSendInterval();
-						UINT32 u32KeepAliveRecvInterval=pglobalOptions->getKeepAliveRecvInterval();
-						elemKeepAlive=docSymKey.createElement("KeepAlive");
-						elemKeepAliveSendInterval=docSymKey.createElement("SendInterval");
-						elemKeepAliveRecvInterval=docSymKey.createElement("ReceiveInterval");
-						elemKeepAlive.appendChild(elemKeepAliveSendInterval);
-						elemKeepAlive.appendChild(elemKeepAliveRecvInterval);
-						setDOMElementValue(elemKeepAliveSendInterval,u32KeepAliveSendInterval);
-						setDOMElementValue(elemKeepAliveRecvInterval,u32KeepAliveRecvInterval);
-						elemRoot.appendChild(elemKeepAlive);
-						CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Offering -- SendInterval %u -- Receive Interval %u\n",u32KeepAliveSendInterval,u32KeepAliveRecvInterval);		
-						m_u32KeepAliveSendInterval=max(u32KeepAliveSendInterval,tmpRecvInterval);
-						if(m_u32KeepAliveSendInterval>10000)
-							m_u32KeepAliveSendInterval-=10000; //make the send interval a little bit smaller than the related receive intervall
-						m_u32KeepAliveRecvInterval=max(u32KeepAliveRecvInterval,tmpSendInterval);
-						CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval,m_u32KeepAliveRecvInterval);		
+			DOMElement* elemKeepAlive=NULL;
+			DOMElement* elemKeepAliveSendInterval=NULL;
+			DOMElement* elemKeepAliveRecvInterval=NULL;
+			getDOMChildByName(child,"KeepAlive",elemKeepAlive,false);
+			getDOMChildByName(elemKeepAlive,"SendInterval",elemKeepAliveSendInterval,false);
+			getDOMChildByName(elemKeepAlive,"ReceiveInterval",elemKeepAliveRecvInterval,false);
+			UINT32 tmpSendInterval,tmpRecvInterval;
+			getDOMElementValue(elemKeepAliveSendInterval,tmpSendInterval,0xFFFFFFFF); //if now send interval was given set it to "infinite"
+			getDOMElementValue(elemKeepAliveRecvInterval,tmpRecvInterval,0xFFFFFFFF); //if no recv interval was given --> set it to "infinite"
+			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Getting offer -- SendInterval %u -- ReceiveInterval %u\n",tmpSendInterval,tmpRecvInterval);
+			// Add Info about KeepAlive traffic
+			UINT32 u32KeepAliveSendInterval=pglobalOptions->getKeepAliveSendInterval();
+			UINT32 u32KeepAliveRecvInterval=pglobalOptions->getKeepAliveRecvInterval();
+			elemKeepAlive=createDOMElement(docSymKey,"KeepAlive");
+			elemKeepAliveSendInterval=createDOMElement(docSymKey,"SendInterval");
+			elemKeepAliveRecvInterval=createDOMElement(docSymKey,"ReceiveInterval");
+			elemKeepAlive->appendChild(elemKeepAliveSendInterval);
+			elemKeepAlive->appendChild(elemKeepAliveRecvInterval);
+			setDOMElementValue(elemKeepAliveSendInterval,u32KeepAliveSendInterval);
+			setDOMElementValue(elemKeepAliveRecvInterval,u32KeepAliveRecvInterval);
+			elemRoot->appendChild(elemKeepAlive);
+			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Offering -- SendInterval %u -- Receive Interval %u\n",u32KeepAliveSendInterval,u32KeepAliveRecvInterval);		
+			m_u32KeepAliveSendInterval=max(u32KeepAliveSendInterval,tmpRecvInterval);
+			if(m_u32KeepAliveSendInterval>10000)
+			{
+				m_u32KeepAliveSendInterval-=10000; //make the send interval a little bit smaller than the related receive intervall
+			}
+			m_u32KeepAliveRecvInterval=max(u32KeepAliveRecvInterval,tmpSendInterval);
+			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval,m_u32KeepAliveRecvInterval);		
 
             m_pSignature->signXML(elemRoot);
             DOM_Output::dumpToMem(docSymKey,out,&outlen);
-						m_pMuxOut->setSendKey(key,32);
+			docSymKey->release();
+			m_pMuxOut->setSendKey(key,32);
             m_pMuxOut->setReceiveKey(key+32,32);
             UINT16 size=htons((UINT16)outlen);
-						CAMsg::printMsg(LOG_DEBUG,"Sending symmetric key to next Mix! Size: %i\n",outlen);
+            CAMsg::printMsg(LOG_DEBUG,"Sending symmetric key to next Mix! Size: %i\n",outlen);
             ((CASocket*)m_pMuxOut)->send((UINT8*)&size,2);
             ((CASocket*)m_pMuxOut)->send(out,outlen);
             m_pMuxOut->setCrypt(true);
             delete[] out;
             break;
         }
-        child=child.getNextSibling();
+        child=child->getNextSibling();
     }
 		///initialises MixParameters struct
-		if(initMixParameters(elemMixes)!=E_SUCCESS)
-			return E_UNKNOWN;
+	if(initMixParameters(elemMixes)!=E_SUCCESS)
+	{
+		doc->release();
+		return E_UNKNOWN;
+	}
     if(initMixCascadeInfo(elemMixes)!=E_SUCCESS)
     {
-        CAMsg::printMsg(LOG_CRIT,"Error initializing cascade info.\n");
+    	doc->release();	
+    	CAMsg::printMsg(LOG_CRIT,"Error initializing cascade info.\n");
         return E_UNKNOWN;
     }
 /*    else
@@ -540,7 +558,8 @@ SINT32 CAFirstMix::processKeyExchange()
         if(m_pInfoService != NULL)
             m_pInfoService->sendCascadeHelo();
     }*/
-		CAMsg::printMsg(LOG_DEBUG,"Keyexchange finished!\n");
+    CAMsg::printMsg(LOG_DEBUG,"Keyexchange finished!\n");
+    doc->release();
     return E_SUCCESS;
 }
 
@@ -1022,30 +1041,33 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		#endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "received second symmetric key");
 		
-		DOMParser oParser;
-		MemBufInputSource oInput(xml_buff+2,xml_len,"tmp");
-		oParser.parse(oInput);
-		DOM_Document doc=oParser.getDocument();
-		DOM_Element elemRoot;
-		if(doc==NULL||(elemRoot=doc.getDocumentElement())==NULL||
+		XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(xml_buff+2,xml_len);
+		DOMElement* elemRoot=NULL;
+		if(doc==NULL||(elemRoot=doc->getDocumentElement())==NULL||
 			decryptXMLElement(elemRoot,m_pRSA)!=E_SUCCESS)
 			{
 				delete[] xml_buff;
 				delete pNewUser;
 				m_pIPList->removeIP(peerIP);
+				if(doc!=NULL)
+				{
+					doc->release();
+				}
 				return E_UNKNOWN;
 			}
-		elemRoot=doc.getDocumentElement();
-		if(!elemRoot.getNodeName().equals("JAPKeyExchange"))
+		elemRoot=doc->getDocumentElement();
+		if(!equals(elemRoot->getNodeName(),"JAPKeyExchange"))
 			{
+				doc->release();
 				delete[] xml_buff;
 				delete pNewUser;
 				m_pIPList->removeIP(peerIP);
 				return E_UNKNOWN;
 			}
-		DOM_Element elemLinkEnc,elemMixEnc;
-		getDOMChildByName(elemRoot,(UINT8*)"LinkEncryption",elemLinkEnc,false);
-		getDOMChildByName(elemRoot,(UINT8*)"MixEncryption",elemMixEnc,false);
+		DOMElement* elemLinkEnc=NULL;
+		DOMElement* elemMixEnc=NULL;
+		getDOMChildByName(elemRoot,"LinkEncryption",elemLinkEnc,false);
+		getDOMChildByName(elemRoot,"MixEncryption",elemMixEnc,false);
 		UINT8 linkKey[255],mixKey[255];
 		UINT32 linkKeyLen=255,mixKeyLen=255;
 		if(	getDOMElementValue(elemLinkEnc,linkKey,&linkKeyLen)!=E_SUCCESS||
@@ -1054,6 +1076,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				CABase64::decode(mixKey,mixKeyLen,mixKey,&mixKeyLen)!=E_SUCCESS||
 				linkKeyLen!=64||mixKeyLen!=32)
 			{
+				doc->release();
 				delete[] xml_buff;
 				delete pNewUser;
 				m_pIPList->removeIP(peerIP);
@@ -1065,23 +1088,25 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		UINT8 sig[255];
 		UINT32 siglen=255;
 		m_pSignature->sign(xml_buff,xml_len+2,sig,&siglen);
-		DOM_Document docSig=DOM_Document::createDocument();
-		elemRoot=docSig.createElement("Signature");
-		DOM_Element elemSigValue=docSig.createElement("SignatureValue");
-		docSig.appendChild(elemRoot);
-		elemRoot.appendChild(elemSigValue);
+		XERCES_CPP_NAMESPACE::DOMDocument* docSig=createDOMDocument();
+		elemRoot=createDOMElement(docSig,"Signature");
+		DOMElement* elemSigValue=createDOMElement(docSig,"SignatureValue");
+		docSig->appendChild(elemRoot);
+		elemRoot->appendChild(elemSigValue);
 		UINT32 u32=siglen;
 		CABase64::encode(sig,u32,sig,&siglen);
 		sig[siglen]=0;
 		setDOMElementValue(elemSigValue,sig);
 		u32=xml_len;
 		DOM_Output::dumpToMem(docSig,xml_buff+2,&u32);
+		docSig->release();
 		xml_buff[0]=(UINT8)(u32>>8);
 		xml_buff[1]=(UINT8)(u32&0xFF);
 		
 		if (((CASocket*)pNewUser)->isClosed() ||
 		    ((CASocket*)pNewUser)->sendFullyTimeOut(xml_buff,u32+2, 30000, 10000) != E_SUCCESS)
 		{
+			doc->release();
 			CAMsg::printMsg(LOG_DEBUG,"User login: Sending key exchange signature has been interrupted!\n");
 			delete[] xml_buff;
 			delete pNewUser;
@@ -1104,6 +1129,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue);
 		if(pHashEntry==NULL)// adding user connection to mix->JAP channel list (stefan: sollte das nicht connection list sein? --> es handelt sich um eine Datenstruktu fr Connections/Channels ).
 		{
+			doc->release();
 			CAMsg::printMsg(LOG_ERR,"User login: Could not add new socket to connection list!\n");
 			m_pIPList->removeIP(peerIP);
 			delete tmpQueue;
@@ -1221,6 +1247,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		if(aiLoginStatus & AUTH_LOGIN_FAILED)
 		{
 			CAMsg::printMsg(LOG_INFO,"User AI login failed\n");
+			doc->release();
 			m_pChannelList->remove(pNewUser);
 			delete pNewUser;
 			pNewUser = NULL;
@@ -1248,6 +1275,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		m_psocketgroupUsersRead->add(*pNewUser); // add user socket to the established ones that we read data from.
 		m_psocketgroupUsersWrite->add(*pNewUser);
 #endif
+		doc->release();
 		CAMsg::printMsg(LOG_DEBUG,"User login: finished\n");
 
 		return E_SUCCESS;
@@ -1583,26 +1611,26 @@ SINT32 CAFirstMix::reconfigure()
 #endif
 
 /** set u32MixCount and m_arMixParameters from the <Mixes> element received from the second mix.*/
-SINT32 CAFirstMix::initMixParameters(DOM_Element& elemMixes)
+SINT32 CAFirstMix::initMixParameters(DOMElement*  elemMixes)
 	{
-		DOM_NodeList nl=elemMixes.getElementsByTagName("Mix");
-		m_u32MixCount=nl.getLength();
+		DOMNodeList* nl=getElementsByTagName(elemMixes,"Mix");
+		m_u32MixCount=nl->getLength();
 		m_arMixParameters=new tMixParameters[m_u32MixCount];
 		memset(m_arMixParameters,0,sizeof(tMixParameters)*m_u32MixCount);
 		UINT8 buff[255];
 		pglobalOptions->getMixId(buff,255);
 		UINT32 len=strlen((char*)buff)+1;
 		UINT32 aktMix=0;
-		for(UINT32 i=0;i<nl.getLength();i++)
-			{
-				DOM_Node child=nl.item(i);
-				len=255;
-				getDOMElementAttribute(child,"id",buff,&len);
-				m_arMixParameters[aktMix].m_strMixID=new UINT8[len+1];
-				memcpy(m_arMixParameters[aktMix].m_strMixID,buff,len);
-				m_arMixParameters[aktMix].m_strMixID[len]=0;
-				aktMix++;
-			}
+		for(UINT32 i=0;i<nl->getLength();i++)
+		{
+			DOMNode* child=nl->item(i);
+			len=255;
+			getDOMElementAttribute(child,"id",buff,&len);
+			m_arMixParameters[aktMix].m_strMixID=new UINT8[len+1];
+			memcpy(m_arMixParameters[aktMix].m_strMixID,buff,len);
+			m_arMixParameters[aktMix].m_strMixID[len]=0;
+			aktMix++;
+		}
 		m_u32MixCount++;
 		return E_SUCCESS;
 	}

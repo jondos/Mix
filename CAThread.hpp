@@ -27,7 +27,12 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 */
 #ifndef __CATHREAD__
 #define __CATHREAD__
+
+#ifndef ONLY_LOCAL_PROXY
+
 #include "CAMsg.hpp"
+
+class CAThreadList;
 
 #ifdef PRINT_THREAD_STACK_TRACE
 	#define INIT_STACK CAThread::METHOD_STACK* _stack
@@ -177,10 +182,16 @@ class CAThread
 					return E_SUCCESS;
 				}
 */
-			UINT8* getName()
+			UINT8* getName() const
 			{
 				return m_strName;
 			}
+
+			UINT32 getID() const
+				{
+					return m_Id;
+				}
+
 #ifdef PRINT_THREAD_STACK_TRACE
 			static const char* METHOD_BEGIN;
 			static const char* METHOD_END;
@@ -201,6 +212,17 @@ class CAThread
 	 		pthread_t* m_pThread;
 #endif
 			UINT8* m_strName; //< a name mostly for debuging purpose...
+			UINT32 m_Id; // some unique identifier
+			static UINT32 ms_LastId;
+#if defined _DEBUG && ! defined(ONLY_LOCAL_PROXY)
+			static CAThreadList* m_pThreadList;
+		public:
+			static void setThreadList(CAThreadList* pThreadList)
+				{
+					m_pThreadList=pThreadList;
+				}
+#endif
 	};
 #endif
 
+#endif //ONLY_LOCAL_PROXY

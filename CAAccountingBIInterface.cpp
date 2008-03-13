@@ -40,7 +40,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 /**
  * private constructor
- * just initializes fields, server configuartion is done separately
+ * just initializes fields, server configuration is done separately
  */
 CAAccountingBIInterface::CAAccountingBIInterface()
 	{
