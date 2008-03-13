@@ -191,24 +191,24 @@ SINT32 CALastMix::init()
 	*/
 SINT32 CALastMix::processKeyExchange()
 	{
-		DOM_Document doc=DOM_Document::createDocument();
-		DOM_Element elemMixes=doc.createElement("Mixes");
+		XERCES_CPP_NAMESPACE::DOMDocument* doc=createDOMDocument();
+		DOMElement* elemMixes=createDOMElement(doc,"Mixes");
 		setDOMElementAttribute(elemMixes,"count",1);
     //UINT8 cName[128];
     //pglobalOptions->getCascadeName(cName,128);
     //setDOMElementAttribute(elemMixes,"cascadeName",cName);
-		doc.appendChild(elemMixes);
+		doc->appendChild(elemMixes);
 		
 		addMixInfo(elemMixes, false);
-		DOM_Element elemMix;
-		getDOMChildByName(elemMixes, (UINT8*)"Mix", elemMix, false);
+		DOMElement* elemMix=NULL;
+		getDOMChildByName(elemMixes, "Mix", elemMix, false);
 
 		//Inserting MixProtocol Version 
 		// Version 0.3  - "normal", initial mix protocol
 		// Version 0.4  - with new flow control
     // Version 0.5  - end-to-end 1:n channels (only between client and last mix)
-		DOM_Element elemMixProtocolVersion=doc.createElement("MixProtocolVersion");
-		elemMix.appendChild(elemMixProtocolVersion);
+		DOMElement* elemMixProtocolVersion=createDOMElement(doc,"MixProtocolVersion");
+		elemMix->appendChild(elemMixProtocolVersion);
     #ifdef NEW_MIX_TYPE // TypeB mixes
       setDOMElementValue(elemMixProtocolVersion,(UINT8*)"0.5");
       DOM_Element elemDownstreamPackets = doc.createElement("DownstreamPackets");
@@ -230,13 +230,13 @@ SINT32 CALastMix::processKeyExchange()
       #endif
     #endif
 		//Inserting RSA-Key
-		DOM_DocumentFragment tmpDocFrag;
+		DOMDocumentFragment* tmpDocFrag=NULL;
 		m_pRSA->getPublicKeyAsDocumentFragment(tmpDocFrag);
-		DOM_Node nodeRsaKey=doc.importNode(tmpDocFrag,true);
-		elemMix.appendChild(nodeRsaKey);
-		tmpDocFrag=0;
+		DOMNode* nodeRsaKey=doc->importNode(tmpDocFrag,true);
+		elemMix->appendChild(nodeRsaKey);
+		tmpDocFrag->getOwnerDocument()->release();
 		//inserting Nonce
-		DOM_Element elemNonce=doc.createElement("Nonce");
+		DOMElement* elemNonce=createDOMElement(doc,"Nonce");
 		UINT8 arNonce[16];
 		getRandom(arNonce,16);
 		UINT8 tmpBuff[50];
@@ -244,24 +244,24 @@ SINT32 CALastMix::processKeyExchange()
 		CABase64::encode(arNonce,16,tmpBuff,&tmpLen);
 		tmpBuff[tmpLen]=0;
 		setDOMElementValue(elemNonce,tmpBuff);
-		elemMix.appendChild(elemNonce);
+		elemMix->appendChild(elemNonce);
 		
     
 		
 // Add Info about KeepAlive traffic
-		DOM_Element elemKeepAlive;
+		DOMElement* elemKeepAlive=NULL;
 		UINT32 u32KeepAliveSendInterval=pglobalOptions->getKeepAliveSendInterval();
 		UINT32 u32KeepAliveRecvInterval=pglobalOptions->getKeepAliveRecvInterval();
-		elemKeepAlive=doc.createElement("KeepAlive");
-		DOM_Element elemKeepAliveSendInterval;
-		DOM_Element elemKeepAliveRecvInterval;
-		elemKeepAliveSendInterval=doc.createElement("SendInterval");
-		elemKeepAliveRecvInterval=doc.createElement("ReceiveInterval");
-		elemKeepAlive.appendChild(elemKeepAliveSendInterval);
-		elemKeepAlive.appendChild(elemKeepAliveRecvInterval);
+		elemKeepAlive=createDOMElement(doc,"KeepAlive");
+		DOMElement* elemKeepAliveSendInterval=NULL;
+		DOMElement* elemKeepAliveRecvInterval=NULL;
+		elemKeepAliveSendInterval=createDOMElement(doc,"SendInterval");
+		elemKeepAliveRecvInterval=createDOMElement(doc,"ReceiveInterval");
+		elemKeepAlive->appendChild(elemKeepAliveSendInterval);
+		elemKeepAlive->appendChild(elemKeepAliveRecvInterval);
 		setDOMElementValue(elemKeepAliveSendInterval,u32KeepAliveSendInterval);
 		setDOMElementValue(elemKeepAliveRecvInterval,u32KeepAliveRecvInterval);
-		elemMix.appendChild(elemKeepAlive);
+		elemMix->appendChild(elemKeepAlive);
 		CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Offering -- SendInterval %u -- Receive Interval %u\n",u32KeepAliveSendInterval,u32KeepAliveRecvInterval);		
 		
 		// create signature
@@ -272,6 +272,7 @@ SINT32 CALastMix::processKeyExchange()
 
 		UINT32 len=0;
 		UINT8* messageBuff=DOM_Output::dumpToMem(doc,&len);
+		doc->release();
 		UINT16 tmp=htons((UINT16)len);
 		CAMsg::printMsg(LOG_INFO,"Sending Infos (chain length and RSA-Key, Message-Size %u)\n",len);
 		
@@ -316,13 +317,10 @@ SINT32 CALastMix::processKeyExchange()
 				return E_UNKNOWN;
 			}
 		//Verifying nonce!
-		MemBufInputSource oInput(messageBuff,len,"tmp");
-		DOMParser oParser;
-		oParser.parse(oInput);
-		doc=oParser.getDocument();
-		DOM_Element elemRoot=doc.getDocumentElement();
+		doc=parseDOMDocument(messageBuff,len);
+		DOMElement* elemRoot=doc->getDocumentElement();
 		elemNonce=NULL;
-		getDOMChildByName(elemRoot,(UINT8*)"Nonce",elemNonce,false);
+		getDOMChildByName(elemRoot,"Nonce",elemNonce,false);
 		tmpLen=50;
 		memset(tmpBuff,0,tmpLen);
 		if(elemNonce==NULL||getDOMElementValue(elemNonce,tmpBuff,&tmpLen)!=E_SUCCESS||
@@ -332,6 +330,7 @@ SINT32 CALastMix::processKeyExchange()
 			)
 			{
 				CAMsg::printMsg(LOG_CRIT,"Couldt not verify the Nonce!\n");		
+				doc->release();
 				delete []messageBuff;
 				return E_UNKNOWN;
 			}
@@ -343,11 +342,13 @@ SINT32 CALastMix::processKeyExchange()
 		delete []messageBuff;
 		if(ret!=E_SUCCESS||keySize!=64)
 			{
+				doc->release();
 				CAMsg::printMsg(LOG_CRIT,"Couldt not decrypt the symetric key!\n");		
 				return E_UNKNOWN;
 			}
 		if(m_pMuxIn->setReceiveKey(key,32)!=E_SUCCESS||m_pMuxIn->setSendKey(key+32,32)!=E_SUCCESS)
 			{
+				doc->release();
 				CAMsg::printMsg(LOG_CRIT,"Couldt not set the symetric key to be used by the MuxSocket!\n");		
 				return E_UNKNOWN;
 			}
@@ -356,9 +357,9 @@ SINT32 CALastMix::processKeyExchange()
 		elemKeepAlive=NULL;
 		elemKeepAliveSendInterval=NULL;
 		elemKeepAliveRecvInterval=NULL;
-		getDOMChildByName(elemRoot,(UINT8*)"KeepAlive",elemKeepAlive);
-		getDOMChildByName(elemKeepAlive,(UINT8*)"SendInterval",elemKeepAliveSendInterval);
-		getDOMChildByName(elemKeepAlive,(UINT8*)"ReceiveInterval",elemKeepAliveRecvInterval);
+		getDOMChildByName(elemRoot,"KeepAlive",elemKeepAlive);
+		getDOMChildByName(elemKeepAlive,"SendInterval",elemKeepAliveSendInterval);
+		getDOMChildByName(elemKeepAlive,"ReceiveInterval",elemKeepAliveRecvInterval);
 		UINT32 tmpSendInterval,tmpRecvInterval;
 		getDOMElementValue(elemKeepAliveSendInterval,tmpSendInterval,0xFFFFFFFF); //if now send interval was given set it to "infinite"
 		getDOMElementValue(elemKeepAliveRecvInterval,tmpRecvInterval,0xFFFFFFFF); //if no recv interval was given --> set it to "infinite"
@@ -367,6 +368,7 @@ SINT32 CALastMix::processKeyExchange()
 		if(m_u32KeepAliveSendInterval>10000)
 			m_u32KeepAliveSendInterval-=10000; //make the send interval a little bit smaller than the related receive intervall
 		m_u32KeepAliveRecvInterval=max(u32KeepAliveRecvInterval,tmpSendInterval);
+		doc->release();
 		CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval,m_u32KeepAliveRecvInterval);		
 		return E_SUCCESS;
 	}
@@ -809,10 +811,10 @@ SINT32 CALastMix::clean()
 		return E_SUCCESS;
 	}
 
-SINT32 CALastMix::initMixCascadeInfo(DOM_Element& mixes)
+SINT32 CALastMix::initMixCascadeInfo(DOMElement*  mixes)
 {
     SINT32 r = CAMix::initMixCascadeInfo(mixes);
-    DOM_Element cascade = m_docMixCascadeInfo.getDocumentElement();
+    DOMElement* cascade = m_docMixCascadeInfo->getDocumentElement();
     setDOMElementAttribute(cascade,"create",(UINT8*)"true");
     return r;
 }

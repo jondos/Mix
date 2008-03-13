@@ -33,7 +33,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #if !defined(AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_)
 #define AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_
 
-#define MIX_VERSION "00.07.15"
+#define MIX_VERSION "00.07.19"
 
 #include "doxygen.h"
 
@@ -54,6 +54,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define DELAY_USERS //to enable max per user bandwidth
 //#define DELAY_CHANNELS_LATENCY //to enable min latency per channel
 //#define HAVE_EPOLL //define if you have epoll support on your (Linux) system
+//#define MXML_DOM //define this if you wnat to use the Mix-XML library (www.minixml.org) instead of the default Xerces-C library
 //#define COUNTRY_STATS //collect stats about countries users come from
 //#define ONLY_LOCAL_PROXY //define to build only the local proxy (aka JAP)
 /* LERNGRUPPE: define this to get dynamic mixes */
@@ -61,7 +62,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define SDTFA // specific logic needed by SDTFA, http://www.sdtfa.com
 
 //#define PRINT_THREAD_STACK_TRACE //Usefull for debugging output of stack trace if mix dies...
-#if !defined(PRINT_THREAD_STACK_TRACE) && defined (DEBUG)
+#if !defined(PRINT_THREAD_STACK_TRACE) && defined (DEBUG)&& ! defined(ONLY_LOCAL_PROXY)
 	#define PRINT_THREAD_STACK_TRACE
 #endif
 
@@ -127,8 +128,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define FIRST_MIX_RECEIVE_SYM_KEY_FROM_JAP_TIME_OUT 30000 //Timout in waiting for login information to receive from JAP (10 seconds)
 #define LAST_MIX_TO_PROXY_CONNECT_TIMEOUT 2000 //Connection timeout for last mix to proxy connections 2 Seconds...
-#define LAST_MIX_TO_PROXY_SEND_TIMEOUT (UINT32)5000 //5 Seconds...
 #define AI_LOGIN_SO_TIMEOUT (UINT32) 5000 //5 Seconds...
+#define LAST_MIX_TO_PROXY_SEND_TIMEOUT (UINT32)5000 //5 Seconds...
 #define MIX_TO_INFOSERVICE_TIMEOUT 30000 //How long to wait when communicating with the InfoService? (ms)
 #define NUM_LOGIN_WORKER_TRHEADS 10//How many working threads for login *do not change this until you really know that you are doing!* ??
 #define MAX_LOGIN_QUEUE 500 //how many waiting entries in the login queue *do not change this until you really know that you are doing!*??
@@ -345,6 +346,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#endif
 #endif //WIn32 ?
 
+#include "basetypedefs.h"
+
 #include <assert.h>
 
 #include <pthread.h>
@@ -418,8 +421,12 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include <openssl/sha.h>
 	#include <openssl/md5.h>
 #endif
-#ifndef ONLY_LOCAL_PROXY
+
 //For DOM
+#ifdef MXML_DOM
+	#include <mxml.h>
+	#include "xml/dom/mxml/mxmlDOM.hpp"
+#else
 #include <util/XercesDefs.hpp>
 #include <util/PlatformUtils.hpp>
 #include <util/XMLString.hpp>
@@ -427,19 +434,23 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include <framework/XMLFormatter.hpp>
 #include <util/TranscodingException.hpp>
 #include <framework/MemBufInputSource.hpp>
+#include <framework/Wrapper4InputSource.hpp>
 
-#if (XERCES_VERSION_MAJOR >1)
+/*#if (XERCES_VERSION_MAJOR >1)
 	#include <dom/deprecated/DOM.hpp>
 	#include <dom/deprecated/DOMParser.hpp>
 #else
 	#include <dom/DOM.hpp>
 	#include <parsers/DOMParser.hpp>
 #endif
+*/
+#include <dom/DOM.hpp>
+#include <parsers/XercesDOMParser.hpp>
 
 #if (_XERCES_VERSION >= 20200)
     XERCES_CPP_NAMESPACE_USE
 #endif
-#endif //ONLY_LOCAL_PROXY
+#endif //wich DOM-Implementation to use?
 
 //For large file support
 #ifndef O_LARGEFILE
@@ -515,7 +526,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define MIX_VERSION_INFO "Mix-Version: " MIX_VERSION PAYMENT_VERSION_INFO "\nUsing: " OPENSSL_VERSION_TEXT "\nUsing Xerces-C: " MY_XERCES_VERSION "\n"
 
-#include "basetypedefs.h"
 #include "errorcodes.hpp"
 #include "typedefs.hpp"
 #include "controlchannelids.h"
