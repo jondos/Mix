@@ -160,22 +160,11 @@ SINT32 CAMiddleMix::processKeyExchange()
 						encodeXMLEncryptedKey(key,64,docfragSymKey,&oRSA);
 						XERCES_CPP_NAMESPACE::DOMDocument* docSymKey=createDOMDocument();
 						docSymKey->appendChild(docSymKey->importNode(docfragSymKey,true));
-						DOMElement* elemRoot=docSymKey->getDocumentElement();
-						CAMsg::printMsg(LOG_INFO,"elemRoot is %x\n", elemRoot);
+						//DOMElement* elemRoot=docSymKey->getDocumentElement();
+						DOMNode *elemRoot = docSymKey->getFirstChild();
 						DOMElement* elemNonceHash=createDOMElement(docSymKey,"Nonce");
-						CAMsg::printMsg(LOG_INFO,"after creating Nonce Element\n");
 						setDOMElementValue(elemNonceHash,arNonce);						
-						CAMsg::printMsg(LOG_INFO,"after setting Nonce Element value\n");
-						if(elemRoot == NULL)
-						{
-							CAMsg::printMsg(LOG_INFO,"elemRoot is null\n");
-						}
-						else
-						{
-							CAMsg::printMsg(LOG_INFO,"elemRoot is %x, elemNonceHash is %x\n", elemRoot, elemNonceHash);
-							elemRoot->appendChild(elemNonceHash);
-						}
-						CAMsg::printMsg(LOG_INFO,"after appending child\n");
+						elemRoot->appendChild(elemNonceHash);
 						m_pSignature->signXML(elemRoot);
 						m_pMuxOut->setSendKey(key,32);
 						m_pMuxOut->setReceiveKey(key+32,32);
