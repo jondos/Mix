@@ -524,7 +524,7 @@ NEXT_USER:
 //										UINT32 uQueueSize=pEntry->pHead->pQueueSend->getSize();
 //										if(uQueueSize>200000)
 //											CAMsg::printMsg(LOG_INFO,"User Send Queue size is now %u\n",uQueueSize);
-										if(pEntry->pHead->pQueueSend->getSize()>pglobalOptions->getUserQueueSuspendSize()&&
+										if(pEntry->pHead->pQueueSend->getSize() > MAX_USER_SEND_QUEUE &&
 												!pEntry->bIsSuspended)
 											{
 												pMixPacket->channel=pEntry->channelOut;
@@ -642,7 +642,7 @@ goto NEXT_USER_WRITING;
 											}
 
 										if( pfmHashEntry->cSuspend > 0 &&
-												pfmHashEntry->pQueueSend->getSize() < pglobalOptions->getUserQueueResumeSize())
+												pfmHashEntry->pQueueSend->getSize() < USER_SEND_BUFFER_RESUME )
 											{
 												fmChannelListEntry* pEntry;
 												pEntry=m_pChannelList->getFirstChannelForSocket(pfmHashEntry->pMuxSocket);
