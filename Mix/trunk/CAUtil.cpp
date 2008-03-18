@@ -277,6 +277,20 @@ SINT32 getcurrentTimeMicros(UINT64& u64Time)
 	  #endif
 	}
 
+SINT32 initRandom()
+	{
+		#if _WIN32
+			RAND_screen();
+		#else
+			#ifndef __linux
+				unsigned char randbuff[255];
+				getcurrentTime(*((timespec*)randbuff));
+				RAND_seed(randbuff,sizeof(randbuff));
+			#endif
+		#endif
+		return E_SUCCESS;
+	}
+
 /* 
  * compares date1 with date2. Note: only the date is compared, not the time
  * returns: 
@@ -302,19 +316,6 @@ SINT32 compDate(struct tm *date1, struct tm *date2)
 	return 0;
 }
 
-SINT32 initRandom()
-	{
-		#if _WIN32
-			RAND_screen();
-		#else
-			#ifndef __linux
-				unsigned char randbuff[255];
-				getcurrentTime(*((timespec*)randbuff));
-				RAND_seed(randbuff,sizeof(randbuff));
-			#endif
-		#endif
-		return E_SUCCESS;
-	}
 /** Gets 32 random bits.
 	@param val - on return the bits are random
 	@retval E_UNKNOWN, if an error occured
@@ -462,56 +463,39 @@ bool equals(const XMLCh* const e1,const char* const e2)
 		return ret;
 	}
 
-XercesDOMParser *theDOMParser = NULL;
+XercesDOMParser* theDOMParser=NULL;
 CAMutex* theParseDOMDocumentLock=NULL;
 
 XERCES_CPP_NAMESPACE::DOMDocument* parseDOMDocument(const UINT8* const buff, UINT32 len)
 	{
-	 
-	 if(theDOMParser==NULL)
-		{
-		  	theParseDOMDocumentLock=new CAMutex();
-			theParseDOMDocumentLock->lock();
-			theDOMParser=new XercesDOMParser();
-			CAMsg::printMsg(LOG_CRIT,"DOM Parser created\n");
-		}
+		if(theDOMParser==NULL)
+			{
+				theParseDOMDocumentLock=new CAMutex();
+				theParseDOMDocumentLock->lock();
+				theDOMParser=new XercesDOMParser();
+			}
 		else
-		{
 			theParseDOMDocumentLock->lock();
-		}
-		MemBufInputSource in(buff,len,"tmpBuff");
+	  MemBufInputSource in(buff,len,"tmpBuff");
 		theDOMParser->parse(in);
 		XERCES_CPP_NAMESPACE::DOMDocument* ret=NULL;
-				
 		if(theDOMParser->getErrorCount()==0)
-		{
-			ret=theDOMParser->getDocument();
-		}
-		else
-		{
-			CAMsg::printMsg(LOG_ERR,"DOM Parser could not parse %u bytes of XML document %s, error count %u\n", len, buff, theDOMParser->getErrorCount());
-		}
+			ret=theDOMParser->adoptDocument();
 		theParseDOMDocumentLock->unlock();
 		return ret;
-	 }
+	}
 
 void releaseDOMParser()
 	{
 		if(	theParseDOMDocumentLock!=NULL)
-		{
-			theParseDOMDocumentLock->lock();
-			if(theDOMParser!=NULL)
 			{
-				CAMsg::printMsg(LOG_DEBUG,"Disposing the DOM Parser at %x (hex size of DOMParser: %x).\n",
-						theDOMParser, sizeof(*theDOMParser));
+				theParseDOMDocumentLock->lock();
 				delete theDOMParser;
-				CAMsg::printMsg(LOG_DEBUG,"DOM Parser disposed. setting it to null!\n");
 				theDOMParser=NULL;
+				theParseDOMDocumentLock->unlock();
+				delete theParseDOMDocumentLock;
+				theParseDOMDocumentLock=NULL;
 			}
-			theParseDOMDocumentLock->unlock();
-			delete theParseDOMDocumentLock;
-			theParseDOMDocumentLock=NULL;
-		}
 	}
 
 /** 
@@ -860,19 +844,15 @@ SINT32 encodeXMLEncryptedKey(UINT8* key,UINT32 keylen, UINT8* xml, UINT32* xmlle
 		return E_SUCCESS;
 	}
 
-SINT32 encodeXMLEncryptedKey(UINT8* key,UINT32 keylen, DOMDocumentFragment* & docFrag,CAASymCipher* pRSA)
+SINT32 encodeXMLEncryptedKey(UINT8* key,UINT32 keylen, DOMElement* & elemRootEncodedKey,XERCES_CPP_NAMESPACE::DOMDocument* docOwner,CAASymCipher* pRSA)
 	{
-		XERCES_CPP_NAMESPACE::DOMDocument* pDoc=createDOMDocument();
-		DOMElement* root=createDOMElement(pDoc,"EncryptedKey");
-		pDoc->appendChild(root);
-		docFrag=pDoc->createDocumentFragment();
-		docFrag->appendChild(root);
-		DOMElement* elem1=createDOMElement(pDoc,"EncryptionMethod");
+		elemRootEncodedKey=createDOMElement(docOwner,"EncryptedKey");
+		DOMElement* elem1=createDOMElement(docOwner,"EncryptionMethod");
 		setDOMElementAttribute(elem1,"Algorithm",(UINT8*)"RSA");
-		root->appendChild(elem1);
-		DOMElement* elem2=createDOMElement(pDoc,"CipherData");
+		elemRootEncodedKey->appendChild(elem1);
+		DOMElement* elem2=createDOMElement(docOwner,"CipherData");
 		elem1->appendChild(elem2);
-		elem1=createDOMElement(pDoc,"CipherValue");
+		elem1=createDOMElement(docOwner,"CipherValue");
 		elem2->appendChild(elem1);
 		UINT8 tmpBuff[1024];
 		UINT32 tmpLen=1024;
