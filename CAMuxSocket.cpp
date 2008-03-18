@@ -128,9 +128,11 @@ SINT32 CAMuxSocket::send(MIXPACKET *pPacket)
 		pPacket->flags=htons(pPacket->flags);
 		if(m_bIsCrypted)
     	m_oCipherOut.crypt1(((UINT8*)pPacket),((UINT8*)pPacket),16);
+		CAMsg::printMsg(LOG_DEBUG,"Before sendfully\n");
 		ret=m_Socket.sendFully(((UINT8*)pPacket),MIXPACKET_SIZE);
 		if(ret!=E_SUCCESS)
 			{
+				CAMsg::printMsg(LOG_DEBUG,"Something went wrong\n");
 				#ifdef _DEBUG
 					CAMsg::printMsg(LOG_DEBUG,"MuxSocket-Send-Error!\n");
 					CAMsg::printMsg(LOG_DEBUG,"SOCKET-ERROR: %i\n",GET_NET_ERROR);
@@ -139,6 +141,8 @@ SINT32 CAMuxSocket::send(MIXPACKET *pPacket)
 			}
 		else
 			ret=MIXPACKET_SIZE;
+		
+		CAMsg::printMsg(LOG_DEBUG,"After sendFully\n");
 		memcpy(pPacket,tmpBuff,16);
 		m_csSend.unlock();
 		return ret;

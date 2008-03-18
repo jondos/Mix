@@ -100,15 +100,11 @@ class CASyncControlChannel : public CAAbstractControlChannel
 					else
 						CAMsg::printMsg(LOG_DEBUG,"CASyncControlChannel::proccessMessageComplete() \n");
 				#endif
-				
 				XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(m_MsgBuff,m_aktIndex);
 				m_aktIndex=0;
 				m_MsgBytesLeft=0;
 				if(doc==NULL)
-				{
-					CAMsg::printMsg(LOG_ERR,"CASyncControlChannel::proccessMessageComplete() cannot call processXMLMessage for null!\n");
 					return E_UNKNOWN;
-				}
 				#ifdef DEBUG
 					CAMsg::printMsg(LOG_DEBUG,"CASyncControlChannel::proccessMessageComplete() call processXMLMessage()\n");
 				#endif

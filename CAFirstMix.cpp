@@ -393,12 +393,12 @@ SINT32 CAFirstMix::processKeyExchange()
     //tlen=256;
 
     //Inserting own Key in XML-Key struct
-    DOMDocumentFragment* docfragKey=NULL;
-    m_pRSA->getPublicKeyAsDocumentFragment(docfragKey);
+    DOMElement* elemKey=NULL;
+    m_pRSA->getPublicKeyAsDOMElement(elemKey,docXmlKeyInfo);
     addMixInfo(elemMixesKey, true);
     DOMElement* elemOwnMix=NULL;
     getDOMChildByName(elemMixesKey, "Mix", elemOwnMix, false);
-	elemOwnMix->appendChild(docXmlKeyInfo->importNode(docfragKey,true));
+    elemOwnMix->appendChild(elemKey);
 	if (signXML(elemOwnMix) != E_SUCCESS)
 	{
 		CAMsg::printMsg(LOG_DEBUG,"Could not sign MixInfo sent to users...\n");
@@ -481,12 +481,10 @@ SINT32 CAFirstMix::processKeyExchange()
             getRandom(key,64);
             //UINT8 buff[400];
             //UINT32 bufflen=400;
-            DOMDocumentFragment* docfragSymKey=NULL;
-            encodeXMLEncryptedKey(key,64,docfragSymKey,&oRSA);
             XERCES_CPP_NAMESPACE::DOMDocument* docSymKey=createDOMDocument();
-            docSymKey->appendChild(docSymKey->importNode(docfragSymKey->getFirstChild(),true));
-            docfragSymKey->getOwnerDocument()->release();
-            DOMElement* elemRoot=docSymKey->getDocumentElement();
+            DOMElement* elemRoot=NULL;
+           	encodeXMLEncryptedKey(key,64,elemRoot,docSymKey,&oRSA);
+           	docSymKey->appendChild(elemRoot);
             if(elemNonce!=NULL)
             {
                 DOMElement* elemNonceHash=createDOMElement(docSymKey,"Nonce");
@@ -1215,10 +1213,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			}
 			aiLoginStatus = CAAccountingInstance::loginProcessStatus(pHashEntry);
 		}
-		delete paymentLoginPacket;
-		paymentLoginPacket = NULL;
-		delete aiAnswerQueueEntry;
-		aiAnswerQueueEntry = NULL;
+		
 		
 		/* We have exchanged all AI login packets:
 		 * 1. AccountCert
@@ -1233,18 +1228,43 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 #endif
 			aiLoginStatus = CAAccountingInstance::settlementTransaction();
 		}
-		if(!(aiLoginStatus & AUTH_LOGIN_FAILED))
+		
+		/* A client timeout may occur while settling */
+		/*if( ((CASocket*)pNewUser)->isClosed() )
+		{
+			CAMsg::printMsg(LOG_DEBUG,"A client timeout has likely occured while settling\n");
+			aiLoginStatus |= AUTH_LOGIN_FAILED;
+		}*/
+		
+		if(!(aiLoginStatus & AUTH_LOGIN_FAILED)) 
 		{
 			aiLoginStatus = CAAccountingInstance::finishLoginProcess(pHashEntry);
-			if(aiLoginStatus & AUTH_LOGIN_FAILED)
+			if(pNewUser != NULL)
 			{
-#ifdef DEBUG
-				CAMsg::printMsg(LOG_DEBUG,"Settlement showed that user is not allowed to login: %x \n", aiLoginStatus);
-#endif
+				while(tmpQueue->getSize()>0)
+				{
+					tmpQueue->get((UINT8*)aiAnswerQueueEntry,&qlen); 
+					if(pNewUser->send(&(aiAnswerQueueEntry->packet)) != MIXPACKET_SIZE)
+					{
+						CAMsg::printMsg(LOG_DEBUG,"A client timeout has likely occured while settling\n");
+						aiLoginStatus |= AUTH_LOGIN_FAILED;
+						break;
+					}
+				}
+			}
+			else
+			{
+				CAMsg::printMsg(LOG_DEBUG,"Socket was disposed.\n");
+				aiLoginStatus |= AUTH_LOGIN_FAILED;
 			}
 		}
 		
-		if(aiLoginStatus & AUTH_LOGIN_FAILED)
+		delete paymentLoginPacket;
+		paymentLoginPacket = NULL;
+		delete aiAnswerQueueEntry;
+		aiAnswerQueueEntry = NULL;
+		
+		if((aiLoginStatus & AUTH_LOGIN_FAILED))
 		{
 			CAMsg::printMsg(LOG_INFO,"User AI login failed\n");
 			doc->release();

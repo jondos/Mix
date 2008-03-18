@@ -110,6 +110,7 @@ SINT32 CAMiddleMix::processKeyExchange()
 				CAMsg::printMsg(LOG_INFO,"Error parsing Key Info from Mix n+1!\n");
 				return E_UNKNOWN;
 			}
+
 		DOMElement* root=doc->getDocumentElement();
 		
 		//Finding first <Mix> entry and sending symetric key...
@@ -117,7 +118,7 @@ SINT32 CAMiddleMix::processKeyExchange()
 		DOMNode* child=root->getFirstChild();
 		while(child!=NULL)
 			{
-			if(equals(child->getNodeName(),"Mix"))
+				if(equals(child->getNodeName(),"Mix"))
 					{
 						//check Signature....
 						CASignature oSig;
@@ -156,24 +157,22 @@ SINT32 CAMiddleMix::processKeyExchange()
 						oRSA.setPublicKeyAsDOMNode(rsaKey);
 						UINT8 key[64];
 						getRandom(key,64);
-						DOMDocumentFragment* docfragSymKey=NULL;
-						encodeXMLEncryptedKey(key,64,docfragSymKey,&oRSA);
 						XERCES_CPP_NAMESPACE::DOMDocument* docSymKey=createDOMDocument();
-						docSymKey->appendChild(docSymKey->importNode(docfragSymKey,true));
-						//DOMElement* elemRoot=docSymKey->getDocumentElement();
-						DOMNode *elemRoot = docSymKey->getFirstChild();
+						DOMElement* elemRoot=NULL;
+						encodeXMLEncryptedKey(key,64,elemRoot,docSymKey,&oRSA);
+						docSymKey->appendChild(elemRoot);
 						DOMElement* elemNonceHash=createDOMElement(docSymKey,"Nonce");
 						setDOMElementValue(elemNonceHash,arNonce);						
 						elemRoot->appendChild(elemNonceHash);
 						m_pSignature->signXML(elemRoot);
 						m_pMuxOut->setSendKey(key,32);
 						m_pMuxOut->setReceiveKey(key+32,32);
-						
 						UINT32 outlen=0;
 						UINT8* out=DOM_Output::dumpToMem(docSymKey,&outlen);
 						UINT16 size=htons((UINT16)outlen);
 						((CASocket*)m_pMuxOut)->send((UINT8*)&size,2);
 						((CASocket*)m_pMuxOut)->send(out,outlen);
+						docSymKey->release();
 						delete[] out;
 						bFoundNextMix=true;
 						break;
@@ -181,10 +180,10 @@ SINT32 CAMiddleMix::processKeyExchange()
 				child=child->getNextSibling();
 			}
 		if(!bFoundNextMix)
-		{
-			CAMsg::printMsg(LOG_INFO,"Error -- no Key Info from Mix n+1 found!\n");
-			return E_UNKNOWN;
-		}
+			{
+				CAMsg::printMsg(LOG_INFO,"Error -- no Key Info from Mix n+1 found!\n");
+				return E_UNKNOWN;
+			}
 		// -----------------------------------------
 		// ---- Start exchange with Mix n-1 --------
 		// -----------------------------------------		
@@ -210,9 +209,9 @@ SINT32 CAMiddleMix::processKeyExchange()
 		mixNode->appendChild(elemMixProtocolVersion);
 		setDOMElementValue(elemMixProtocolVersion,(UINT8*)"0.3");
 
-		DOMDocumentFragment* pDocFragment=NULL;
-		m_pRSA->getPublicKeyAsDocumentFragment(pDocFragment); //the key
-		mixNode->appendChild(doc->importNode(pDocFragment,true));
+		DOMElement* elemKey=NULL;
+		m_pRSA->getPublicKeyAsDOMElement(elemKey,doc); //the key
+		mixNode->appendChild(elemKey);
 		//inserting Nonce
 		DOMElement* elemNonce=createDOMElement(doc,"Nonce");
 		UINT8 arNonce[16];

@@ -844,19 +844,17 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
     pAccInfo->bytesToConfirm = (prepaidInterval) + pAccInfo->transferredBytes;
 	makeCCRequest(pAccInfo->accountNumber, pAccInfo->bytesToConfirm, doc);				
 	//pAccInfo->authFlags |= AUTH_SENT_CC_REQUEST;
-//#ifdef DEBUG	
+#ifdef DEBUG	
 	CAMsg::printMsg(LOG_DEBUG, "CC request sent for %u bytes \n",pAccInfo->bytesToConfirm);
 	CAMsg::printMsg(LOG_DEBUG, "transferrred bytes: %u bytes \n",pAccInfo->transferredBytes);
 	CAMsg::printMsg(LOG_DEBUG, "prepaid Interval: %u \n",prepaidInterval);	
-	
-		
 
 	UINT32 debuglen = 3000;
 	UINT8 debugout[3000];
 	DOM_Output::dumpToMem(doc,debugout,&debuglen);
 	debugout[debuglen] = 0;			
 	CAMsg::printMsg(LOG_DEBUG, "the CC sent looks like this: %s \n",debugout);
-//#endif			
+#endif			
 	
 	//FINISH_STACK("CAAccountingInstance::sendCCRequest");
 	
@@ -1027,6 +1025,7 @@ SINT32 CAAccountingInstance::sendAILoginConfirmation(tAiAccountingInfo* pAccInfo
 													 const UINT32 code, 
 													 UINT8 * message)
 	{
+		SINT32 sendSuccess = E_SUCCESS;
 		XERCES_CPP_NAMESPACE::DOMDocument* doc = createDOMDocument();
 		DOMElement *elemRoot = createDOMElement(doc, "LoginConfirmation");
 		setDOMElementAttribute(elemRoot, "code", code);
@@ -1040,9 +1039,9 @@ SINT32 CAAccountingInstance::sendAILoginConfirmation(tAiAccountingInfo* pAccInfo
 		debugout[debuglen] = 0;			
 		CAMsg::printMsg(LOG_DEBUG, "the AILogin Confirmation sent looks like this: %s \n",debugout);
 //#endif		
-		pAccInfo->pControlChannel->sendXMLMessage(doc);
+		sendSuccess = pAccInfo->pControlChannel->sendXMLMessage(doc);
 		doc->release();
-		return E_SUCCESS;
+		return sendSuccess;
 	}
 
 
@@ -2396,7 +2395,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	{
 		return E_UNKNOWN;
 	}
-	
+	//sleep(5);
 	dbInterface = CAAccountingDBInterface::getConnection();
 	if(dbInterface == NULL)
 	{

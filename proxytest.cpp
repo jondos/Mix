@@ -155,8 +155,7 @@ void init()
 /**do necessary cleanups of libraries etc.*/
 void cleanup()
 	{
-		
-	//		delete pRTT;
+//		delete pRTT;
 #ifndef ONLY_LOCAL_PROXY
 		if(pMix!=NULL)
 			delete pMix;
@@ -531,6 +530,7 @@ int main(int argc, const char* argv[])
 		cleanup();
 		exit(0);
 		*/
+	
 		checkSizesOfBaseTypes();
 #ifndef NEW_MIX_TYPE
 		if(MIXPACKET_SIZE!=sizeof(MIXPACKET))
@@ -574,13 +574,11 @@ int main(int argc, const char* argv[])
 		
 		exit(0);
 */
-		
 		if(pglobalOptions->parse(argc,argv) != E_SUCCESS)
 		{
 			CAMsg::printMsg(LOG_CRIT,"Error: Cannot parse configuration file!\n");
 			goto EXIT;
 		}
-				
 		if(!(pglobalOptions->isFirstMix()||pglobalOptions->isMiddleMix()||pglobalOptions->isLastMix()||pglobalOptions->isLocalProxy()))
 			{
 				CAMsg::printMsg(LOG_CRIT,"You must specifiy, which kind of Mix you want to run!\n");
@@ -683,15 +681,14 @@ int main(int argc, const char* argv[])
 			}
 #endif
 
-		
-		
+
 #if defined (_DEBUG) &&!defined(ONLY_LOCAL_PROXY)
 		//		CADatabase::test();
 		if(CAQueue::test()!=E_SUCCESS)
 			CAMsg::printMsg(LOG_CRIT,"CAQueue::test() NOT passed! Exiting\n");
 		else
 			CAMsg::printMsg(LOG_DEBUG,"CAQueue::test() passed!\n");
-				
+
 		//CALastMixChannelList::test();
 		//exit(0);
 		//Testing msSleep
@@ -703,7 +700,7 @@ int main(int argc, const char* argv[])
 		CAMsg::printMsg(LOG_DEBUG,"done! Takes %u seconds\n",start);
 		//end Testin msSleep
 #endif
-		
+
 
 //			CAMsg::printMsg(LOG_ENCRYPTED,"Test: Anon proxy started!\n");
 //			CAMsg::printMsg(LOG_ENCRYPTED,"Test2: Anon proxy started!\n");
@@ -730,7 +727,7 @@ int main(int argc, const char* argv[])
 		signal(SIGINT,signal_interrupt);
 		signal(SIGTERM,signal_term);
 #ifndef _DEBUG
-		//signal(SIGSEGV,signal_segv);
+		signal(SIGSEGV,signal_segv);
 #endif
 		//Try to write pidfile....
 		UINT8 strPidFile[512];
