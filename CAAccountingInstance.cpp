@@ -1032,13 +1032,13 @@ SINT32 CAAccountingInstance::sendAILoginConfirmation(tAiAccountingInfo* pAccInfo
 		setDOMElementValue(elemRoot, message);
 		doc->appendChild(elemRoot);
 		
-//#ifdef DEBUG
+#ifdef DEBUG
 		UINT32 debuglen = 3000;
 		UINT8 debugout[3000];
 		DOM_Output::dumpToMem(doc,debugout,&debuglen);
 		debugout[debuglen] = 0;			
 		CAMsg::printMsg(LOG_DEBUG, "the AILogin Confirmation sent looks like this: %s \n",debugout);
-//#endif		
+#endif		
 		sendSuccess = pAccInfo->pControlChannel->sendXMLMessage(doc);
 		doc->release();
 		return sendSuccess;
