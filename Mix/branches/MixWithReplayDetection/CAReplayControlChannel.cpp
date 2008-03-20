@@ -53,11 +53,11 @@ SINT32 CAReplayControlChannel::processXMLMessage(const DOM_Document& doc)
 			return E_UNKNOWN;
 		DOMString rootNodeName;
 		rootNodeName=elemRoot.getNodeName();	
-		if(rootNodeName.equals("GetTimestamps"))
+/*		if(rootNodeName.equals("GetTimestamps"))
 			{
 				m_pProcessor->proccessGetTimestamps(this);
 			}
-		else if(rootNodeName.equals("GetTimestamp"))
+		else */if(rootNodeName.equals("GetTimestamp"))
 			{
 				UINT8 buff[255];
 				UINT32 bufflen=255;
@@ -76,18 +76,18 @@ SINT32 CAReplayControlChannel::processXMLMessage(const DOM_Document& doc)
 				if(getDOMElementAttribute(elemRoot,"id",buff,&bufflen)!=E_SUCCESS)
 					return E_UNKNOWN;
 				buff[bufflen]=0;
-				tReplayTimestamp rt;
 				DOM_Node child;
 				getDOMChildByName(elemRoot,(UINT8*)"Replay",child);
 				DOM_Node elemReplayTimestamp;
-				getDOMChildByName(child,(UINT8*)"ReplayTimestamp",elemReplayTimestamp);
-				if(	getDOMElementAttribute(elemReplayTimestamp,"offset",rt.offset)!=E_SUCCESS||
-						getDOMElementAttribute(elemReplayTimestamp,"interval",rt.interval)!=E_SUCCESS)
+				getDOMChildByName(child,(UINT8*)"ReplayOffset",elemReplayTimestamp);
+				UINT32 offset=0;
+				//@todo neue XML API
+				if( getDOMElementValue(((const DOM_Element&) elemReplayTimestamp),(UINT32&)offset,(UINT32)0)!=E_SUCCESS)
 					return E_UNKNOWN;
 				#ifdef DEBUG
 					CAMsg::printMsg(LOG_DEBUG,"CAReplayControlChannel::processXMLMessage() - call m_pProcessor->proccessGotTimestamp() - m_pProcessor=%p\n",m_pProcessor);
 				#endif
-				m_pProcessor->proccessGotTimestamp(this,buff,rt);
+				m_pProcessor->proccessGotTimestamp(this,buff,offset);
 			}
 		return E_SUCCESS;
 	}

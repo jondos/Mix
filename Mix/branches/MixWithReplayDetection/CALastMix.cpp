@@ -153,6 +153,7 @@ SINT32 CALastMix::init()
 #ifdef REPLAY_DETECTION
 		m_pReplayMsgProc=new CAReplayCtrlChannelMsgProc(this);
 		m_pReplayMsgProc->startTimeStampPorpagation(REPLAY_TIMESTAMP_PROPAGATION_INTERVALL);
+		m_u64ReferenceTime=time(NULL);
 #endif
 
 		m_bRestart=false;

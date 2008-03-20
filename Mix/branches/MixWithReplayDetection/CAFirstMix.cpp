@@ -223,7 +223,11 @@ SINT32 CAFirstMix::init()
 
 		m_pMuxOutControlChannelDispatcher=new CAControlChannelDispatcher(m_pQueueSendToMix);
 #ifdef REPLAY_DETECTION
+		m_pReplayDB=new CADatabase();
+		m_pReplayDB->start();
 		m_pReplayMsgProc=new CAReplayCtrlChannelMsgProc(this);
+		m_u64ReferenceTime=time(NULL);
+		m_u64LastTimestampReceived=time(NULL);
 #endif
 
 #ifdef PAYMENT
@@ -258,7 +262,7 @@ SINT32 CAFirstMix::init()
 		m_pLogPacketStats->start();
 #endif
 #ifdef REPLAY_DETECTION
-		sendReplayTimestampRequestsToAllMixes();
+//		sendReplayTimestampRequestsToAllMixes();
 #endif
 		CAMsg::printMsg(LOG_DEBUG,"CAFirstMix init() succeded\n");
 		return E_SUCCESS;
@@ -564,12 +568,18 @@ SINT32 CAFirstMix::processKeyExchange()
 
 SINT32 CAFirstMix::setMixParameters(const tMixParameters& params)
 	{
+		UINT32 diff=time(NULL)-m_u64LastTimestampReceived;
 		for(UINT32 i=0;i<m_u32MixCount-1;i++)
 			{
+//dangerous strcmp
 				if(strcmp((char*)m_arMixParameters[i].m_strMixID,(char*)params.m_strMixID)==0)
 					{
-						m_arMixParameters[i].m_u32ReplayRefTime=params.m_u32ReplayRefTime;
-						return E_SUCCESS;
+//						m_arMixParameters[i].m_u32ReplayRefTime=params.m_u32ReplayRefTime;
+						m_arMixParameters[i].m_u32ReplayOffset=params.m_u32ReplayOffset;
+						//return E_SUCCESS;
+					}
+				else{
+						if (m_arMixParameters[i].m_u32ReplayOffset!=0) m_arMixParameters[i].m_u32ReplayOffset+=diff;
 					}
 			}
 		return E_SUCCESS;
@@ -809,7 +819,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 		i=0;
 		while(!pFirstMix->m_bRestart && i < pFirstMix->m_u32MixCount-1)
 		{
-			if(pFirstMix->m_arMixParameters[i].m_u32ReplayRefTime==0)//not set yet
+			if(pFirstMix->m_arMixParameters[i].m_u32ReplayOffset==0)//not set yet
 				{
 					msSleep(100);//wait a little bit and try again
 					continue;
@@ -1087,10 +1097,41 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		UINT32 siglen=255;
 		m_pSignature->sign(xml_buff,xml_len+2,sig,&siglen);
 		XERCES_CPP_NAMESPACE::DOMDocument* docSig=createDOMDocument();
-		elemRoot=createDOMElement(docSig,"Signature");
+
+		//checking if Replay-Detection is enabled
+		DOM_Element elemReplay,elemSig;
+		UINT8 replay[6];
+		UINT32 replay_len=5;
+		if(	(getDOMChildByName(elemRoot,(UINT8*)"ReplayDetection",elemReplay,false)==E_SUCCESS)&&
+			(getDOMElementValue(elemReplay,replay,&replay_len)==E_SUCCESS)&&
+			(strncmp((char*)replay,"true",5)==0)){
+				elemRoot=docSig.createElement("MixExchange");
+				elemReplay=docSig.createElement("Replay");
+				docSig.appendChild(elemRoot);
+				elemRoot.appendChild(elemReplay);
+
+				UINT32 diff=(UINT32)(time(NULL)-m_u64LastTimestampReceived);
+				for(SINT32 i=0;i<getMixCount()-1;i++)
+				{
+					DOM_Element elemMix=docSig.createElement("Mix");
+					setDOMElementAttribute(elemMix,"id",m_arMixParameters[i].m_strMixID);
+					DOM_Element elemReplayOffset=docSig.createElement("ReplayOffset");
+					setDOMElementValue(elemReplayOffset,(UINT32) (m_arMixParameters[i].m_u32ReplayOffset+diff));
+					elemMix.appendChild(elemReplayOffset);
+					elemReplay.appendChild(elemMix);
+				}
+				elemSig=docSig.createElement("Signature");
+				elemRoot.appendChild(elemSig);
+
+				CAMsg::printMsg(LOG_DEBUG,"Replay Detection requested\n");
+				}
+		else {		
+				elemSig=createDOMElement(docSig,"Signature");
+				docSig->appendChild(elemSig);
+			}
+			
 		DOMElement* elemSigValue=createDOMElement(docSig,"SignatureValue");
-		docSig->appendChild(elemRoot);
-		elemRoot->appendChild(elemSigValue);
+		elemSig->appendChild(elemSigValue);
 		UINT32 u32=siglen;
 		CABase64::encode(sig,u32,sig,&siglen);
 		sig[siglen]=0;
