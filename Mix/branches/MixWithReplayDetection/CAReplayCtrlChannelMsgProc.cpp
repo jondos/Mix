@@ -122,7 +122,6 @@ SINT32 CAReplayCtrlChannelMsgProc::proccessGetTimestamps(const CAReplayControlCh
 SINT32 CAReplayCtrlChannelMsgProc::proccessGetTimestamp(const CAReplayControlChannel* pReceiver,const UINT8* strMixID) const
 	{
 		UINT8 buff[255];
-		UINT8 msgBuff[1024];
 		pglobalOptions->getMixId(buff,255);
 		if(strMixID==NULL||strncmp((char*)strMixID,(char*)buff,255)==0)//our own replay timestamp is requested
 			{
@@ -131,24 +130,23 @@ SINT32 CAReplayCtrlChannelMsgProc::proccessGetTimestamp(const CAReplayControlCha
 					return E_SUCCESS;
 
 				const CAMixWithReplayDB* pMix=(CAMixWithReplayDB*)m_pMix;
-				
-				DOM_Document docTemplate=DOM_Document::createDocument();
-				DOM_Element elemMix=docTemplate.createElement("Mix");
-				setDOMElementAttribute(elemMix,"id",buff);
-				DOM_Element elemReplay=docTemplate.createElement("Replay");
-				elemMix.appendChild(elemReplay);
-				DOM_Element elemReplayOffset=docTemplate.createElement("ReplayOffset");
-				setDOMElementValue(elemReplayOffset,(UINT32) (time(NULL)-m_pMix->m_u64ReferenceTime));
-				elemReplay.appendChild(elemReplayOffset);
-				docTemplate.appendChild(elemMix);
 
-				return pReceiver->sendXMLMessage(docTemplate);
+				DOMElement* elemReplayTimestamp=NULL;
+				if (getDOMChildByName(m_docTemplate.getDocumentElement(),"ReplayOffset",elemReplayTimestamp,true)!=E_SUCCESS){
+					return E_UNKNOWN;
+					}
+				setDOMElementValue(elemReplayTimestamp,(UINT32) (time(NULL)-m_pMix->m_u64ReferenceTime));
+
+				return pReceiver->sendXMLMessage(m_docTemplate);
 			}
 		else if(m_pUpstreamReplayControlChannel!=NULL&&strMixID!=NULL)//the replay timestamp of some other mix is requested
 			{
-				const char* strTemplate="<?xml version=\"1.0\" encoding=\"UTF-8\"?><GetTimestamp id=\"%s\"/>";
-				sprintf((char*)msgBuff,strTemplate,buff);
-				return m_pUpstreamReplayControlChannel->sendXMLMessage(msgBuff,strlen((char*)msgBuff));
+				XERCES_CPP_NAMESPACE::DOMDocument* doc=createDOMDocument();
+				DOMElement *elemGet=createDOMElement(doc,"GetTimestamp");
+				setDOMElementAttribute(elemGet,"id",strMixID);
+				doc->appendChild(elemGet);
+
+				return m_pUpstreamReplayControlChannel->sendXMLMessage(doc);
 			}
 		return E_SUCCESS;	
 	}
@@ -165,8 +163,10 @@ SINT32 CAReplayCtrlChannelMsgProc::propagateCurrentReplayTimestamp()
 		if(m_pDownstreamReplayControlChannel==NULL)
 			return E_UNKNOWN;
 
-		DOM_Element elemReplayTimestamp;
-		getDOMChildByName(m_docTemplate.getDocumentElement(),(UINT8*)"ReplayOffset",elemReplayTimestamp,true);
+		DOMElement* elemReplayTimestamp=NULL;
+		if (getDOMChildByName(m_docTemplate.getDocumentElement(),"ReplayOffset",elemReplayTimestamp,true)!=E_SUCCESS){
+			return E_UNKNOWN;
+			}
 		setDOMElementValue(elemReplayTimestamp,(UINT32) (time(NULL)-m_pMix->m_u64ReferenceTime));
 
 		m_pDownstreamReplayControlChannel->sendXMLMessage(m_docTemplate);
@@ -237,15 +237,15 @@ SINT32 CAReplayCtrlChannelMsgProc::initTimestampsMessageTemplate()
 		UINT8 buff[255];
 		pglobalOptions->getMixId(buff,255);
 
-		m_docTemplate=DOM_Document::createDocument();
-		DOM_Element elemMix=m_docTemplate.createElement("Mix");
+		m_docTemplate=createDOMDocument();
+		DOMElement *elemMix=createDOMElement(m_docTemplate,"Mix");
 		setDOMElementAttribute(elemMix,"id",buff);
-		DOM_Element elemReplay=m_docTemplate.createElement("Replay");
-		elemMix.appendChild(elemReplay);
-		DOM_Element elemReplayOffset=m_docTemplate.createElement("ReplayOffset");
+		DOMElement *elemReplay=createDOMElement(m_docTemplate,"Replay");
+		elemMix->appendChild(elemReplay);
+		DOMElement *elemReplayOffset=createDOMElement(m_docTemplate,"ReplayOffset");
 		setDOMElementValue(elemReplayOffset,(UINT32) (time(NULL)-m_pMix->m_u64ReferenceTime));
-		elemReplay.appendChild(elemReplayOffset);
-		m_docTemplate.appendChild(elemMix);
+		elemReplay->appendChild(elemReplayOffset);
+		m_docTemplate->appendChild(elemMix);
 
 		return E_SUCCESS;
 	}
@@ -259,16 +259,17 @@ SINT32 CAReplayCtrlChannelMsgProc::proccessGotTimestamp(const CAReplayControlCha
 		#endif
 		if(m_pMix->getType()!=CAMix::FIRST_MIX)
 			{
-				DOM_Document docTemplate=DOM_Document::createDocument();
-				DOM_Element elemMix=docTemplate.createElement("Mix");
+				XERCES_CPP_NAMESPACE::DOMDocument* doc=createDOMDocument();
+				DOMElement *elemMix=createDOMElement(doc,"Mix");
 				setDOMElementAttribute(elemMix,"id",strMixID);
-				DOM_Element elemReplay=docTemplate.createElement("Replay");
-				elemMix.appendChild(elemReplay);
-				DOM_Element elemReplayOffset=docTemplate.createElement("ReplayOffset");
+				DOMElement *elemReplay=createDOMElement(doc,"Replay");
+				elemMix->appendChild(elemReplay);
+				DOMElement *elemReplayOffset=createDOMElement(doc,"ReplayOffset");
 				setDOMElementValue(elemReplayOffset,(UINT32) offset);
-				elemReplay.appendChild(elemReplayOffset);
-				docTemplate.appendChild(elemMix);
-				return m_pDownstreamReplayControlChannel->sendXMLMessage(docTemplate);
+				elemReplay->appendChild(elemReplayOffset);
+				doc->appendChild(elemMix);
+
+				return m_pDownstreamReplayControlChannel->sendXMLMessage(doc);
 			}
 
 		//First mix --> update mix parameters
@@ -294,10 +295,13 @@ SINT32 CAReplayCtrlChannelMsgProc::sendGetTimestamp(const UINT8* strMixID)
 	{
 		if(strMixID==NULL||strlen((const char*)strMixID)>400)
 			return E_UNKNOWN;
-		UINT8 msgBuff[512];
-		const char* strTemplate="<?xml version=\"1.0\" encoding=\"UTF-8\"?><GetTimestamp id=\"%s\"/>";
-		sprintf((char*)msgBuff,strTemplate,strMixID);
-		return m_pUpstreamReplayControlChannel->sendXMLMessage(msgBuff,strlen((char*)msgBuff));
+
+		XERCES_CPP_NAMESPACE::DOMDocument* doc=createDOMDocument();
+		DOMElement *elemGet=createDOMElement(doc,"GetTimestamp");
+		setDOMElementAttribute(elemGet,"id",strMixID);
+		doc->appendChild(elemGet);
+
+		return m_pUpstreamReplayControlChannel->sendXMLMessage(doc);
 	}
 
 #endif //REPLAY_DETECTION
