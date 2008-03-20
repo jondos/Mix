@@ -94,7 +94,7 @@ private:
 		//UINT8* m_strGetTimestampsRepsonseMessageTemplate;
 		//UINT32 m_u32GetTimestampsRepsonseMessageTemplateLen;
 		volatile bool m_bRun;
-		DOM_Document m_docTemplate;
+		XERCES_CPP_NAMESPACE::DOMDocument* m_docTemplate;
 		SINT32 initTimestampsMessageTemplate();
 };
 #endif
