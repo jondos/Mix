@@ -41,9 +41,6 @@ class CAFirstMixA:public CAFirstMix
 			SINT32 loop();	
 			SINT32 closeConnection(fmHashTableEntry* pHashEntry);	
 			
-#ifdef _DEBUG
-		CAThread* m_pLogThread;
-#endif
 };
 
 #endif

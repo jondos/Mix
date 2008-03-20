@@ -642,7 +642,7 @@ goto NEXT_USER_WRITING;
 											}
 
 										if( pfmHashEntry->cSuspend > 0 &&
-												pfmHashEntry->pQueueSend->getSize() < USER_SEND_BUFFER_RESUME )
+												pfmHashEntry->pQueueSend->getSize() < USER_SEND_BUFFER_RESUME)
 											{
 												fmChannelListEntry* pEntry;
 												pEntry=m_pChannelList->getFirstChannelForSocket(pfmHashEntry->pMuxSocket);

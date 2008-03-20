@@ -434,7 +434,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include <framework/XMLFormatter.hpp>
 #include <util/TranscodingException.hpp>
 #include <framework/MemBufInputSource.hpp>
-#include <framework/Wrapper4InputSource.hpp>
 
 /*#if (XERCES_VERSION_MAJOR >1)
 	#include <dom/deprecated/DOM.hpp>
