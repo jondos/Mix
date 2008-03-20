@@ -165,6 +165,36 @@ SINT32 CAMiddleMix::processKeyExchange()
 						DOMElement* elemNonceHash=createDOMElement(docSymKey,"Nonce");
 						setDOMElementValue(elemNonceHash,arNonce);						
 						elemRoot->appendChild(elemNonceHash);
+
+						///Getting the KeepAlive Traffice...
+						DOMElement *elemKeepAlive;
+						DOMElement *elemKeepAliveSendInterval;
+						DOMElement *elemKeepAliveRecvInterval;
+						getDOMChildByName(child,"KeepAlive",elemKeepAlive,false);
+						getDOMChildByName(elemKeepAlive,"SendInterval",elemKeepAliveSendInterval,false);
+						getDOMChildByName(elemKeepAlive,"ReceiveInterval",elemKeepAliveRecvInterval,false);
+						UINT32 tmpSendInterval,tmpRecvInterval;
+						getDOMElementValue(elemKeepAliveSendInterval,tmpSendInterval,0xFFFFFFFF); //if now send interval was given set it to "infinite"
+						getDOMElementValue(elemKeepAliveRecvInterval,tmpRecvInterval,0xFFFFFFFF); //if no recv interval was given --> set it to "infinite"
+						CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Getting offer -- SendInterval %u -- ReceiveInterval %u\n",tmpSendInterval,tmpRecvInterval);
+						// Add Info about KeepAlive traffic
+						UINT32 u32KeepAliveSendInterval=pglobalOptions->getKeepAliveSendInterval();
+						UINT32 u32KeepAliveRecvInterval=pglobalOptions->getKeepAliveRecvInterval();
+						elemKeepAlive=createDOMElement(docSymKey,"KeepAlive");
+						elemKeepAliveSendInterval=createDOMElement(docSymKey,"SendInterval");
+						elemKeepAliveRecvInterval=createDOMElement(docSymKey,"ReceiveInterval");
+						elemKeepAlive->appendChild(elemKeepAliveSendInterval);
+						elemKeepAlive->appendChild(elemKeepAliveRecvInterval);
+						setDOMElementValue(elemKeepAliveSendInterval,u32KeepAliveSendInterval);
+						setDOMElementValue(elemKeepAliveRecvInterval,u32KeepAliveRecvInterval);
+						elemRoot->appendChild(elemKeepAlive);
+						CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Offering -- SendInterval %u -- Receive Interval %u\n",u32KeepAliveSendInterval,u32KeepAliveRecvInterval);		
+						m_u32KeepAliveSendInterval2=max(u32KeepAliveSendInterval,tmpRecvInterval);
+						if(m_u32KeepAliveSendInterval>10000)
+							m_u32KeepAliveSendInterval2-=10000; //make the send interval a little bit smaller than the related receive intervall
+						m_u32KeepAliveRecvInterval2=max(u32KeepAliveRecvInterval,tmpSendInterval);
+						CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval2,m_u32KeepAliveRecvInterval2);		
+
 						m_pSignature->signXML(elemRoot);
 						m_pMuxOut->setSendKey(key,32);
 						m_pMuxOut->setReceiveKey(key+32,32);
@@ -222,7 +252,23 @@ SINT32 CAMiddleMix::processKeyExchange()
 		tmpBuff[tmpLen]=0;
 		setDOMElementValue(elemNonce,tmpBuff);
 		mixNode->appendChild(elemNonce);
-		
+
+// Add Info about KeepAlive traffic
+		DOMElement* elemKeepAlive;
+		UINT32 u32KeepAliveSendInterval=pglobalOptions->getKeepAliveSendInterval();
+		UINT32 u32KeepAliveRecvInterval=pglobalOptions->getKeepAliveRecvInterval();
+		elemKeepAlive=createDOMElement(doc,"KeepAlive");
+		DOMElement* elemKeepAliveSendInterval;
+		DOMElement* elemKeepAliveRecvInterval;
+		elemKeepAliveSendInterval=createDOMElement(doc,"SendInterval");
+		elemKeepAliveRecvInterval=createDOMElement(doc,"ReceiveInterval");
+		elemKeepAlive->appendChild(elemKeepAliveSendInterval);
+		elemKeepAlive->appendChild(elemKeepAliveRecvInterval);
+		setDOMElementValue(elemKeepAliveSendInterval,u32KeepAliveSendInterval);
+		setDOMElementValue(elemKeepAliveRecvInterval,u32KeepAliveRecvInterval);
+		mixNode->appendChild(elemKeepAlive);
+		CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Offering -- SendInterval %u -- Receive Interval %u\n",u32KeepAliveSendInterval,u32KeepAliveRecvInterval);		
+
 		// create signature
 		if(signXML(mixNode)!=E_SUCCESS)
 			{
@@ -307,6 +353,24 @@ SINT32 CAMiddleMix::processKeyExchange()
 			}
 		m_pMuxIn->setReceiveKey(key,32);
 		m_pMuxIn->setSendKey(key+32,32);
+
+		///Getting and calculating the KeepAlive Traffice...
+		elemKeepAlive=NULL;
+		elemKeepAliveSendInterval=NULL;
+		elemKeepAliveRecvInterval=NULL;
+		getDOMChildByName(elemRoot,"KeepAlive",elemKeepAlive);
+		getDOMChildByName(elemKeepAlive,"SendInterval",elemKeepAliveSendInterval);
+		getDOMChildByName(elemKeepAlive,"ReceiveInterval",elemKeepAliveRecvInterval);
+		UINT32 tmpSendInterval,tmpRecvInterval;
+		getDOMElementValue(elemKeepAliveSendInterval,tmpSendInterval,0xFFFFFFFF); //if now send interval was given set it to "infinite"
+		getDOMElementValue(elemKeepAliveRecvInterval,tmpRecvInterval,0xFFFFFFFF); //if no recv interval was given --> set it to "infinite"
+		CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Getting offer -- SendInterval %u -- Receive Interval %u\n",tmpSendInterval,tmpRecvInterval);		
+		m_u32KeepAliveSendInterval=max(u32KeepAliveSendInterval,tmpRecvInterval);
+		if(m_u32KeepAliveSendInterval>10000)
+			m_u32KeepAliveSendInterval-=10000; //make the send interval a little bit smaller than the related receive intervall
+		m_u32KeepAliveRecvInterval=max(u32KeepAliveRecvInterval,tmpSendInterval);
+		CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval,m_u32KeepAliveRecvInterval);		
+
 		return E_SUCCESS;
 	}
 
@@ -420,26 +484,280 @@ SINT32 CAMiddleMix::init()
     if((ret = processKeyExchange())!=E_SUCCESS)
 			{
 				CAMsg::printMsg(LOG_CRIT,"Error in proccessKeyExchange()!\n");
-        return ret;
+        			return ret;
 			}
-	
+
+		m_pQueueSendToMixBefore=new CAQueue(sizeof(tQueueEntry));
+		m_pQueueSendToMixAfter=new CAQueue(sizeof(tQueueEntry));
+
+		m_pMuxInControlChannelDispatcher=new CAControlChannelDispatcher(m_pQueueSendToMixBefore);
+
+#ifdef REPLAY_DETECTION
+		m_pReplayDB=new CADatabase();
+		m_pReplayDB->start();
+		m_pReplayMsgProc=new CAReplayCtrlChannelMsgProc(this);
+		m_pReplayMsgProc->startTimeStampPorpagation(REPLAY_TIMESTAMP_PROPAGATION_INTERVALL);
+		m_u64ReferenceTime=time(NULL);
+#endif
+
 
 		m_pMiddleMixChannelList=new CAMiddleMixChannelList();
 		
 		return E_SUCCESS;
 	}
 
-/** Processes Downstream-MixPackets.*/	
-THREAD_RETURN mm_loopDownStream(void *p)
+/** UPSTREAM (to WEB) Take the packets from the Queue and write them to the Socket **/
+THREAD_RETURN mm_loopSendToMixAfter(void* param)
 	{
-		CAMiddleMix* pMix=(CAMiddleMix*)p;
-		HCHANNEL channelIn;
-		CASymCipher* pCipher;
+		INIT_STACK;
+		BEGIN_STACK("CAFirstMix::fm_loopSendToMixAfter");
+		
+		CAMiddleMix* pMiddleMix=(CAMiddleMix*)param;
+		CAQueue* pQueue=((CAMiddleMix*)param)->m_pQueueSendToMixAfter;
+		CAMuxSocket* pMuxSocket=pMiddleMix->m_pMuxOut;
+
+		UINT32 len;
+		SINT32 ret;
+		tQueueEntry* pQueueEntry=new tQueueEntry;
+		MIXPACKET* pMixPacket=&pQueueEntry->packet;
+		UINT32 u32KeepAliveSendInterval=pMiddleMix->m_u32KeepAliveSendInterval2;
+		while(pMiddleMix->m_bRun)
+			{
+				len=sizeof(tQueueEntry);
+				ret=pQueue->getOrWait((UINT8*)pQueueEntry,&len,u32KeepAliveSendInterval);
+				if(ret==E_TIMEDOUT)
+					{//send a dummy as keep-alvie-traffic
+						pMixPacket->flags=CHANNEL_DUMMY;
+						pMixPacket->channel=DUMMY_CHANNEL;
+						getRandom(pMixPacket->data,DATA_SIZE);
+					}
+				else if(ret!=E_SUCCESS||len!=sizeof(tQueueEntry))
+					{
+						CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopSendToMixAfter - Error in dequeueing MixPaket\n");
+						CAMsg::printMsg(LOG_ERR,"ret=%i len=%i\n",ret,len);
+						break;
+					}
+				if((pMuxSocket->send(pMixPacket)!=MIXPACKET_SIZE))
+					{
+						CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopSendToMixAfter - Error in sending MixPaket\n");
+						break;
+					}
+#ifdef LOG_PACKET_TIMES
+ 				if(!isZero64(pQueueEntry->timestamp_proccessing_start))
+					{
+						getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end);
+						pFirstMix->m_pLogPacketStats->addToTimeingStats(*pQueueEntry,pMixPacket->flags,true);
+					}
+#endif
+			}
+		delete pQueueEntry;
+		FINISH_STACK("CAFirstMix::fm_loopSendToMixAfter");
+
+		CAMsg::printMsg(LOG_DEBUG,"Exiting Thread SendToMixAfter\n");
+		THREAD_RETURN_SUCCESS;
+	}
+
+/** DOWNSTREAM (to Client) Take the packets from the Queue and write them to the Socket **/
+THREAD_RETURN mm_loopSendToMixBefore(void* param)
+	{
+		INIT_STACK;
+		BEGIN_STACK("CAFirstMix::fm_loopSendToMixBefore");
+		
+		CAMiddleMix* pMiddleMix=(CAMiddleMix*)param;
+		CAQueue* pQueue=((CAMiddleMix*)param)->m_pQueueSendToMixBefore;
+		CAMuxSocket* pMuxSocket=pMiddleMix->m_pMuxIn;
+
+		UINT32 len;
+		SINT32 ret;
+		tQueueEntry* pQueueEntry=new tQueueEntry;
+		MIXPACKET* pMixPacket=&pQueueEntry->packet;
+		UINT32 u32KeepAliveSendInterval=pMiddleMix->m_u32KeepAliveSendInterval;
+		while(pMiddleMix->m_bRun)
+			{
+				len=sizeof(tQueueEntry);
+				ret=pQueue->getOrWait((UINT8*)pQueueEntry,&len,u32KeepAliveSendInterval);
+				if(ret==E_TIMEDOUT)
+					{//send a dummy as keep-alvie-traffic
+						pMixPacket->flags=CHANNEL_DUMMY;
+						pMixPacket->channel=DUMMY_CHANNEL;
+						getRandom(pMixPacket->data,DATA_SIZE);
+					}
+				else if(ret!=E_SUCCESS||len!=sizeof(tQueueEntry))
+					{
+						CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopSendToMixBefore - Error in dequeueing MixPaket\n");
+						CAMsg::printMsg(LOG_ERR,"ret=%i len=%i\n",ret,len);
+						break;
+					}
+				if((pMuxSocket->send(pMixPacket)!=MIXPACKET_SIZE))
+					{
+						CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopSendToMixBefore - Error in sending MixPaket\n");
+						break;
+					}
+#ifdef LOG_PACKET_TIMES
+ 				if(!isZero64(pQueueEntry->timestamp_proccessing_start))
+					{
+						getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end);
+						pFirstMix->m_pLogPacketStats->addToTimeingStats(*pQueueEntry,pMixPacket->flags,true);
+					}
+#endif
+			}
+		delete pQueueEntry;
+		FINISH_STACK("CAFirstMix::fm_loopSendToMixBefore");
+
+		CAMsg::printMsg(LOG_DEBUG,"Exiting Thread SendToMixBefore\n");
+		THREAD_RETURN_SUCCESS;
+	}
+
+THREAD_RETURN mm_loopReadFromMixBefore(void* param)
+	{
+		CAMiddleMix* pMix=(CAMiddleMix*)param;
+		HCHANNEL channelOut;
 		tPoolEntry* pPoolEntry=new tPoolEntry;
 		MIXPACKET* pMixPacket=&pPoolEntry->packet;
+
+		CAQueue* pQueue=pMix->m_pQueueSendToMixAfter;
+
+		CASymCipher* pCipher;
+		SINT32 ret;
+		UINT8* tmpRSABuff=new UINT8[RSA_SIZE];
+		CASingleSocketGroup oSocketGroup(false);
+		oSocketGroup.add(*(pMix->m_pMuxIn));
+
+		#ifdef USE_POOL		
+			CAPool* pPool=new CAPool(MIX_POOL_SIZE);
+		#endif
+
+		while(pMix->m_bRun)
+			{
+				#ifndef USE_POOL			
+					ret=oSocketGroup.select(1000);
+				#else
+					ret=oSocketGroup.select(MIX_POOL_TIMEOUT);
+				#endif
+				if(ret!=1)
+					{
+						if(ret==E_TIMEDOUT)
+							{
+								#ifndef USE_POOL
+									continue;
+								#else
+									pMixPacket->channel=DUMMY_CHANNEL;
+									pMixPacket->flags=CHANNEL_DUMMY;
+									getRandom(pMixPacket->data,DATA_SIZE);
+									pPool->pool(pPoolEntry);
+									if(m_pMuxOut->send(pMixPacket)==SOCKET_ERROR)
+										pMix->m_bRun=false;								
+								#endif
+							}
+						else
+							{
+								CAMsg::printMsg(LOG_CRIT,"loopUpStream -- Fehler bei select() -- goto ERR!\n");
+								pMix->m_bRun=false;								
+							}
+					}
+				else
+					{
+						ret=pMix->m_pMuxIn->receive(pMixPacket);
+
+						if ((ret!=SOCKET_ERROR)&&(pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS))
+							{
+								CAMsg::printMsg(LOG_INFO,"loopUpStream received a packet with invalid flags: %0X .  Removing them.\n",(pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS));
+								pMixPacket->flags&=CHANNEL_ALLOWED_FLAGS;
+							}
+
+						if(ret==SOCKET_ERROR)
+							{
+								CAMsg::printMsg(LOG_CRIT,"Fehler beim Empfangen -- Exiting!\n");
+								pMix->m_bRun=false;								
+							}
+						#ifdef USE_POOL	
+						else if(pMixPacket->channel==DUMMY_CHANNEL)
+							{
+								pMixPacket->flags=CHANNEL_DUMMY;
+								getRandom(pMixPacket->data,DATA_SIZE);
+								pPool->pool(pPoolEntry);
+								if(pMix->m_pMuxOut->send(pMixPacket)==SOCKET_ERROR)
+									pMix->m_bRun=false;								
+								}
+						#endif
+						else if(pMix->m_pMiddleMixChannelList->getInToOut(pMixPacket->channel,&channelOut,&pCipher)!=E_SUCCESS)
+							{//new connection ?
+								if(pMixPacket->flags==CHANNEL_OPEN) //if not channel-open flag set -->drop this packet
+									{
+										#ifdef _DEBUG
+											CAMsg::printMsg(LOG_DEBUG,"New Connection from previous Mix!\n");
+										#endif
+										pMix->m_pRSA->decrypt(pMixPacket->data,tmpRSABuff);
+										#ifdef REPLAY_DETECTION
+											// replace time(NULL) with the real timestamp ()
+											// packet-timestamp + m_u64ReferenceTime
+											if(pMix->m_pReplayDB->insert(tmpRSABuff,time(NULL))!=E_SUCCESS)
+												{
+													CAMsg::printMsg(LOG_INFO,"Replay: Duplicate packet ignored.\n");
+													continue;
+												}
+										#endif
+
+										pCipher=new CASymCipher();
+										pCipher->setKey(tmpRSABuff);
+										pCipher->crypt1(pMixPacket->data+RSA_SIZE,
+													pMixPacket->data+RSA_SIZE-KEY_SIZE,
+													DATA_SIZE-RSA_SIZE);
+										memcpy(pMixPacket->data,tmpRSABuff+KEY_SIZE,RSA_SIZE-KEY_SIZE);
+										getRandom(pMixPacket->data+DATA_SIZE-KEY_SIZE,KEY_SIZE);
+										pMix->m_pMiddleMixChannelList->add(pMixPacket->channel,pCipher,&channelOut);
+										pMixPacket->channel=channelOut;
+										#ifdef USE_POOL
+											pPool->pool(pPoolEntry);
+										#endif
+
+										pQueue->add(pMixPacket,sizeof(tQueueEntry));
+									}
+							}
+						else
+							{//established connection
+								pCipher->crypt1(pMixPacket->data,pMixPacket->data,DATA_SIZE);
+								pCipher->unlock();
+								#ifdef USE_POOL
+									pPool->pool(pPoolEntry);
+								#endif
+								if((pMixPacket->flags&CHANNEL_CLOSE)!=0)
+									{//Channel close received -->remove channel form channellist
+										pMix->m_pMiddleMixChannelList->remove(pMixPacket->channel);
+									}
+								pMixPacket->channel=channelOut;
+
+								pQueue->add(pMixPacket,sizeof(tQueueEntry));
+							}
+					}
+			}
+
+		CAMsg::printMsg(LOG_CRIT,"loopReadFromMixBefore -- Exiting clean ups...\n");
+		pMix->m_bRun=false;
+		delete tmpRSABuff;
+		delete pPoolEntry;
+		#ifdef USE_POOL
+			delete pPool;
+		#endif
+		CAMsg::printMsg(LOG_CRIT,"loopReadFromMixBefore -- Now Exiting!\n");
+		THREAD_RETURN_SUCCESS;
+	}
+
+THREAD_RETURN mm_loopReadFromMixAfter(void* param)
+	{
+		CAMiddleMix* pMix=(CAMiddleMix*)param;
+		HCHANNEL channelIn;
+		CASymCipher* pCipher;
+
+		tPoolEntry* pPoolEntry=new tPoolEntry;
+		MIXPACKET* pMixPacket=&pPoolEntry->packet;
+
 		SINT32 ret;
 		CASingleSocketGroup oSocketGroup(false);
 		oSocketGroup.add(*(pMix->m_pMuxOut));
+
+		CAQueue* pQueue=pMix->m_pQueueSendToMixBefore;
+
 #ifdef USE_POOL		
 		CAPool* pPool=new CAPool(MIX_POOL_SIZE);
 #endif
@@ -462,40 +780,46 @@ THREAD_RETURN mm_loopDownStream(void *p)
 									getRandom(pMixPacket->data,DATA_SIZE);
 									pPool->pool(pPoolEntry);
 									if(pMix->m_pMuxIn->send(pMixPacket)==SOCKET_ERROR)
-										goto ERR;								
+										pMix->m_bRun=false;
 								#endif
 							}
 						else
 							{
-								CAMsg::printMsg(LOG_CRIT,"loopDownStream -- Fehler bei select() -- goto ERR!\n");
-								goto ERR;
+								CAMsg::printMsg(LOG_CRIT,"loopReadFromMixAfter -- Fehler bei select() -- goto ERR!\n");
+								pMix->m_bRun=false;
 							}
 					}
 				else
 					{
+
 						ret=pMix->m_pMuxOut->receive(pMixPacket);
-						if(ret==SOCKET_ERROR)
-								{
-									CAMsg::printMsg(LOG_CRIT,"loopDownStream -- Fehler bei receive() -- goto ERR!\n");
-									goto ERR;
-								}
-						if (pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS)
+						if ((ret!=SOCKET_ERROR)&&(pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS))
 							{
-								CAMsg::printMsg(LOG_INFO,"loopDownStream received a packet with invalid flags: %0X .  Removing them.\n",(pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS));
+								CAMsg::printMsg(LOG_INFO,"loopReadFromMixAfter -- received a packet with invalid flags: %0X .  Removing them.\n",(pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS));
 								pMixPacket->flags&=CHANNEL_ALLOWED_FLAGS;
 							}
+						if(ret==SOCKET_ERROR)
+							{
+								CAMsg::printMsg(LOG_CRIT,"loopReadFromMixAfter -- Fehler bei receive() -- goto ERR!\n");
+								pMix->m_bRun=false;
+							}
 						#ifdef USE_POOL	
-							if(pMixPacket->channel==DUMMY_CHANNEL)
-								{
-									pMixPacket->flags=CHANNEL_DUMMY;
-									getRandom(pMixPacket->data,DATA_SIZE);
-									pPool->pool(pPoolEntry);
-									if(pMix->m_pMuxIn->send(pMixPacket)==SOCKET_ERROR)
-										goto ERR;								
-								}
-							else
+						else if(pMixPacket->channel==DUMMY_CHANNEL)
+							{
+								pMixPacket->flags=CHANNEL_DUMMY;
+								getRandom(pMixPacket->data,DATA_SIZE);
+								pPool->pool(pPoolEntry);
+								if(pMix->m_pMuxIn->send(pMixPacket)==SOCKET_ERROR)
+									pMix->m_bRun=false;
+							}
 						#endif
-						if(pMix->m_pMiddleMixChannelList->getOutToIn(&channelIn,pMixPacket->channel,&pCipher)==E_SUCCESS)
+						#ifdef REPLAY_DETECTION
+						else if(pMixPacket->channel==REPLAY_CONTROL_CHANNEL_ID)
+							{
+								pQueue->add(pMixPacket,sizeof(tQueueEntry));
+							}
+						#endif
+						else if(pMix->m_pMiddleMixChannelList->getOutToIn(&channelIn,pMixPacket->channel,&pCipher)==E_SUCCESS)
 							{//connection found
 								pMixPacket->channel=channelIn;
 								#ifdef LOG_CRIME
@@ -512,21 +836,18 @@ THREAD_RETURN mm_loopDownStream(void *p)
 									{//Channel close received -->remove channel form channellist
 										pMix->m_pMiddleMixChannelList->remove(channelIn);
 									}
-								if(pMix->m_pMuxIn->send(pMixPacket)==SOCKET_ERROR)
-									goto ERR;
+								pQueue->add(pMixPacket,sizeof(tQueueEntry));
 							}
 					}
 			}
-ERR:
-		CAMsg::printMsg(LOG_CRIT,"loopDownStream -- Exiting clean ups...\n");
+
+		CAMsg::printMsg(LOG_CRIT,"loopReadFromMixAfter -- Exiting clean ups...\n");
 		pMix->m_bRun=false;
 		delete pPoolEntry;
 		#ifdef USE_POOL
 			delete pPool;
 		#endif
-		pMix->m_pMuxIn->close();
-		pMix->m_pMuxOut->close();
-		CAMsg::printMsg(LOG_CRIT,"loopDownStream -- Now Exiting!\n");
+		CAMsg::printMsg(LOG_CRIT,"loopReadFromMixAfter -- Now Exiting!\n");
 		THREAD_RETURN_SUCCESS;		
 	}
 
@@ -572,148 +893,66 @@ SINT32 CAMiddleMix::connectToNextMix(CASocketAddr* a_pAddrNext)
 /** Processes Upstream-MixPackets.*/
 SINT32 CAMiddleMix::loop()
 	{
-		tPoolEntry* pPoolEntry=new tPoolEntry;
-		MIXPACKET* pMixPacket=&pPoolEntry->packet;
-		HCHANNEL channelOut;
-		CASymCipher* pCipher;
-		SINT32 ret;
-		UINT8* tmpRSABuff=new UINT8[RSA_SIZE];
+
 		CASingleSocketGroup oSocketGroup(false);
 		oSocketGroup.add(*m_pMuxIn);
 		m_pMuxIn->setCrypt(true);
 		m_pMuxOut->setCrypt(true);
-		#ifdef USE_POOL		
-			CAPool* pPool=new CAPool(MIX_POOL_SIZE);
-		#endif
+
 		m_bRun=true;
+
 		CAThread oThread;
-		oThread.setMainLoop(mm_loopDownStream);
+		oThread.setMainLoop(mm_loopReadFromMixAfter);
 		oThread.start(this);
-		while(m_bRun)
-			{
-				#ifndef USE_POOL			
-					ret=oSocketGroup.select(1000);
-				#else
-					ret=oSocketGroup.select(MIX_POOL_TIMEOUT);
-				#endif
-				if(ret!=1)
-					{
-						if(ret==E_TIMEDOUT)
-							{
-								#ifndef USE_POOL
-									continue;
-								#else
-									pMixPacket->channel=DUMMY_CHANNEL;
-									pMixPacket->flags=CHANNEL_DUMMY;
-									getRandom(pMixPacket->data,DATA_SIZE);
-									pPool->pool(pPoolEntry);
-									if(m_pMuxOut->send(pMixPacket)==SOCKET_ERROR)
-										goto ERR;								
-								#endif
-							}
-						else
-							{
-								CAMsg::printMsg(LOG_CRIT,"loopUpStream -- Fehler bei select() -- goto ERR!\n");
-								goto ERR;
-							}
-					}
-				else
-					{
-						ret=m_pMuxIn->receive(pMixPacket);
-						if(ret==SOCKET_ERROR)
-							{
-								CAMsg::printMsg(LOG_CRIT,"Fehler beim Empfangen -- Exiting!\n");
-								goto ERR;
-							}
-						if (pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS)
-							{
-								CAMsg::printMsg(LOG_INFO,"loopUpStream received a packet with invalid flags: %0X .  Removing them.\n",(pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS));
-								pMixPacket->flags&=CHANNEL_ALLOWED_FLAGS;
-							}
-						#ifdef USE_POOL	
-							if(pMixPacket->channel==DUMMY_CHANNEL)
-								{
-									pMixPacket->flags=CHANNEL_DUMMY;
-									getRandom(pMixPacket->data,DATA_SIZE);
-									pPool->pool(pPoolEntry);
-									if(m_pMuxOut->send(pMixPacket)==SOCKET_ERROR)
-										goto ERR;								
-								}
-							else
-						#endif
-						if(m_pMiddleMixChannelList->getInToOut(pMixPacket->channel,&channelOut,&pCipher)!=E_SUCCESS)
-							{//new connection ?
-								if(pMixPacket->flags==CHANNEL_OPEN) //if not channel-open flag set -->drop this packet
-									{
-										#ifdef _DEBUG
-												CAMsg::printMsg(LOG_DEBUG,"New Connection from previous Mix!\n");
-										#endif
-										m_pRSA->decrypt(pMixPacket->data,tmpRSABuff);
-										#ifdef REPLAY_DETECTION
-											if(m_pReplayDB->insert(tmpRSABuff)!=E_SUCCESS)
-												{
-													CAMsg::printMsg(LOG_INFO,"Replay: Duplicate packet ignored.\n");
-													continue;
-												}
-										#endif
-										pCipher=new CASymCipher();
-										pCipher->setKey(tmpRSABuff);
-										pCipher->crypt1(pMixPacket->data+RSA_SIZE,
-																				pMixPacket->data+RSA_SIZE-KEY_SIZE,
-																				DATA_SIZE-RSA_SIZE);
-										memcpy(pMixPacket->data,tmpRSABuff+KEY_SIZE,RSA_SIZE-KEY_SIZE);
-										getRandom(pMixPacket->data+DATA_SIZE-KEY_SIZE,KEY_SIZE);
-										m_pMiddleMixChannelList->add(pMixPacket->channel,pCipher,&channelOut);
-										pMixPacket->channel=channelOut;
-										#ifdef USE_POOL
-											pPool->pool(pPoolEntry);
-										#endif
-										if(m_pMuxOut->send(pMixPacket)==SOCKET_ERROR)
-											goto ERR;
-									}
-							}
-						else
-							{//established connection
-									pCipher->crypt1(pMixPacket->data,pMixPacket->data,DATA_SIZE);
-									pCipher->unlock();
-									#ifdef USE_POOL
-										pPool->pool(pPoolEntry);
-									#endif
-									if((pMixPacket->flags&CHANNEL_CLOSE)!=0)
-										{//Channel close received -->remove channel form channellist
-											m_pMiddleMixChannelList->remove(pMixPacket->channel);
-										}
-									pMixPacket->channel=channelOut;
-									if(m_pMuxOut->send(pMixPacket)==SOCKET_ERROR)
-										goto ERR;
-							}
-					}
-			}
-ERR:
+
+		CAThread bThread;
+		bThread.setMainLoop(mm_loopSendToMixBefore);
+		bThread.start(this);
+
+		CAThread cThread;
+		cThread.setMainLoop(mm_loopReadFromMixBefore);
+		cThread.start(this);
+
+		CAThread dThread;
+		dThread.setMainLoop(mm_loopSendToMixAfter);
+		dThread.start(this);
+
+		cThread.join();
+
 		CAMsg::printMsg(LOG_CRIT,"loop(): Preparing for restart...\n");
 		m_bRun=false;
+
+		oThread.join();
+		bThread.join();
+		dThread.join();
+
 		m_pMuxIn->close();
 		m_pMuxOut->close();
-		oThread.join();		
 
-		delete tmpRSABuff;
-		delete pPoolEntry;
-		#ifdef USE_POOL
-			delete pPool;
-		#endif
 		CAMsg::printMsg(LOG_CRIT,"loop(): Seams that we are restarting now!!\n");
 		return E_UNKNOWN;
 	}
 SINT32 CAMiddleMix::clean()
 {
-    /*
-		if(m_pInfoService!=NULL)
-    {
-        m_pInfoService->stop();
-			delete m_pInfoService;
-		m_pInfoService=NULL;
-    }
-    */
+		if(m_pQueueSendToMixBefore!=NULL)
+			{
+				delete m_pQueueSendToMixBefore;
+			}
+		m_pQueueSendToMixBefore=NULL;
+
+		if(m_pQueueSendToMixAfter!=NULL)
+			{
+				delete m_pQueueSendToMixAfter;
+			}
+		m_pQueueSendToMixAfter=NULL;
+
+#ifdef REPLAY_DETECTION
+		if(m_pReplayMsgProc!=NULL)
+			{
+				delete m_pReplayMsgProc;
+			}
+		m_pReplayMsgProc=NULL;
+#endif
 		if(m_pMuxIn!=NULL)
 			{
 				m_pMuxIn->close();
