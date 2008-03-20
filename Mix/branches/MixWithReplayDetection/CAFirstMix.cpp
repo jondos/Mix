@@ -574,9 +574,7 @@ SINT32 CAFirstMix::setMixParameters(const tMixParameters& params)
 //dangerous strcmp
 				if(strcmp((char*)m_arMixParameters[i].m_strMixID,(char*)params.m_strMixID)==0)
 					{
-//						m_arMixParameters[i].m_u32ReplayRefTime=params.m_u32ReplayRefTime;
 						m_arMixParameters[i].m_u32ReplayOffset=params.m_u32ReplayOffset;
-						//return E_SUCCESS;
 					}
 				else{
 						if (m_arMixParameters[i].m_u32ReplayOffset!=0) m_arMixParameters[i].m_u32ReplayOffset+=diff;
@@ -1099,29 +1097,30 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		XERCES_CPP_NAMESPACE::DOMDocument* docSig=createDOMDocument();
 
 		//checking if Replay-Detection is enabled
-		DOM_Element elemReplay,elemSig;
+		DOMElement *elemReplay=NULL;
+		DOMElement *elemSig=NULL;
 		UINT8 replay[6];
 		UINT32 replay_len=5;
-		if(	(getDOMChildByName(elemRoot,(UINT8*)"ReplayDetection",elemReplay,false)==E_SUCCESS)&&
+		if(	(getDOMChildByName(elemRoot,"ReplayDetection",elemReplay,false)==E_SUCCESS)&&
 			(getDOMElementValue(elemReplay,replay,&replay_len)==E_SUCCESS)&&
 			(strncmp((char*)replay,"true",5)==0)){
-				elemRoot=docSig.createElement("MixExchange");
-				elemReplay=docSig.createElement("Replay");
-				docSig.appendChild(elemRoot);
-				elemRoot.appendChild(elemReplay);
+				elemRoot=createDOMElement(docSig,"MixExchange");
+				elemReplay=createDOMElement(docSig,"Replay");
+				docSig->appendChild(elemRoot);
+				elemRoot->appendChild(elemReplay);
 
 				UINT32 diff=(UINT32)(time(NULL)-m_u64LastTimestampReceived);
 				for(SINT32 i=0;i<getMixCount()-1;i++)
 				{
-					DOM_Element elemMix=docSig.createElement("Mix");
+					DOMElement* elemMix=createDOMElement(docSig,"Mix");
 					setDOMElementAttribute(elemMix,"id",m_arMixParameters[i].m_strMixID);
-					DOM_Element elemReplayOffset=docSig.createElement("ReplayOffset");
+					DOMElement elemReplayOffset=createDOMElement(docSig,"ReplayOffset");
 					setDOMElementValue(elemReplayOffset,(UINT32) (m_arMixParameters[i].m_u32ReplayOffset+diff));
-					elemMix.appendChild(elemReplayOffset);
-					elemReplay.appendChild(elemMix);
+					elemMix->appendChild(elemReplayOffset);
+					elemReplay->appendChild(elemMix);
 				}
-				elemSig=docSig.createElement("Signature");
-				elemRoot.appendChild(elemSig);
+				elemSig=createElement(docSig,"Signature");
+				elemRoot->appendChild(elemSig);
 
 				CAMsg::printMsg(LOG_DEBUG,"Replay Detection requested\n");
 				}
