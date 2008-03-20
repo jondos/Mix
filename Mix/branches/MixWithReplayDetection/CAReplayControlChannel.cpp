@@ -43,7 +43,7 @@ CAReplayControlChannel::~CAReplayControlChannel(void)
 	{
 	}
 
-SINT32 CAReplayControlChannel::processXMLMessage(XERCES_CPP_NAMESPACE::DOMDocument* doc)
+SINT32 CAReplayControlChannel::processXMLMessage(const XERCES_CPP_NAMESPACE::DOMDocument* doc)
 	{
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"CAReplayControlChannel::processXMLMessage()\n");

@@ -132,7 +132,7 @@ SINT32 CAReplayCtrlChannelMsgProc::proccessGetTimestamp(const CAReplayControlCha
 				const CAMixWithReplayDB* pMix=(CAMixWithReplayDB*)m_pMix;
 
 				DOMElement* elemReplayTimestamp=NULL;
-				if (getDOMChildByName(m_docTemplate.getDocumentElement(),"ReplayOffset",elemReplayTimestamp,true)!=E_SUCCESS){
+				if (getDOMChildByName(m_docTemplate->getDocumentElement(),"ReplayOffset",elemReplayTimestamp,true)!=E_SUCCESS){
 					return E_UNKNOWN;
 					}
 				setDOMElementValue(elemReplayTimestamp,(UINT32) (time(NULL)-m_pMix->m_u64ReferenceTime));
@@ -164,7 +164,7 @@ SINT32 CAReplayCtrlChannelMsgProc::propagateCurrentReplayTimestamp()
 			return E_UNKNOWN;
 
 		DOMElement* elemReplayTimestamp=NULL;
-		if (getDOMChildByName(m_docTemplate.getDocumentElement(),"ReplayOffset",elemReplayTimestamp,true)!=E_SUCCESS){
+		if (getDOMChildByName(m_docTemplate->getDocumentElement(),"ReplayOffset",elemReplayTimestamp,true)!=E_SUCCESS){
 			return E_UNKNOWN;
 			}
 		setDOMElementValue(elemReplayTimestamp,(UINT32) (time(NULL)-m_pMix->m_u64ReferenceTime));

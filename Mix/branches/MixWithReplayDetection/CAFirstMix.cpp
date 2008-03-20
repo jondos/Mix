@@ -565,9 +565,9 @@ SINT32 CAFirstMix::processKeyExchange()
     return E_SUCCESS;
 }
 
-
 SINT32 CAFirstMix::setMixParameters(const tMixParameters& params)
 	{
+#ifdef REPLAY_DETECTION
 		UINT32 diff=time(NULL)-m_u64LastTimestampReceived;
 		for(UINT32 i=0;i<m_u32MixCount-1;i++)
 			{
@@ -580,9 +580,9 @@ SINT32 CAFirstMix::setMixParameters(const tMixParameters& params)
 						if (m_arMixParameters[i].m_u32ReplayOffset!=0) m_arMixParameters[i].m_u32ReplayOffset+=diff;
 					}
 			}
+#endif
 		return E_SUCCESS;
 	}
-
 
 /**How to end this thread:
 0. set bRestart=true;
@@ -1096,9 +1096,11 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		m_pSignature->sign(xml_buff,xml_len+2,sig,&siglen);
 		XERCES_CPP_NAMESPACE::DOMDocument* docSig=createDOMDocument();
 
+		DOMElement *elemSig=NULL;
+
+#ifdef REPLAY_DETECTION
 		//checking if Replay-Detection is enabled
 		DOMElement *elemReplay=NULL;
-		DOMElement *elemSig=NULL;
 		UINT8 replay[6];
 		UINT32 replay_len=5;
 		if(	(getDOMChildByName(elemRoot,"ReplayDetection",elemReplay,false)==E_SUCCESS)&&
@@ -1114,12 +1116,12 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				{
 					DOMElement* elemMix=createDOMElement(docSig,"Mix");
 					setDOMElementAttribute(elemMix,"id",m_arMixParameters[i].m_strMixID);
-					DOMElement elemReplayOffset=createDOMElement(docSig,"ReplayOffset");
+					DOMElement* elemReplayOffset=createDOMElement(docSig,"ReplayOffset");
 					setDOMElementValue(elemReplayOffset,(UINT32) (m_arMixParameters[i].m_u32ReplayOffset+diff));
 					elemMix->appendChild(elemReplayOffset);
 					elemReplay->appendChild(elemMix);
 				}
-				elemSig=createElement(docSig,"Signature");
+				elemSig=createDOMElement(docSig,"Signature");
 				elemRoot->appendChild(elemSig);
 
 				CAMsg::printMsg(LOG_DEBUG,"Replay Detection requested\n");
@@ -1128,7 +1130,11 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				elemSig=createDOMElement(docSig,"Signature");
 				docSig->appendChild(elemSig);
 			}
-			
+#endif
+#ifndef REPLAY_DETECTION
+		elemSig=createDOMElement(docSig,"Signature");
+		docSig->appendChild(elemSig);
+#endif
 		DOMElement* elemSigValue=createDOMElement(docSig,"SignatureValue");
 		elemSig->appendChild(elemSigValue);
 		UINT32 u32=siglen;
