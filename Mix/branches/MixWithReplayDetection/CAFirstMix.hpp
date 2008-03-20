@@ -193,7 +193,7 @@ public:
 		SINT32 setMixParameters(const tMixParameters& params);
 
 #ifdef REPLAY_DETECTION
-		UINT32 m_u64LastTimestampReceived;
+		UINT64 m_u64LastTimestampReceived;
 #endif
 
 protected:
