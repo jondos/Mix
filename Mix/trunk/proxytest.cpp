@@ -35,6 +35,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CALocalProxy.hpp"
 #include "CAQueue.hpp"
 #include "CAThreadList.hpp"
+#include "CAStatusManager.hpp"
 
 #ifdef _DEBUG //For FreeBSD memory checking functionality
 	const char* _malloc_options="AX";
@@ -67,6 +68,7 @@ CAThreadList *pThreadList = NULL;
 #endif
 //Global Locks required by OpenSSL-Library
 CAMutex* pOpenSSLMutexes=NULL;
+CAStatusManager *statusManager = NULL; 
 
 bool bTriedTermination = false;
 
@@ -149,7 +151,7 @@ void init()
 		#endif
 		initRandom();
 		pglobalOptions=new CACmdLnOptions();
-
+		statusManager = new CAStatusManager();
 	}
 
 /**do necessary cleanups of libraries etc.*/
