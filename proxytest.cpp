@@ -68,7 +68,6 @@ CAThreadList *pThreadList = NULL;
 #endif
 //Global Locks required by OpenSSL-Library
 CAMutex* pOpenSSLMutexes=NULL;
-CAStatusManager *statusManager = NULL; 
 
 bool bTriedTermination = false;
 
@@ -151,7 +150,7 @@ void init()
 		#endif
 		initRandom();
 		pglobalOptions=new CACmdLnOptions();
-		statusManager = new CAStatusManager();
+		CAStatusManager::init();
 	}
 
 /**do necessary cleanups of libraries etc.*/
@@ -197,6 +196,7 @@ void cleanup()
 				pThreadList = NULL;
 			}
 #endif
+		CAStatusManager::cleanup();
 		CAMsg::cleanup();
 		
 	}
@@ -799,6 +799,9 @@ int main(int argc, const char* argv[])
 						CAMsg::printMsg(LOG_INFO,"I am the First MIX..\n");
 						#if !defined(NEW_MIX_TYPE)
 							pMix=new CAFirstMixA();
+//#ifdef SERVER_MONITORING					
+							CAStatusManager::fireEvent(ev_net_firstMixInited, stat_networking);
+//#endif				
 						#else
 							pMix=new CAFirstMixB();
 						#endif
