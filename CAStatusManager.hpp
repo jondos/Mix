@@ -129,6 +129,15 @@ struct state
 
 typedef struct state state_t;
 
+struct dom_state_info
+{
+	DOMElement *dsi_stateType;
+	DOMElement *dsi_stateLevel;
+	DOMElement *dsi_stateDesc;
+};
+
+typedef struct dom_state_info dom_state_info_t;
+
 THREAD_RETURN serveMonitoringRequests(void* param);
 
 class CAStatusManager
@@ -144,9 +153,12 @@ public:
 private:
 	
 	state_t **m_pCurrentStates;
+	dom_state_info_t *m_pCurrentStatesInfo;
 	CAMutex *m_pStatusLock;
 	CASocket *m_pStatusSocket;
 	CAThread *m_pMonitoringThread;
+	
+	XERCES_CPP_NAMESPACE::DOMDocument* m_pPreparedStatusMessage;
 	
 	static CAStatusManager *ms_pStatusManager;
 	
@@ -155,6 +167,7 @@ private:
 	
 	SINT32 initSocket();
 	SINT32 transition(enum event_type e_type, enum status_type s_type);
+	SINT32 initStatusMessage();
 	friend THREAD_RETURN serveMonitoringRequests(void* param);
 };
 
