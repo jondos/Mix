@@ -28,6 +28,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "CAStatusManager.hpp"
 #include "CAMsg.hpp"
 #include "CAMutex.hpp"
+#include "CAUtil.hpp"
+#include "xml/DOM_Output.hpp"
 
 /**
  * @author Simon Pecher, JonDos GmbH
@@ -288,6 +290,8 @@ CAStatusManager::CAStatusManager()
 					"StatusManager: an error occured while initializing the"
 					" server monitoring socket\n");
 	}
+	
+	initStatusMessage();
 }
 
 CAStatusManager::~CAStatusManager()
@@ -330,7 +334,6 @@ SINT32 CAStatusManager::initSocket()
 	SINT32 ret;
 	if(m_pStatusSocket == NULL)
 	{
-		CAMsg::printMsg(LOG_ERR, "0.1\n");
 		m_pStatusSocket = new CASocket();
 	}
 	
@@ -410,6 +413,15 @@ SINT32 CAStatusManager::transition(enum event_type e_type, enum status_type s_ty
 		m_pCurrentStates[s_type] = &(all_states[s_type][next_state_type]);
 		m_pCurrentStates[s_type]->st_prev = prev;
 		m_pCurrentStates[s_type]->st_cause = &(all_events[s_type][e_type]);
+		
+		/* setting the xml elements of the info message won't be too mexpensive */ 
+		setDOMElementValue(
+				(m_pCurrentStatesInfo[s_type]).dsi_stateType,
+				(UINT32)(m_pCurrentStates[s_type])->st_statusType);
+		setDOMElementValue(
+				(m_pCurrentStatesInfo[s_type]).dsi_stateDesc,
+				(UINT8*)(m_pCurrentStates[s_type])->st_description);
+		
 		CAMsg::printMsg(LOG_INFO, 
 						"StatusManager: status %s: "
 						"transition from state %d (%s) "
@@ -421,6 +433,52 @@ SINT32 CAStatusManager::transition(enum event_type e_type, enum status_type s_ty
 	}
 	m_pStatusLock->unlock();
 
+	
+	return E_SUCCESS;
+}
+
+/* prepares (once) a DOM template for all status messages */
+SINT32 CAStatusManager::initStatusMessage()
+{
+	m_pPreparedStatusMessage = createDOMDocument();
+	m_pCurrentStatesInfo = new dom_state_info[NR_STATUS_TYPES];
+	DOMElement *status_dom_elements[NR_STATUS_TYPES];
+	
+	DOMElement *elemRoot = createDOMElement(m_pPreparedStatusMessage, "StatusMessage");
+		
+	status_dom_elements[stat_networking] = createDOMElement(m_pPreparedStatusMessage, "NetworkingStatus");
+	status_dom_elements[stat_payment] = createDOMElement(m_pPreparedStatusMessage, "PaymentStatus");
+	status_dom_elements[stat_system] = createDOMElement(m_pPreparedStatusMessage, "SystemStatus");
+	
+	int i = 0;
+	
+	for(i = 0; i < NR_STATUS_TYPES; i++)
+	{
+		(m_pCurrentStatesInfo[i]).dsi_stateType = 
+			createDOMElement(m_pPreparedStatusMessage, "State");
+		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateType, (UINT8*)"Dummy");
+		
+		(m_pCurrentStatesInfo[i]).dsi_stateLevel =
+			createDOMElement(m_pPreparedStatusMessage, "StateLevel");
+		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateLevel, (UINT8*)"Dummy");
+		
+		(m_pCurrentStatesInfo[i]).dsi_stateDesc =
+			createDOMElement(m_pPreparedStatusMessage, "StateDescription");
+		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateDesc, (UINT8*)"Dummy");
+		
+		status_dom_elements[i]->appendChild((m_pCurrentStatesInfo[i]).dsi_stateType);
+		status_dom_elements[i]->appendChild((m_pCurrentStatesInfo[i]).dsi_stateLevel);
+		status_dom_elements[i]->appendChild((m_pCurrentStatesInfo[i]).dsi_stateDesc);
+		
+		elemRoot->appendChild(status_dom_elements[i]);
+	}
+	m_pPreparedStatusMessage->appendChild(elemRoot);
+		
+	UINT32 debuglen = 3000;
+	UINT8 debugout[3000];
+	DOM_Output::dumpToMem(m_pPreparedStatusMessage,debugout,&debuglen);
+	debugout[debuglen] = 0;			
+	CAMsg::printMsg(LOG_DEBUG, "the status message looks like this: %s \n",debugout);
 	
 	return E_SUCCESS;
 }
@@ -449,11 +507,18 @@ THREAD_RETURN serveMonitoringRequests(void* param)
 		
 		if(statusManager->m_pStatusSocket->accept(monitoringRequestSocket) == E_SUCCESS)
 		{
+			UINT32 debuglen = 3000;
+			UINT8 debugout[3000];
+			
 			statusManager->m_pStatusLock->lock();
-			monitoringRequestSocket.send(
-					(UINT8*)(statusManager->m_pCurrentStates[stat_networking]), 
-					MAX_DESCRIPTION_LENGTH);
+			DOM_Output::dumpToMem(statusManager->m_pPreparedStatusMessage,debugout,&debuglen);
 			statusManager->m_pStatusLock->unlock();
+			
+			debugout[debuglen] = 0;			
+			//CAMsg::printMsg(LOG_DEBUG, "the status message looks like this: %s \n",debugout);
+				
+			monitoringRequestSocket.send(debugout, debuglen);
+			
 			monitoringRequestSocket.close();
 		}
 		else
