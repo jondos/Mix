@@ -810,11 +810,17 @@ int main(int argc, const char* argv[])
 					{
 						CAMsg::printMsg(LOG_INFO,"I am a Middle MIX..\n");
 						pMix=new CAMiddleMix();
+//#ifdef SERVER_MONITORING					
+						CAStatusManager::fireEvent(ev_net_middleMixInited, stat_networking);
+//#endif
 					}
 				else
 				{
 						#if !defined(NEW_MIX_TYPE)
 							pMix=new CALastMixA();
+//#ifdef SERVER_MONITORING					
+							CAStatusManager::fireEvent(ev_net_lastMixInited, stat_networking);
+//#endif	
 						#else
 							pMix=new CALastMixB();
 						#endif
