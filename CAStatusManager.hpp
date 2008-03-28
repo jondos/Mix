@@ -94,6 +94,8 @@ enum status_type
 	stat_networking = 0, stat_payment, stat_system 
 };
 
+typedef enum status_type status_type_t;
+
 enum event_type
 {
 	/* networking events */
@@ -108,23 +110,26 @@ enum event_type
 	ev_sys_dummy = 0
 };
 
+typedef enum event_type event_type_t;
+
 struct event
 {
-	enum event_type ev_type;
-	enum status_type ev_statusType;
+	event_type_t ev_type;
+	status_type_t ev_statusType;
 	char ev_description[MAX_DESCRIPTION_LENGTH];
 };
 
 typedef struct event event_t;
+typedef enum state_type transition_t;
 
 struct state
 {
 	enum state_type st_type;
-	enum status_type st_statusType;
+	status_type_t st_statusType;
 	char st_description[MAX_DESCRIPTION_LENGTH];
 	struct event *st_cause;
 	struct state *st_prev;
-	enum state_type *st_transitions;
+	transition_t *st_transitions;
 };
 
 typedef struct state state_t;
@@ -138,7 +143,25 @@ struct dom_state_info
 
 typedef struct dom_state_info dom_state_info_t;
 
+/** 
+ * the server routine which: 
+ *  * accepts socket connections,
+ *  * outputs a status message
+ *  * and closes the socket immediatley after that
+ */
 THREAD_RETURN serveMonitoringRequests(void* param);
+
+/**
+ * a conveinience function for easily defining state transitions
+ * @param transitions the array where to store the transitions
+ * @param s_type the status type of the state for which the transitions 
+ * 		  are to be defined
+ * @param transitionCount the number of transitions to define
+ * @param ... an event_type (of type event_type_t) followed by a 
+ * 		  state transition (of type transition_t) 
+ * 		  IMPORTANT an event type MUST be followed by a state transition!
+ */
+transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ...);
 
 class CAStatusManager
 {
@@ -148,7 +171,7 @@ public:
 	static void init();
 	static void cleanup();
 
-	static SINT32 fireEvent(enum event_type e_type, enum status_type s_type);
+	static SINT32 fireEvent(event_type_t e_type, status_type_t s_type);
 
 private:
 	
@@ -166,7 +189,7 @@ private:
 	virtual ~CAStatusManager();
 	
 	SINT32 initSocket();
-	SINT32 transition(enum event_type e_type, enum status_type s_type);
+	SINT32 transition(event_type_t e_type, status_type_t s_type);
 	SINT32 initStatusMessage();
 	friend THREAD_RETURN serveMonitoringRequests(void* param);
 };

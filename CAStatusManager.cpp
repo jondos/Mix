@@ -42,123 +42,103 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 CAStatusManager *CAStatusManager::ms_pStatusManager = NULL;
 
-/** transitions for the defined states **/
-
-/* state transition when the corresponing events from enumeration occurs, the order is the same:
- * ev_net_firstMixInited, ev_net_middleMixInited , ev_net_lastMixInited, 
- * ev_net_prevConnected, ev_net_nextConnected, 
- * ev_net_prevConnectionClosed, ev_net_nextConnectionClosed 
- */
+/** transitions for the networking states
+    the networking events are:
+		* ev_net_firstMixInited, 
+		* ev_net_middleMixInited, 
+		* ev_net_lastMixInited,
+		* ev_net_prevConnected, 
+		* ev_net_nextConnected, 
+		* ev_net_prevConnectionClosed, 
+		* ev_net_nextConnectionClosed,
+**/
 
 /* transitions for the networking entry state: */
-enum state_type trans_net_entry[NR_NETWORKING_EVENTS] =
-{
-	st_net_firstMixInit, st_net_middleMixInit, st_net_lastMixInit, 
-	st_ignore, st_ignore, 
-	st_ignore, st_ignore
-};
+#define TRANS_NET_ENTRY \
+	(defineTransitions(stat_networking, 3, \
+			ev_net_firstMixInited, st_net_firstMixInit, \
+			ev_net_middleMixInited, st_net_middleMixInit, \
+			ev_net_lastMixInited, st_net_lastMixInit))
 
 /* transitions for st_net_firstMixInit: */
-enum state_type trans_net_firstMixInit[NR_NETWORKING_EVENTS] =
-{
-	st_ignore, st_ignore, st_ignore, 
-	st_ignore, st_net_firstMixConnectedToNext, 
-	st_ignore, st_ignore
-};
+#define TRANS_NET_FIRST_MIX_INIT \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_nextConnected, st_net_firstMixConnectedToNext))
 
-/* transitions for st_net_firstMixConnectedToNext: */
-enum state_type trans_net_firstMixConnectedToNext[NR_NETWORKING_EVENTS] =
-{
-	st_ignore, st_ignore, st_ignore, 
-	st_ignore, st_net_firstMixOnline, 
-	st_ignore, st_net_firstMixInit
-};
+/* transitions for st_net_firstMixConnectedToNext: */							
+#define TRANS_NET_FIRST_MIX_CONNECTED_TO_NEXT \
+	(defineTransitions(stat_networking, 2, \
+			ev_net_nextConnected, st_net_firstMixOnline, \
+			ev_net_nextConnectionClosed, st_net_firstMixInit))
 
 /* transitions for st_net_firstMixOnline: */
-enum state_type trans_net_firstMixOnline[NR_NETWORKING_EVENTS] =
-{
-	st_ignore, st_ignore, st_ignore, 
-	st_ignore, st_ignore, 
-	st_ignore, st_net_firstMixInit
-};
+#define TRANS_NET_FIRST_MIX_ONLINE \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_nextConnectionClosed, st_net_firstMixInit))
 
 /* transitions for st_net_middleMixInit: */
-enum state_type trans_net_middleMixInit[NR_NETWORKING_EVENTS] =
-{
-	st_ignore, st_ignore, st_ignore, 
-	st_net_middleMixConnectedToPrev, st_ignore, 
-	st_ignore, st_ignore
-};
+#define TRANS_NET_MIDDLE_MIX_INIT \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_prevConnected, st_net_middleMixConnectedToPrev))
 
 /* transitions for st_net_middleMixConnectedToPrev: */
-enum state_type trans_net_middleMixConnectedToPrev[NR_NETWORKING_EVENTS] =
-{
-	st_ignore, st_ignore, st_ignore, 
-	st_ignore, st_net_middleMixOnline, 
-	st_net_middleMixInit, st_ignore
-};
-
+#define TRANS_NET_MIDDLE_MIX_CONNECTED_TO_PREV \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_nextConnected, st_net_middleMixOnline))
+			
 /* transitions for st_net_middleMixOnline: */
-enum state_type trans_net_middleMixOnline[NR_NETWORKING_EVENTS] =
-{
-	st_ignore, st_ignore, st_ignore, 
-	st_ignore, st_ignore, 
-	st_net_middleMixInit, st_net_middleMixInit
-};
-
+#define TRANS_NET_MIDDLE_MIX_ONLINE \
+	(defineTransitions(stat_networking, 2, \
+			ev_net_prevConnectionClosed, st_net_middleMixInit, \
+			ev_net_nextConnectionClosed, st_net_middleMixInit))
+			
 /* transitions for st_net_lastMixInit: */
-enum state_type trans_net_lastMixInit[NR_NETWORKING_EVENTS] =
-{
-	st_ignore, st_ignore, st_ignore, 
-	st_net_lastMixOnline, st_ignore, 
-	st_ignore, st_ignore
-};
+#define TRANS_NET_LAST_MIX_INIT \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_prevConnected, st_net_lastMixOnline))
 
 /* transitions for st_net_lastMixOnline: */
-enum state_type trans_net_lastMixOnline[NR_NETWORKING_EVENTS] =
-{
-	st_ignore, st_ignore, st_ignore, 
-	st_ignore, st_ignore, 
-	st_net_lastMixInit, st_ignore
-};
+#define TRANS_NET_LAST_MIX_ONLINE \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_prevConnectionClosed, st_net_lastMixInit))
 
 static state_t networking_states[NR_NETWORKING_STATES] = 
 {
 		{st_net_entry, stat_networking, 
 		 "networking entry state", 
-		  NULL, NULL, trans_net_entry},
+		  NULL, NULL, TRANS_NET_ENTRY},
 		
 		{st_net_firstMixInit, stat_networking, 
 		 "first mix initialized", 
-		 NULL, NULL, trans_net_firstMixInit},
+		 NULL, NULL, TRANS_NET_FIRST_MIX_INIT},
 		
 		 {st_net_firstMixConnectedToNext, stat_networking, 
 		  "first mix connected to next mix", 
-		  NULL, NULL, trans_net_firstMixConnectedToNext},
+		  NULL, NULL, TRANS_NET_FIRST_MIX_CONNECTED_TO_NEXT},
 		 
 		{st_net_firstMixOnline, stat_networking, 
 		 "first mix online", 
-		 NULL, NULL, trans_net_firstMixOnline},
+		 NULL, NULL, TRANS_NET_FIRST_MIX_ONLINE},
 		
 		{st_net_middleMixInit, stat_networking,
 		 "middle mix initialized", 
-		 NULL, NULL, trans_net_middleMixInit},
+		 NULL, NULL, TRANS_NET_MIDDLE_MIX_INIT},
 		
 		{st_net_middleMixConnectedToPrev, stat_networking,
 		 "middle mix connected to previous mix", 
-		 NULL, NULL, trans_net_middleMixConnectedToPrev},
+		 NULL, NULL, TRANS_NET_MIDDLE_MIX_CONNECTED_TO_PREV},
 		
 		{st_net_middleMixOnline, stat_networking,
 		 "middle mix online", 
-		 NULL, NULL, trans_net_middleMixOnline},
+		 NULL, NULL, TRANS_NET_MIDDLE_MIX_ONLINE},
 		
 		{st_net_lastMixInit, stat_networking,
 		 "last mix initialized", 
-		 NULL, NULL, trans_net_lastMixInit}, 
+		 NULL, NULL, TRANS_NET_LAST_MIX_INIT}, 
 		
 		{st_net_lastMixOnline, stat_networking, 
 		 "last mix online", 
-		 NULL, NULL, trans_net_lastMixOnline}
+		 NULL, NULL, TRANS_NET_LAST_MIX_ONLINE}
 };
 
 static state_t payment_states[NR_PAYMENT_STATES] =
@@ -243,7 +223,7 @@ void CAStatusManager::cleanup()
 	}
 }
 
-SINT32 CAStatusManager::fireEvent(enum event_type e_type, enum status_type s_type)
+SINT32 CAStatusManager::fireEvent(event_type_t e_type, enum status_type s_type)
 {
 	if(ms_pStatusManager != NULL)
 	{
@@ -311,6 +291,8 @@ CAStatusManager::~CAStatusManager()
 		CAMsg::printMsg(LOG_INFO, 
 				"CAStatusManager: monitoring thread joined\n");*/
 		delete m_pMonitoringThread;
+		CAMsg::printMsg(LOG_INFO, 
+				"CAStatusManager: The monitoring thread is no more.\n");
 		m_pMonitoringThread = NULL;
 	}
 	if(m_pStatusLock != NULL)
@@ -328,6 +310,15 @@ CAStatusManager::~CAStatusManager()
 		delete m_pStatusSocket;
 		m_pStatusSocket = NULL;
 	}
+	/*if(m_pPreparedStatusMessage != NULL)
+	{
+		CAMsg::printMsg(LOG_INFO, 
+						"CAStatusManager: before XML release.\n");
+		m_pPreparedStatusMessage->release();
+		m_pPreparedStatusMessage = NULL;
+		CAMsg::printMsg(LOG_INFO, 
+						"CAStatusManager: after XML release.\n");
+	}*/
 }
 SINT32 CAStatusManager::initSocket()
 {
@@ -362,9 +353,9 @@ SINT32 CAStatusManager::initSocket()
 	return E_SUCCESS;
 }
 
-SINT32 CAStatusManager::transition(enum event_type e_type, enum status_type s_type)
+SINT32 CAStatusManager::transition(event_type_t e_type, status_type_t s_type)
 {
-	enum state_type next_state_type;
+	transition_t transitionToNextState;
 	state_t *prev = NULL;
 	
 	if( (m_pStatusLock == NULL) ||
@@ -374,13 +365,13 @@ SINT32 CAStatusManager::transition(enum event_type e_type, enum status_type s_ty
 				"StatusManager: fatal error\n");
 		return E_UNKNOWN;
 	}
-	if(s_type >= NR_STATUS_TYPES)
+	if((s_type >= NR_STATUS_TYPES) || (s_type < 0))
 	{
 		CAMsg::printMsg(LOG_ERR, 
 				"StatusManager: received event for an invalid status type: %d\n", s_type);
 		return E_INVALID;
 	}
-	if(e_type >= EVENT_COUNT[s_type])
+	if((e_type >= EVENT_COUNT[s_type]) || (e_type < 0))
 	{
 		CAMsg::printMsg(LOG_ERR, 
 				"StatusManager: received an invalid event: %d\n", e_type);
@@ -399,37 +390,37 @@ SINT32 CAStatusManager::transition(enum event_type e_type, enum status_type s_ty
 						"StatusManager: current state is corrupt\n");
 		return E_UNKNOWN; 
 	}
-	next_state_type = m_pCurrentStates[s_type]->st_transitions[e_type];
-	if(next_state_type >= STATE_COUNT[s_type])
+	transitionToNextState = m_pCurrentStates[s_type]->st_transitions[e_type];
+	if(transitionToNextState >= STATE_COUNT[s_type])
 	{
 		m_pStatusLock->unlock();
 		CAMsg::printMsg(LOG_ERR, 
-						"StatusManager: transition to invalid state %d\n", next_state_type);
+						"StatusManager: transition to invalid state %d\n", transitionToNextState);
 		return E_INVALID;
 	}
-	if(next_state_type != st_ignore)
+	if(transitionToNextState != st_ignore)
 	{
 		prev = m_pCurrentStates[s_type];
-		m_pCurrentStates[s_type] = &(all_states[s_type][next_state_type]);
+		m_pCurrentStates[s_type] = &(all_states[s_type][transitionToNextState]);
 		m_pCurrentStates[s_type]->st_prev = prev;
 		m_pCurrentStates[s_type]->st_cause = &(all_events[s_type][e_type]);
 		
-		/* setting the xml elements of the info message won't be too mexpensive */ 
+		/* setting the xml elements of the info message won't be too expensive */ 
 		setDOMElementValue(
 				(m_pCurrentStatesInfo[s_type]).dsi_stateType,
-				(UINT32)(m_pCurrentStates[s_type])->st_statusType);
+				(UINT32)(m_pCurrentStates[s_type])->st_type);
 		setDOMElementValue(
 				(m_pCurrentStatesInfo[s_type]).dsi_stateDesc,
 				(UINT8*)(m_pCurrentStates[s_type])->st_description);
 		
 		CAMsg::printMsg(LOG_INFO, 
-						"StatusManager: status %s: "
-						"transition from state %d (%s) "
-						"to state %d (%s) caused by event %d (%s)\n",
-						STATUS_NAMES[s_type],
-						prev->st_type, prev->st_description,
-						next_state_type, m_pCurrentStates[s_type]->st_description,
-						e_type, (all_events[s_type][e_type]).ev_description);
+				"StatusManager: status %s: "
+				"transition from state %d (%s) "
+				"to state %d (%s) caused by event %d (%s)\n",
+				STATUS_NAMES[s_type],
+				prev->st_type, prev->st_description,
+				m_pCurrentStates[s_type]->st_type, m_pCurrentStates[s_type]->st_description,
+				e_type, (all_events[s_type][e_type]).ev_description);
 	}
 	m_pStatusLock->unlock();
 
@@ -440,32 +431,34 @@ SINT32 CAStatusManager::transition(enum event_type e_type, enum status_type s_ty
 /* prepares (once) a DOM template for all status messages */
 SINT32 CAStatusManager::initStatusMessage()
 {
+	int i = 0;
+	
 	m_pPreparedStatusMessage = createDOMDocument();
 	m_pCurrentStatesInfo = new dom_state_info[NR_STATUS_TYPES];
 	DOMElement *status_dom_elements[NR_STATUS_TYPES];
-	
 	DOMElement *elemRoot = createDOMElement(m_pPreparedStatusMessage, "StatusMessage");
 		
 	status_dom_elements[stat_networking] = createDOMElement(m_pPreparedStatusMessage, "NetworkingStatus");
 	status_dom_elements[stat_payment] = createDOMElement(m_pPreparedStatusMessage, "PaymentStatus");
 	status_dom_elements[stat_system] = createDOMElement(m_pPreparedStatusMessage, "SystemStatus");
 	
-	int i = 0;
-	
-	for(i = 0; i < NR_STATUS_TYPES; i++)
+	for(; i < NR_STATUS_TYPES; i++)
 	{
 		(m_pCurrentStatesInfo[i]).dsi_stateType = 
 			createDOMElement(m_pPreparedStatusMessage, "State");
-		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateType, (UINT8*)"Dummy");
-		
+#ifdef DEBUG		
+		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateType, (UINT8*)"Statenumber");
+#endif		
 		(m_pCurrentStatesInfo[i]).dsi_stateLevel =
 			createDOMElement(m_pPreparedStatusMessage, "StateLevel");
-		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateLevel, (UINT8*)"Dummy");
-		
+#ifdef DEBUG
+		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateLevel, (UINT8*)"OK or Critcal or something");
+#endif
 		(m_pCurrentStatesInfo[i]).dsi_stateDesc =
 			createDOMElement(m_pPreparedStatusMessage, "StateDescription");
-		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateDesc, (UINT8*)"Dummy");
-		
+#ifdef DEBUG
+		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateDesc, (UINT8*)"Description of the state");
+#endif
 		status_dom_elements[i]->appendChild((m_pCurrentStatesInfo[i]).dsi_stateType);
 		status_dom_elements[i]->appendChild((m_pCurrentStatesInfo[i]).dsi_stateLevel);
 		status_dom_elements[i]->appendChild((m_pCurrentStatesInfo[i]).dsi_stateDesc);
@@ -473,12 +466,14 @@ SINT32 CAStatusManager::initStatusMessage()
 		elemRoot->appendChild(status_dom_elements[i]);
 	}
 	m_pPreparedStatusMessage->appendChild(elemRoot);
-		
+
+#ifdef DEBUG
 	UINT32 debuglen = 3000;
 	UINT8 debugout[3000];
 	DOM_Output::dumpToMem(m_pPreparedStatusMessage,debugout,&debuglen);
 	debugout[debuglen] = 0;			
-	CAMsg::printMsg(LOG_DEBUG, "the status message looks like this: %s \n",debugout);
+	CAMsg::printMsg(LOG_DEBUG, "the status message template looks like this: %s \n",debugout);
+#endif
 	
 	return E_SUCCESS;
 }
@@ -507,18 +502,20 @@ THREAD_RETURN serveMonitoringRequests(void* param)
 		
 		if(statusManager->m_pStatusSocket->accept(monitoringRequestSocket) == E_SUCCESS)
 		{
-			UINT32 debuglen = 3000;
-			UINT8 debugout[3000];
+			UINT32 stausMessageOutBufLen = 3000;
+			UINT8 statusMessageOutBuf[3000];
 			
 			statusManager->m_pStatusLock->lock();
-			DOM_Output::dumpToMem(statusManager->m_pPreparedStatusMessage,debugout,&debuglen);
+			DOM_Output::dumpToMem(
+					statusManager->m_pPreparedStatusMessage,
+					statusMessageOutBuf,
+					&stausMessageOutBufLen);
 			statusManager->m_pStatusLock->unlock();
 			
-			debugout[debuglen] = 0;			
+			statusMessageOutBuf[stausMessageOutBufLen] = 0;			
 			//CAMsg::printMsg(LOG_DEBUG, "the status message looks like this: %s \n",debugout);
 				
-			monitoringRequestSocket.send(debugout, debuglen);
-			
+			monitoringRequestSocket.send(statusMessageOutBuf, stausMessageOutBufLen);
 			monitoringRequestSocket.close();
 		}
 		else
@@ -527,4 +524,64 @@ THREAD_RETURN serveMonitoringRequests(void* param)
 					"StatusManager: error could not process monitoring request.\n");
 		}
 	}
+}
+
+transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ...)
+{
+	va_list ap;
+	transition_t *transitions = NULL;
+	int i;
+	event_type_t specifiedEventTypes[transitionCount];
+	transition_t specifiedTransitions[transitionCount];
+	
+	/* read in the specified events with the correspondig transitions */
+	va_start(ap, transitionCount);
+	for(i = 0; i < transitionCount; i++)
+	{
+		specifiedEventTypes[i] = (event_type_t) va_arg(ap, int);
+		specifiedTransitions[i] = (transition_t) va_arg(ap, int);
+	}
+	va_end(ap);
+	
+	if((s_type >= NR_STATUS_TYPES) || (s_type < 0))
+	{
+		/* invalid status type specified */
+		return NULL;
+	}
+	if(transitionCount > (EVENT_COUNT[s_type]))
+	{
+		/* more transitions specified than events defined*/ 
+		return NULL;
+	}
+	
+	transitions = new transition_t[(EVENT_COUNT[s_type])];
+	memset(transitions, st_ignore, (sizeof(transition_t)*(EVENT_COUNT[s_type])));
+	for(i = 0; i < transitionCount; i++)
+	{
+		if((specifiedEventTypes[i] >= EVENT_COUNT[s_type]) || 
+			(specifiedEventTypes[i] < 0)) 
+		{
+			/* specified event is invalid */
+			CAMsg::printMsg(LOG_WARNING, 
+						"StatusManager: definiton of an invalid state transition (invalid event %d).\n",
+						specifiedEventTypes[i]);
+			continue;
+		}
+		if((specifiedTransitions[i] >= STATE_COUNT[s_type]) ||
+			(specifiedTransitions[i] < st_ignore))
+		{
+			/* corresponding transition to event is not valid */
+			CAMsg::printMsg(LOG_WARNING, 
+						"StatusManager: definiton of an invalid state transition (invalid state %d).\n",
+						specifiedTransitions[i]);
+			continue;
+		}
+		transitions[specifiedEventTypes[i]] = specifiedTransitions[i];
+	}
+	/*for(i=0; i < (EVENT_COUNT[s_type]); i++)
+	{
+		CAMsg::printMsg(LOG_DEBUG, "transitions %d: %d\n", i, transitions[i]);
+	}*/
+	return transitions;
+	
 }
