@@ -4579,7 +4579,7 @@ if test "${enable_replay_detection+set}" = set; then
 fi
 
 
-REPLAY_DETECTION=""
+NEW_MIX_TYPE=""
 # Check whether --enable-new_mix_type was given.
 if test "${enable_new_mix_type+set}" = set; then
   enableval=$enable_new_mix_type;

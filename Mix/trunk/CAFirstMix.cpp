@@ -194,7 +194,7 @@ SINT32 CAFirstMix::init()
 				return E_UNKNOWN;
 			}
 		delete pAddrNext;
-		
+
 		CAMsg::printMsg(LOG_INFO," connected!\n");
 		if(((CASocket*)(*m_pMuxOut))->setKeepAlive((UINT32)1800)!=E_SUCCESS)
 			{
@@ -225,7 +225,11 @@ SINT32 CAFirstMix::init()
 
 		m_pMuxOutControlChannelDispatcher=new CAControlChannelDispatcher(m_pQueueSendToMix);
 #ifdef REPLAY_DETECTION
+		m_pReplayDB=new CADatabase();
+		m_pReplayDB->start();
 		m_pReplayMsgProc=new CAReplayCtrlChannelMsgProc(this);
+		m_u64ReferenceTime=time(NULL);
+		m_u64LastTimestampReceived=time(NULL);
 #endif
 
 #ifdef PAYMENT
@@ -260,7 +264,7 @@ SINT32 CAFirstMix::init()
 		m_pLogPacketStats->start();
 #endif
 #ifdef REPLAY_DETECTION
-		sendReplayTimestampRequestsToAllMixes();
+//		sendReplayTimestampRequestsToAllMixes();
 #endif
 		CAMsg::printMsg(LOG_DEBUG,"CAFirstMix init() succeded\n");
 		return E_SUCCESS;
@@ -565,20 +569,24 @@ SINT32 CAFirstMix::processKeyExchange()
     return E_SUCCESS;
 }
 
-
 SINT32 CAFirstMix::setMixParameters(const tMixParameters& params)
 	{
+#ifdef REPLAY_DETECTION
+		UINT32 diff=time(NULL)-m_u64LastTimestampReceived;
 		for(UINT32 i=0;i<m_u32MixCount-1;i++)
 			{
+//dangerous strcmp
 				if(strcmp((char*)m_arMixParameters[i].m_strMixID,(char*)params.m_strMixID)==0)
 					{
-						m_arMixParameters[i].m_u32ReplayRefTime=params.m_u32ReplayRefTime;
-						return E_SUCCESS;
+						m_arMixParameters[i].m_u32ReplayOffset=params.m_u32ReplayOffset;
+					}
+				else{
+						if (m_arMixParameters[i].m_u32ReplayOffset!=0) m_arMixParameters[i].m_u32ReplayOffset+=diff;
 					}
 			}
+#endif
 		return E_SUCCESS;
 	}
-
 
 /**How to end this thread:
 0. set bRestart=true;
@@ -750,6 +758,7 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 								CAMsg::printMsg(LOG_DEBUG,"CAFirstMix - sent a packet from the next mix to the ControlChanelDispatcher... \n");
 							#endif
 							pControlChannelDispatcher->proccessMixPacket(pMixPacket);
+							getcurrentTimeMillis(keepaliveLast);
 							continue;
 						}
 				#ifdef USE_POOL
@@ -815,7 +824,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 		i=0;
 		while(!pFirstMix->m_bRestart && i < pFirstMix->m_u32MixCount-1)
 		{
-			if(pFirstMix->m_arMixParameters[i].m_u32ReplayRefTime==0)//not set yet
+			if(pFirstMix->m_arMixParameters[i].m_u32ReplayOffset==0)//not set yet
 				{
 					msSleep(100);//wait a little bit and try again
 					continue;
@@ -1093,10 +1102,48 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		UINT32 siglen=255;
 		m_pSignature->sign(xml_buff,xml_len+2,sig,&siglen);
 		XERCES_CPP_NAMESPACE::DOMDocument* docSig=createDOMDocument();
-		elemRoot=createDOMElement(docSig,"Signature");
+
+		DOMElement *elemSig=NULL;
+
+#ifdef REPLAY_DETECTION
+		//checking if Replay-Detection is enabled
+		DOMElement *elemReplay=NULL;
+		UINT8 replay[6];
+		UINT32 replay_len=5;
+		if(	(getDOMChildByName(elemRoot,"ReplayDetection",elemReplay,false)==E_SUCCESS)&&
+			(getDOMElementValue(elemReplay,replay,&replay_len)==E_SUCCESS)&&
+			(strncmp((char*)replay,"true",5)==0)){
+				elemRoot=createDOMElement(docSig,"MixExchange");
+				elemReplay=createDOMElement(docSig,"Replay");
+				docSig->appendChild(elemRoot);
+				elemRoot->appendChild(elemReplay);
+
+				UINT32 diff=(UINT32)(time(NULL)-m_u64LastTimestampReceived);
+				for(SINT32 i=0;i<getMixCount()-1;i++)
+				{
+					DOMElement* elemMix=createDOMElement(docSig,"Mix");
+					setDOMElementAttribute(elemMix,"id",m_arMixParameters[i].m_strMixID);
+					DOMElement* elemReplayOffset=createDOMElement(docSig,"ReplayOffset");
+					setDOMElementValue(elemReplayOffset,(UINT32) (m_arMixParameters[i].m_u32ReplayOffset+diff));
+					elemMix->appendChild(elemReplayOffset);
+					elemReplay->appendChild(elemMix);
+				}
+				elemSig=createDOMElement(docSig,"Signature");
+				elemRoot->appendChild(elemSig);
+
+				CAMsg::printMsg(LOG_DEBUG,"Replay Detection requested\n");
+				}
+		else {		
+				elemSig=createDOMElement(docSig,"Signature");
+				docSig->appendChild(elemSig);
+			}
+#endif
+#ifndef REPLAY_DETECTION
+		elemSig=createDOMElement(docSig,"Signature");
+		docSig->appendChild(elemSig);
+#endif
 		DOMElement* elemSigValue=createDOMElement(docSig,"SignatureValue");
-		docSig->appendChild(elemRoot);
-		elemRoot->appendChild(elemSigValue);
+		elemSig->appendChild(elemSigValue);
 		UINT32 u32=siglen;
 		CABase64::encode(sig,u32,sig,&siglen);
 		sig[siglen]=0;
