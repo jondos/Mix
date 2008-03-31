@@ -1122,6 +1122,16 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 					elemMix->appendChild(elemReplayOffset);
 					elemReplay->appendChild(elemMix);
 				}
+
+				DOMElement* elemMix=createDOMElement(docSig,"Mix");
+				UINT8 buff[255];
+				pglobalOptions->getMixId(buff,255);
+				setDOMElementAttribute(elemMix,"id",buff);
+				DOMElement* elemReplayOffset=createDOMElement(docSig,"ReplayOffset");
+				setDOMElementValue(elemReplayOffset,(UINT32) (time(NULL)-m_u64ReferenceTime));
+				elemMix->appendChild(elemReplayOffset);
+				elemReplay->appendChild(elemMix);
+
 				elemSig=createDOMElement(docSig,"Signature");
 				elemRoot->appendChild(elemSig);
 
