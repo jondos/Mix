@@ -55,9 +55,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #endif
 extern CACmdLnOptions* pglobalOptions;
 #include "CAReplayControlChannel.hpp"
-//#ifdef SERVER_MONITORING
-#include "CAStatusManager.hpp"
-//#endif
+
 const UINT32 CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS = NUM_LOGIN_WORKER_TRHEADS * 2;
 
 bool CAFirstMix::isShuttingDown()
@@ -302,7 +300,6 @@ SINT32 CAFirstMix::connectToNextMix(CASocketAddr* a_pAddrNext)
 		}
 		else
 		{
-			CAStatusManager::fireEvent(ev_net_nextConnected, stat_networking);
 			break;
 		}
 	}
@@ -565,7 +562,6 @@ SINT32 CAFirstMix::processKeyExchange()
     }*/
     CAMsg::printMsg(LOG_DEBUG,"Keyexchange finished!\n");
     doc->release();
-    CAStatusManager::fireEvent(ev_net_nextConnected, stat_networking);
     return E_SUCCESS;
 }
 
@@ -721,7 +717,6 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 					{
 						CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::loopReadFromMix() -- restart because of KeepAlive-Traffic Timeout!\n");
 						pFirstMix->m_bRestart=true;
-						CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
 						break;
 					}
 				SINT32 ret=pSocketGroup->select(MIX_POOL_TIMEOUT);
@@ -748,7 +743,6 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 							{
 								pFirstMix->m_bRestart=true;
 								CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopReadFromMix - received returned: %i -- restarting!\n",ret);
-								CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
 								break;
 							}
 					}
@@ -1128,6 +1122,16 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 					elemMix->appendChild(elemReplayOffset);
 					elemReplay->appendChild(elemMix);
 				}
+
+				DOMElement* elemMix=createDOMElement(docSig,"Mix");
+				UINT8 buff[255];
+				pglobalOptions->getMixId(buff,255);
+				setDOMElementAttribute(elemMix,"id",buff);
+				DOMElement* elemReplayOffset=createDOMElement(docSig,"ReplayOffset");
+				setDOMElementValue(elemReplayOffset,(UINT32) (time(NULL)-m_u64ReferenceTime));
+				elemMix->appendChild(elemReplayOffset);
+				elemReplay->appendChild(elemMix);
+
 				elemSig=createDOMElement(docSig,"Signature");
 				elemRoot->appendChild(elemSig);
 
@@ -1495,7 +1499,6 @@ SINT32 CAFirstMix::clean()
 		#endif
 		m_bRunLog=false;
 		m_bRestart=true;
-		CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
 		if(m_pthreadAcceptUsers!=NULL)
 		{
 			CAMsg::printMsg(LOG_CRIT,"Wait for LoopAcceptUsers!\n");
