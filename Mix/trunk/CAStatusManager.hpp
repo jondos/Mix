@@ -30,6 +30,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /**
  * @author Simon Pecher, JonDos GmbH
+ * 
+ * Logic to describe and process the state machine of a mix
+ * for reporting networking, payment and system status to server
+ * monitoring systems
  */
 
 #include "StdAfx.h"
@@ -37,20 +41,27 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "CAThread.hpp"
 
 /* How many different status types do exist*/
-#define NR_STATUS_TYPES 3
+#ifdef PAYMENT
+	#define NR_STATUS_TYPES 3
 
-#define NETWORKING_STATUS_NAME "Networking"
-#define PAYMENT_STATUS_NAME "Payment"
-#define SYSTEM_STATUS_NAME "System"
-
-/* How many different events do exist for each status type*/
+	#define PAYMENT_STATUS_NAME "PaymentStatus"
+	#define NR_PAYMENT_STATES 1
+	#define NR_PAYMENT_EVENTS 1
+#else
+	#define NR_STATUS_TYPES 2	
+#endif
+	
+#define NETWORKING_STATUS_NAME "NetworkingStatus"
+#define NR_NETWORKING_STATES 9
 #define NR_NETWORKING_EVENTS 7
-#define NR_PAYMENT_EVENTS 1
+
+#define SYSTEM_STATUS_NAME "SystemStatus"
+#define NR_SYSTEM_STATES 1
 #define NR_SYSTEM_EVENTS 1
 
-#define NR_NETWORKING_STATES 9
-#define NR_PAYMENT_STATES 1
-#define NR_SYSTEM_STATES 1
+#define NR_STATE_LEVELS 2
+
+#define ENTRY_STATE 0
 
 #define MAX_DESCRIPTION_LENGTH 50
 
@@ -60,17 +71,34 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 static const SINT32 EVENT_COUNT[NR_STATUS_TYPES] =
 {
-		NR_NETWORKING_EVENTS, NR_PAYMENT_EVENTS, NR_SYSTEM_EVENTS
+		NR_NETWORKING_EVENTS, 
+#ifdef PAYMENT
+		NR_PAYMENT_EVENTS, 
+#endif
+		NR_SYSTEM_EVENTS
 };
 
 static const SINT32 STATE_COUNT[NR_STATUS_TYPES] =
 {
-		NR_NETWORKING_STATES, NR_PAYMENT_STATES, NR_SYSTEM_STATES
+		NR_NETWORKING_STATES, 
+#ifdef PAYMENT
+		NR_PAYMENT_STATES, 
+#endif
+		NR_SYSTEM_STATES
 };
 
 static const char *STATUS_NAMES[NR_STATUS_TYPES] =
 {
-		NETWORKING_STATUS_NAME, PAYMENT_STATUS_NAME, SYSTEM_STATUS_NAME
+		NETWORKING_STATUS_NAME, 
+#ifdef PAYMENT
+		PAYMENT_STATUS_NAME, 
+#endif		
+		SYSTEM_STATUS_NAME
+};
+
+static const char *STATUS_LEVEL_NAMES[NR_STATE_LEVELS] =
+{
+		"OK", "Critical"
 };
 
 enum state_type
@@ -81,17 +109,23 @@ enum state_type
 	st_net_firstMixInit, st_net_firstMixConnectedToNext, st_net_firstMixOnline , 
 	st_net_middleMixInit, st_net_middleMixConnectedToPrev, st_net_middleMixOnline,
 	st_net_lastMixInit, st_net_lastMixOnline,
-	
+#ifdef PAYMENT
 	/* payment states */
 	st_pay_entry = 0,
-	
+#endif
 	/* system states */
 	st_sys_entry = 0
 };
 
+typedef enum state_type state_type_t;
+
 enum status_type
 {
-	stat_networking = 0, stat_payment, stat_system 
+	stat_networking = 0, 
+#ifdef PAYMENT
+	stat_payment, 
+#endif
+	stat_system 
 };
 
 typedef enum status_type status_type_t;
@@ -102,13 +136,21 @@ enum event_type
 	ev_net_firstMixInited = 0, ev_net_middleMixInited , ev_net_lastMixInited,
 	ev_net_prevConnected, ev_net_nextConnected, 
 	ev_net_prevConnectionClosed, ev_net_nextConnectionClosed,
-	
+#ifdef PAYMENT	
 	/* payment events */
 	ev_pay_dummy = 0,
-	
+#endif
 	/* system states */
 	ev_sys_dummy = 0
 };
+
+/* indexes must correspond to strings in STATUS_LEVEL_NAMES */
+enum state_level
+{
+	stl_ok, stl_critcial
+};
+
+typedef enum state_level state_level_t;
 
 typedef enum event_type event_type_t;
 
@@ -116,7 +158,7 @@ struct event
 {
 	event_type_t ev_type;
 	status_type_t ev_statusType;
-	char ev_description[MAX_DESCRIPTION_LENGTH];
+	char *ev_description;
 };
 
 typedef struct event event_t;
@@ -124,9 +166,10 @@ typedef enum state_type transition_t;
 
 struct state
 {
-	enum state_type st_type;
+	state_type_t st_type;
 	status_type_t st_statusType;
-	char st_description[MAX_DESCRIPTION_LENGTH];
+	state_level_t st_stateLevel;
+	char *st_description;
 	struct event *st_cause;
 	struct state *st_prev;
 	transition_t *st_transitions;
@@ -143,6 +186,101 @@ struct dom_state_info
 
 typedef struct dom_state_info dom_state_info_t;
 
+/* helper macros for defining states */
+
+#define FINISH_STATE_DEFINITIONS(state_array) \
+			FINISH_NETWORKING_STATE_DEFINITIONS(state_array) \
+			FINISH_PAYMENT_STATE_DEFINITIONS(state_array) \
+			FINISH_SYSTEM_STATE_DEFINITIONS(state_array)
+
+#define FINISH_EVENT_DEFINITIONS(event_array) \
+			FINISH_NETWORKING_EVENT_DEFINITIONS(event_array) \
+			FINISH_PAYMENT_EVENT_DEFINITIONS(event_array) \
+			FINISH_SYSTEM_EVENT_DEFINITIONS(event_array)
+
+/* networking states description and transition assignment 
+ * new networking state definitions can be appended here 
+ * (after being declared as networking enum state_type)
+ */
+#define FINISH_NETWORKING_STATE_DEFINITIONS(state_array) \
+			STATE_DEF(state_array, stat_networking, st_net_entry, \
+					  "networking entry state", TRANS_NET_ENTRY, stl_ok) \
+			STATE_DEF(state_array, stat_networking, st_net_firstMixInit, \
+					  "first mix initialized", TRANS_NET_FIRST_MIX_INIT, stl_ok) \
+			STATE_DEF(state_array, stat_networking, st_net_firstMixConnectedToNext, \
+					  "first mix connected to next mix", TRANS_NET_FIRST_MIX_CONNECTED_TO_NEXT, stl_ok) \
+			STATE_DEF(state_array,stat_networking,st_net_firstMixOnline, \
+					  "first mix online", TRANS_NET_FIRST_MIX_ONLINE, stl_ok) \
+			STATE_DEF(state_array, stat_networking, st_net_middleMixInit, \
+					  "middle mix initialized", TRANS_NET_MIDDLE_MIX_INIT, stl_ok) \
+			STATE_DEF(state_array, stat_networking, st_net_middleMixConnectedToPrev, \
+					  "middle mix connected to previous mix", TRANS_NET_MIDDLE_MIX_CONNECTED_TO_PREV, stl_ok) \
+			STATE_DEF(state_array, stat_networking, st_net_middleMixOnline, \
+					  "middle mix online", TRANS_NET_MIDDLE_MIX_ONLINE, stl_ok) \
+			STATE_DEF(state_array, stat_networking, st_net_lastMixInit, \
+					  "last mix initialized", TRANS_NET_LAST_MIX_INIT, stl_ok) \
+			STATE_DEF(state_array, stat_networking, st_net_lastMixOnline, \
+					  "last mix online", TRANS_NET_LAST_MIX_ONLINE, stl_ok) 
+
+/* networking events descriptions */
+#define FINISH_NETWORKING_EVENT_DEFINITIONS(event_array) \
+			EVENT_DEF(event_array, stat_networking, ev_net_firstMixInited, \
+					  "first mix initialization finished") \
+			EVENT_DEF(event_array, stat_networking, ev_net_middleMixInited, \
+					  "middle mix initialization finished") \
+			EVENT_DEF(event_array, stat_networking, ev_net_lastMixInited, \
+					  "last mix initialization finished") \
+			EVENT_DEF(event_array, stat_networking, ev_net_prevConnected, \
+					  "connection to previous mix established") \
+			EVENT_DEF(event_array, stat_networking, ev_net_nextConnected, \
+					  "connection to next mix established") \
+			EVENT_DEF(event_array, stat_networking, ev_net_prevConnectionClosed, \
+					  "connection to previous mix closed") \
+			EVENT_DEF(event_array, stat_networking, ev_net_nextConnectionClosed, \
+					  "connection to next mix closed")
+		
+#ifdef PAYMENT
+/* payment states description and transition assignment 
+ * new payment state definitions can be appended here 
+ * (after being declared as payment enum state_type)
+ */
+	#define FINISH_PAYMENT_STATE_DEFINITIONS(state_array) \
+				STATE_DEF(state_array, stat_payment, st_pay_entry, \
+						  "payment entry state", TRANS_PAY_DUMMY, stl_ok)
+	
+	/* payment events descriptions */
+	#define FINISH_PAYMENT_EVENT_DEFINITIONS(event_array) \
+				EVENT_DEF(event_array, stat_payment, ev_pay_dummy, \
+						  "payment event")
+#else
+	#define FINISH_PAYMENT_STATE_DEFINITIONS(state_array) 
+	#define FINISH_PAYMENT_EVENT_DEFINITIONS(event_array)
+#endif
+
+/* system states description and transition assignment 
+ * new system state definitions can be appended here 
+ * (after being declared as system enum state_type)
+ */
+#define FINISH_SYSTEM_STATE_DEFINITIONS(state_array) \
+			STATE_DEF(state_array, stat_system, st_sys_entry, \
+					  "system entry state", TRANS_SYS_DUMMY, stl_ok)
+
+/* payment events descriptions */
+#define FINISH_SYSTEM_EVENT_DEFINITIONS(event_array) \
+			EVENT_DEF(event_array, stat_system, ev_sys_dummy, \
+					  "system event")
+					  
+/* This macro is used for assigning state description and state transitions 
+ * to the initialized states in fucnction initStates
+ */
+#define STATE_DEF(state_array, status_type, state_type, description, transitions, stateLevel) \
+			state_array[status_type][state_type]->st_description = description; \
+			state_array[status_type][state_type]->st_transitions = transitions; \
+			state_array[status_type][state_type]->st_stateLevel = stateLevel;
+					  /* Same for events description assignment */ 
+#define EVENT_DEF(event_array, status_type, event_type, description) \
+			event_array[status_type][event_type]->ev_description  = description;
+					  
 /** 
  * the server routine which: 
  *  * accepts socket connections,
@@ -159,9 +297,77 @@ THREAD_RETURN serveMonitoringRequests(void* param);
  * @param transitionCount the number of transitions to define
  * @param ... an event_type (of type event_type_t) followed by a 
  * 		  state transition (of type transition_t) 
- * 		  IMPORTANT an event type MUST be followed by a state transition!
+ * 		  IMPORTANT: an event type MUST be followed by a state transition!
  */
 transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ...);
+
+/** macros for defining transitions for the networking states
+    the networking events are:
+		* ev_net_firstMixInited, 
+		* ev_net_middleMixInited, 
+		* ev_net_lastMixInited,
+		* ev_net_prevConnected, 
+		* ev_net_nextConnected, 
+		* ev_net_prevConnectionClosed, 
+		* ev_net_nextConnectionClosed,
+**/
+
+/* transitions for the networking entry state: */
+#define TRANS_NET_ENTRY \
+	(defineTransitions(stat_networking, 3, \
+			ev_net_firstMixInited, st_net_firstMixInit, \
+			ev_net_middleMixInited, st_net_middleMixInit, \
+			ev_net_lastMixInited, st_net_lastMixInit))
+
+/* transitions for st_net_firstMixInit: */
+#define TRANS_NET_FIRST_MIX_INIT \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_nextConnected, st_net_firstMixConnectedToNext))
+
+/* transitions for st_net_firstMixConnectedToNext: */							
+#define TRANS_NET_FIRST_MIX_CONNECTED_TO_NEXT \
+	(defineTransitions(stat_networking, 2, \
+			ev_net_nextConnected, st_net_firstMixOnline, \
+			ev_net_nextConnectionClosed, st_net_firstMixInit))
+
+/* transitions for st_net_firstMixOnline: */
+#define TRANS_NET_FIRST_MIX_ONLINE \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_nextConnectionClosed, st_net_firstMixInit))
+
+/* transitions for st_net_middleMixInit: */
+#define TRANS_NET_MIDDLE_MIX_INIT \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_prevConnected, st_net_middleMixConnectedToPrev))
+
+/* transitions for st_net_middleMixConnectedToPrev: */
+#define TRANS_NET_MIDDLE_MIX_CONNECTED_TO_PREV \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_nextConnected, st_net_middleMixOnline))
+			
+/* transitions for st_net_middleMixOnline: */
+#define TRANS_NET_MIDDLE_MIX_ONLINE \
+	(defineTransitions(stat_networking, 2, \
+			ev_net_prevConnectionClosed, st_net_middleMixInit, \
+			ev_net_nextConnectionClosed, st_net_middleMixInit))
+			
+/* transitions for st_net_lastMixInit: */
+#define TRANS_NET_LAST_MIX_INIT \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_prevConnected, st_net_lastMixOnline))
+
+/* transitions for st_net_lastMixOnline: */
+#define TRANS_NET_LAST_MIX_ONLINE \
+	(defineTransitions(stat_networking, 1, \
+			ev_net_prevConnectionClosed, st_net_lastMixInit))
+
+#ifdef PAYMENT
+#define TRANS_PAY_DUMMY \
+	(defineTransitions(stat_payment, 0))
+#endif
+
+#define TRANS_SYS_DUMMY \
+	(defineTransitions(stat_system, 0))
 
 class CAStatusManager
 {
@@ -184,6 +390,8 @@ private:
 	XERCES_CPP_NAMESPACE::DOMDocument* m_pPreparedStatusMessage;
 	
 	static CAStatusManager *ms_pStatusManager;
+	static state_t ***ms_pAllStates;
+	static event_t ***ms_pAllEvents;
 	
 	CAStatusManager();
 	virtual ~CAStatusManager();
@@ -192,6 +400,12 @@ private:
 	SINT32 transition(event_type_t e_type, status_type_t s_type);
 	SINT32 initStatusMessage();
 	friend THREAD_RETURN serveMonitoringRequests(void* param);
+	
+	static void initStates();
+	static void deleteStates();
+	
+	static void initEvents();
+	static void deleteEvents();
 };
 
 #endif /*CASTATUSMANAGER_HPP_*/
