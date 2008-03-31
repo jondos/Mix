@@ -39,6 +39,9 @@ typedef UINT32 HCHANNEL;
 #define CHANNEL_DATA		0x00
 #define CHANNEL_OPEN		0x08
 
+#define CHANNEL_TIMESTAMPS_UP	0x60
+#define CHANNEL_TIMESTAMPS_DOWN	0x90
+
 #define CHANNEL_CLOSE		0x01
 #define CHANNEL_SUSPEND 0x02
 #define	CHANNEL_RESUME	0x04
@@ -49,7 +52,7 @@ typedef UINT32 HCHANNEL;
 	#define	CHANNEL_SIG_CRIME_ID_MASK 0x0000FF00
 	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME|CHANNEL_SIG_CRIME|CHANNEL_SIG_CRIME_ID_MASK)
 #else
-	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME)
+	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME|CHANNEL_TIMESTAMPS_UP|CHANNEL_TIMESTAMPS_DOWN)
 #endif
 
 #ifdef NEW_FLOW_CONTROL
@@ -126,6 +129,7 @@ typedef struct t_queue_entry tQueueEntry;
 typedef tQueueEntry tPoolEntry; 	
 
 ///the Replaytimestamp type
+/*
 struct t_replay_timestamp
 	{
 		UINT interval; //the current interval number
@@ -133,13 +137,13 @@ struct t_replay_timestamp
 	};
 
 typedef struct t_replay_timestamp tReplayTimestamp;
-
+*/
 struct t_mix_parameters
 	{
 		//stores the mix id of the mix
 		UINT8* m_strMixID;
 		/// stores the local time in seconds since epoch for interval '0' for this mix
-		UINT32 m_u32ReplayRefTime;
+		UINT32 m_u32ReplayOffset;
 	};
 typedef struct t_mix_parameters tMixParameters;
 

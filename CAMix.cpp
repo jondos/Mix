@@ -40,9 +40,6 @@ CAMix::CAMix()
     m_acceptReconfiguration = pglobalOptions->acceptReconfiguration();
 		m_pSignature=NULL;
 		m_pInfoService=NULL;
-		#ifdef REPLAY_DETECTION
-			m_pReplayMsgProc=NULL;
-		#endif
 		m_pMuxOutControlChannelDispatcher=NULL;
 		m_pMuxInControlChannelDispatcher=NULL;
 		m_u32KeepAliveSendInterval=0;//zero means --> do not use
