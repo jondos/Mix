@@ -35,7 +35,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CACmdLnOptions.hpp"
 #include "CAFirstMix.hpp"
 #include "CADatabase.hpp"
-#define DEBUG
+
 extern CACmdLnOptions *pglobalOptions;
 
 CAReplayCtrlChannelMsgProc::CAReplayCtrlChannelMsgProc(const CAMixWithReplayDB* pMix)
