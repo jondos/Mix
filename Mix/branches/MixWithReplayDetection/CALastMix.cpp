@@ -557,11 +557,12 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 				UINT32 keepaliveDiff=diff64(keepaliveNow,keepaliveLast);
 				if(keepaliveDiff>u32KeepAliveRecvInterval)
 					{
+						CAMsg::printMsg(LOG_ERR,"CALastMix::loopReadFromMix() -- restart because of KeepAlive-Traffic Timeout!\n");
 						pLastMix->m_bRestart=true;
 						break;
 					}
-				SINT32 ret=pSocketGroup->select(MIX_POOL_TIMEOUT);	
-        if(ret < 0) 
+				SINT32 ret=pSocketGroup->select(MIX_POOL_TIMEOUT);
+				if(ret < 0)
 					{
 						if (ret == E_TIMEDOUT) 
 							{
@@ -600,15 +601,15 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 								break;
 							}
 					}
-				#ifdef USE_POOL
-					#ifdef LOG_PACKET_TIMES
-						getcurrentTimeMicros(pQueueEntry->pool_timestamp_in);
-					#endif
-					pPool->pool((tPoolEntry*) pQueueEntry);
-					#ifdef LOG_PACKET_TIMES
-						getcurrentTimeMicros(pQueueEntry->pool_timestamp_out);
-					#endif
-				#endif		
+		#ifdef USE_POOL
+			#ifdef LOG_PACKET_TIMES
+				getcurrentTimeMicros(pQueueEntry->pool_timestamp_in);
+			#endif
+				pPool->pool((tPoolEntry*) pQueueEntry);
+			#ifdef LOG_PACKET_TIMES
+				getcurrentTimeMicros(pQueueEntry->pool_timestamp_out);
+			#endif
+		#endif
 				pQueue->add(pQueueEntry,sizeof(tQueueEntry));
 				getcurrentTimeMillis(keepaliveLast);
 			}
