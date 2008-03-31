@@ -36,169 +36,22 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
  * Here we keep track of the Mix states to be able to answer
  * Server monitoring requests.
- * 
- * This logic also describes the state machine of the mix
- * for networking, payment and system status
  */
 CAStatusManager *CAStatusManager::ms_pStatusManager = NULL;
 
-/** transitions for the networking states
-    the networking events are:
-		* ev_net_firstMixInited, 
-		* ev_net_middleMixInited, 
-		* ev_net_lastMixInited,
-		* ev_net_prevConnected, 
-		* ev_net_nextConnected, 
-		* ev_net_prevConnectionClosed, 
-		* ev_net_nextConnectionClosed,
-**/
-
-/* transitions for the networking entry state: */
-#define TRANS_NET_ENTRY \
-	(defineTransitions(stat_networking, 3, \
-			ev_net_firstMixInited, st_net_firstMixInit, \
-			ev_net_middleMixInited, st_net_middleMixInit, \
-			ev_net_lastMixInited, st_net_lastMixInit))
-
-/* transitions for st_net_firstMixInit: */
-#define TRANS_NET_FIRST_MIX_INIT \
-	(defineTransitions(stat_networking, 1, \
-			ev_net_nextConnected, st_net_firstMixConnectedToNext))
-
-/* transitions for st_net_firstMixConnectedToNext: */							
-#define TRANS_NET_FIRST_MIX_CONNECTED_TO_NEXT \
-	(defineTransitions(stat_networking, 2, \
-			ev_net_nextConnected, st_net_firstMixOnline, \
-			ev_net_nextConnectionClosed, st_net_firstMixInit))
-
-/* transitions for st_net_firstMixOnline: */
-#define TRANS_NET_FIRST_MIX_ONLINE \
-	(defineTransitions(stat_networking, 1, \
-			ev_net_nextConnectionClosed, st_net_firstMixInit))
-
-/* transitions for st_net_middleMixInit: */
-#define TRANS_NET_MIDDLE_MIX_INIT \
-	(defineTransitions(stat_networking, 1, \
-			ev_net_prevConnected, st_net_middleMixConnectedToPrev))
-
-/* transitions for st_net_middleMixConnectedToPrev: */
-#define TRANS_NET_MIDDLE_MIX_CONNECTED_TO_PREV \
-	(defineTransitions(stat_networking, 1, \
-			ev_net_nextConnected, st_net_middleMixOnline))
-			
-/* transitions for st_net_middleMixOnline: */
-#define TRANS_NET_MIDDLE_MIX_ONLINE \
-	(defineTransitions(stat_networking, 2, \
-			ev_net_prevConnectionClosed, st_net_middleMixInit, \
-			ev_net_nextConnectionClosed, st_net_middleMixInit))
-			
-/* transitions for st_net_lastMixInit: */
-#define TRANS_NET_LAST_MIX_INIT \
-	(defineTransitions(stat_networking, 1, \
-			ev_net_prevConnected, st_net_lastMixOnline))
-
-/* transitions for st_net_lastMixOnline: */
-#define TRANS_NET_LAST_MIX_ONLINE \
-	(defineTransitions(stat_networking, 1, \
-			ev_net_prevConnectionClosed, st_net_lastMixInit))
-
-static state_t networking_states[NR_NETWORKING_STATES] = 
-{
-		{st_net_entry, stat_networking, 
-		 "networking entry state", 
-		  NULL, NULL, TRANS_NET_ENTRY},
-		
-		{st_net_firstMixInit, stat_networking, 
-		 "first mix initialized", 
-		 NULL, NULL, TRANS_NET_FIRST_MIX_INIT},
-		
-		 {st_net_firstMixConnectedToNext, stat_networking, 
-		  "first mix connected to next mix", 
-		  NULL, NULL, TRANS_NET_FIRST_MIX_CONNECTED_TO_NEXT},
-		 
-		{st_net_firstMixOnline, stat_networking, 
-		 "first mix online", 
-		 NULL, NULL, TRANS_NET_FIRST_MIX_ONLINE},
-		
-		{st_net_middleMixInit, stat_networking,
-		 "middle mix initialized", 
-		 NULL, NULL, TRANS_NET_MIDDLE_MIX_INIT},
-		
-		{st_net_middleMixConnectedToPrev, stat_networking,
-		 "middle mix connected to previous mix", 
-		 NULL, NULL, TRANS_NET_MIDDLE_MIX_CONNECTED_TO_PREV},
-		
-		{st_net_middleMixOnline, stat_networking,
-		 "middle mix online", 
-		 NULL, NULL, TRANS_NET_MIDDLE_MIX_ONLINE},
-		
-		{st_net_lastMixInit, stat_networking,
-		 "last mix initialized", 
-		 NULL, NULL, TRANS_NET_LAST_MIX_INIT}, 
-		
-		{st_net_lastMixOnline, stat_networking, 
-		 "last mix online", 
-		 NULL, NULL, TRANS_NET_LAST_MIX_ONLINE}
-};
-
-static state_t payment_states[NR_PAYMENT_STATES] =
-{
-		{st_pay_entry, stat_payment, "payment entry state", NULL, NULL}
-};
-
-static state_t system_states[NR_SYSTEM_STATES] =
-{
-		{st_sys_entry, stat_system, "system entry state", NULL, NULL}
-};
-
-static state_t *all_states[NR_STATUS_TYPES] =
-{
-		networking_states, payment_states, system_states
-};
-
-static event_t networking_events[NR_NETWORKING_EVENTS] =
-{
-	{ev_net_firstMixInited, stat_networking,
-	 "first mix initialization finished"},
-		
-	{ev_net_middleMixInited, stat_networking,
-	 "middle mix initialization finished"},
-		 
-	{ev_net_lastMixInited, stat_networking,
-	 "last mix initialization finished"},
-		
-	{ev_net_prevConnected, stat_networking,
-	 "connection to previous mix established"},
-		 
-	{ev_net_nextConnected, stat_networking,
-	 "connection to next mix established"},
-		
-	{ev_net_prevConnectionClosed, stat_networking,
-	 "connection to previous mix closed"},
-		
-	{ev_net_nextConnectionClosed, stat_networking,
-	 "connection to next mix closed"}
-};
-
-static event_t payment_events[NR_PAYMENT_EVENTS] =
-{
-		{ev_pay_dummy, stat_payment,
-		 ""}
-};
-
-static event_t system_events[NR_SYSTEM_EVENTS] =
-{
-		{ev_sys_dummy, stat_system,
-		 ""}		
-};
-
-static event_t *all_events[NR_STATUS_TYPES] =
-{
-		networking_events, payment_events, system_events
-};
+state_t ***CAStatusManager::ms_pAllStates = NULL;
+event_t ***CAStatusManager::ms_pAllEvents = NULL;
 
 void CAStatusManager::init()
 {
+	if(ms_pAllEvents == NULL)
+	{
+		initEvents();
+	}
+	if(ms_pAllStates == NULL)
+	{
+		initStates();
+	}
 	if(ms_pStatusManager == NULL)
 	{
 		ms_pStatusManager = new CAStatusManager();
@@ -216,10 +69,21 @@ void CAStatusManager::cleanup()
 			ms_pStatusManager->m_pStatusSocket->close();
 		}*/
 	}
+	
 	if(ms_pStatusManager != NULL)
 	{
 		delete ms_pStatusManager;
 		ms_pStatusManager = NULL;
+	}
+	if(ms_pAllStates != NULL)
+	{
+		deleteStates();
+		ms_pAllStates = NULL;
+	}
+	if(ms_pAllEvents != NULL)
+	{
+		deleteEvents();
+		ms_pAllEvents = NULL;
 	}
 }
 
@@ -240,18 +104,18 @@ SINT32 CAStatusManager::fireEvent(event_type_t e_type, enum status_type s_type)
 
 CAStatusManager::CAStatusManager()
 {
+	int i;
 	m_pCurrentStates = new state_t*[NR_STATUS_TYPES];
 	
-	m_pCurrentStates[stat_networking] = 
-		&(all_states[stat_networking][st_net_entry]);
-	m_pCurrentStates[stat_payment] = 
-		&(all_states[stat_payment][st_pay_entry]);
-	m_pCurrentStates[stat_system] = 
-		&(all_states[stat_system][st_sys_entry]);
-	CAMsg::printMsg(LOG_DEBUG, "Init states: %s - %s, %s - %s, %s - %s\n",
-			STATUS_NAMES[stat_networking], m_pCurrentStates[stat_networking]->st_description,
-			STATUS_NAMES[stat_payment], m_pCurrentStates[stat_payment]->st_description,
-			STATUS_NAMES[stat_system], m_pCurrentStates[stat_system]->st_description);
+	for(i = 0; i < NR_STATUS_TYPES; i++)
+	{
+		m_pCurrentStates[i] = 
+				ms_pAllStates[i][ENTRY_STATE];
+//#ifdef DEBUG
+		CAMsg::printMsg(LOG_DEBUG, "Init state: %s - %s\n", STATUS_NAMES[i], 
+						m_pCurrentStates[i]->st_description);
+//#endif
+	}
 	
 	m_pStatusLock = new CAMutex();
 	m_pStatusSocket = new CASocket();
@@ -270,12 +134,25 @@ CAStatusManager::CAStatusManager()
 					"StatusManager: an error occured while initializing the"
 					" server monitoring socket\n");
 	}
-	
 	initStatusMessage();
+	for(i = 0; i < NR_STATUS_TYPES; i++)
+	{
+		setDOMElementValue(
+				(m_pCurrentStatesInfo[i]).dsi_stateType,
+				(UINT32)(m_pCurrentStates[i])->st_type);
+		setDOMElementValue(
+				(m_pCurrentStatesInfo[i]).dsi_stateDesc,
+				(UINT8*)(m_pCurrentStates[i])->st_description);
+		setDOMElementValue(
+				(m_pCurrentStatesInfo[i]).dsi_stateLevel,
+				(UINT8*)(STATUS_LEVEL_NAMES[(m_pCurrentStates[i])->st_stateLevel]));
+
+	}
 }
 
 CAStatusManager::~CAStatusManager()
 {
+	int i;
 	if(m_pMonitoringThread != NULL)
 	{
 		if(m_pStatusSocket != NULL)
@@ -302,6 +179,10 @@ CAStatusManager::~CAStatusManager()
 	}
 	if(m_pCurrentStates != NULL)
 	{
+		for(i = 0; i < NR_STATUS_TYPES; i++)
+		{
+			m_pCurrentStates[i] = NULL;
+		}
 		delete[] m_pCurrentStates;
 		m_pCurrentStates = NULL;
 	}
@@ -401,9 +282,9 @@ SINT32 CAStatusManager::transition(event_type_t e_type, status_type_t s_type)
 	if(transitionToNextState != st_ignore)
 	{
 		prev = m_pCurrentStates[s_type];
-		m_pCurrentStates[s_type] = &(all_states[s_type][transitionToNextState]);
+		m_pCurrentStates[s_type] = ms_pAllStates[s_type][transitionToNextState];
 		m_pCurrentStates[s_type]->st_prev = prev;
-		m_pCurrentStates[s_type]->st_cause = &(all_events[s_type][e_type]);
+		m_pCurrentStates[s_type]->st_cause = ms_pAllEvents[s_type][e_type];
 		
 		/* setting the xml elements of the info message won't be too expensive */ 
 		setDOMElementValue(
@@ -412,7 +293,10 @@ SINT32 CAStatusManager::transition(event_type_t e_type, status_type_t s_type)
 		setDOMElementValue(
 				(m_pCurrentStatesInfo[s_type]).dsi_stateDesc,
 				(UINT8*)(m_pCurrentStates[s_type])->st_description);
-		
+		setDOMElementValue(
+				(m_pCurrentStatesInfo[s_type]).dsi_stateLevel,
+				(UINT8*)(STATUS_LEVEL_NAMES[(m_pCurrentStates[s_type])->st_stateLevel]));
+//#ifdef DEBUG
 		CAMsg::printMsg(LOG_INFO, 
 				"StatusManager: status %s: "
 				"transition from state %d (%s) "
@@ -420,30 +304,27 @@ SINT32 CAStatusManager::transition(event_type_t e_type, status_type_t s_type)
 				STATUS_NAMES[s_type],
 				prev->st_type, prev->st_description,
 				m_pCurrentStates[s_type]->st_type, m_pCurrentStates[s_type]->st_description,
-				e_type, (all_events[s_type][e_type]).ev_description);
+				e_type, (ms_pAllEvents[s_type][e_type])->ev_description);
+//#endif
 	}
 	m_pStatusLock->unlock();
-
-	
 	return E_SUCCESS;
 }
 
 /* prepares (once) a DOM template for all status messages */
 SINT32 CAStatusManager::initStatusMessage()
 {
-	int i = 0;
+	int i;
 	
 	m_pPreparedStatusMessage = createDOMDocument();
 	m_pCurrentStatesInfo = new dom_state_info[NR_STATUS_TYPES];
-	DOMElement *status_dom_elements[NR_STATUS_TYPES];
 	DOMElement *elemRoot = createDOMElement(m_pPreparedStatusMessage, "StatusMessage");
-		
-	status_dom_elements[stat_networking] = createDOMElement(m_pPreparedStatusMessage, "NetworkingStatus");
-	status_dom_elements[stat_payment] = createDOMElement(m_pPreparedStatusMessage, "PaymentStatus");
-	status_dom_elements[stat_system] = createDOMElement(m_pPreparedStatusMessage, "SystemStatus");
+	DOMElement *status_dom_element = NULL;
 	
-	for(; i < NR_STATUS_TYPES; i++)
+	for(i = 0; i < NR_STATUS_TYPES; i++)
 	{
+		status_dom_element = 
+			createDOMElement(m_pPreparedStatusMessage, STATUS_NAMES[i]); 
 		(m_pCurrentStatesInfo[i]).dsi_stateType = 
 			createDOMElement(m_pPreparedStatusMessage, "State");
 #ifdef DEBUG		
@@ -459,11 +340,11 @@ SINT32 CAStatusManager::initStatusMessage()
 #ifdef DEBUG
 		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateDesc, (UINT8*)"Description of the state");
 #endif
-		status_dom_elements[i]->appendChild((m_pCurrentStatesInfo[i]).dsi_stateType);
-		status_dom_elements[i]->appendChild((m_pCurrentStatesInfo[i]).dsi_stateLevel);
-		status_dom_elements[i]->appendChild((m_pCurrentStatesInfo[i]).dsi_stateDesc);
+		status_dom_element->appendChild((m_pCurrentStatesInfo[i]).dsi_stateType);
+		status_dom_element->appendChild((m_pCurrentStatesInfo[i]).dsi_stateLevel);
+		status_dom_element->appendChild((m_pCurrentStatesInfo[i]).dsi_stateDesc);
 		
-		elemRoot->appendChild(status_dom_elements[i]);
+		elemRoot->appendChild(status_dom_element);
 	}
 	m_pPreparedStatusMessage->appendChild(elemRoot);
 
@@ -515,15 +396,104 @@ THREAD_RETURN serveMonitoringRequests(void* param)
 			statusMessageOutBuf[stausMessageOutBufLen] = 0;			
 			//CAMsg::printMsg(LOG_DEBUG, "the status message looks like this: %s \n",debugout);
 				
-			monitoringRequestSocket.send(statusMessageOutBuf, stausMessageOutBufLen);
+			if(monitoringRequestSocket.send(statusMessageOutBuf, stausMessageOutBufLen) < 0)
+			{
+				CAMsg::printMsg(LOG_ERR, 
+						"StatusManager: error: could not send status message.\n");
+			}
 			monitoringRequestSocket.close();
 		}
 		else
 		{
 			CAMsg::printMsg(LOG_ERR, 
-					"StatusManager: error could not process monitoring request.\n");
+					"StatusManager: error: could not process monitoring request.\n");
 		}
 	}
+}
+
+void CAStatusManager::initStates()
+{
+	int i, j; 
+	
+	ms_pAllStates = new state_t**[NR_STATUS_TYPES];
+	
+	for(i = 0; i < NR_STATUS_TYPES; i++)
+	{
+		ms_pAllStates[i] = 
+			new state_t*[STATE_COUNT[i]];
+		
+		for(j=0; j < STATE_COUNT[i]; j++)
+		{
+			ms_pAllStates[i][j] = new state_t; 
+			/* only state identifier are set, transitions and state description
+			 * must be set via macro
+			 **/
+			ms_pAllStates[i][j]->st_type = (state_type_t) j;
+			ms_pAllStates[i][j]->st_statusType = (status_type_t) i;
+		}
+	}
+	FINISH_STATE_DEFINITIONS(ms_pAllStates);
+	
+}
+
+void CAStatusManager::deleteStates()
+{
+	int i, j;
+	
+	for(i = 0; i < NR_STATUS_TYPES; i++)
+	{
+		//m_pCurrentStates[i] = NULL;
+		for(j=0; j < STATE_COUNT[i]; j++)
+		{
+			if(ms_pAllStates[i][j] != NULL)
+			{
+				if(ms_pAllStates[i][j]->st_transitions != NULL)
+				{
+					delete[] ms_pAllStates[i][j]->st_transitions;
+					ms_pAllStates[i][j]->st_transitions = NULL;
+				}
+				//todo: delete state descriptions ?
+				delete ms_pAllStates[i][j];
+				ms_pAllStates[i][j] = NULL;
+			}
+		}
+		delete[] ms_pAllStates[i];
+	}
+	delete[] ms_pAllStates;
+}
+
+void CAStatusManager::initEvents()
+{
+	int i , j;
+	
+	ms_pAllEvents = new event_t**[NR_STATUS_TYPES];
+	for(i = 0; i < NR_STATUS_TYPES; i++)
+	{
+		ms_pAllEvents[i] = new event_t*[EVENT_COUNT[i]];
+		for(j = 0; j < EVENT_COUNT[i]; j++)
+		{
+			ms_pAllEvents[i][j] = new event_t;
+			ms_pAllEvents[i][j]->ev_type = (event_type_t) j;
+			ms_pAllEvents[i][j]->ev_statusType = (status_type_t) i;
+		}
+	}
+	FINISH_EVENT_DEFINITIONS(ms_pAllEvents);
+}
+
+void CAStatusManager::deleteEvents()
+{
+	int i , j;
+		for(i = 0; i < NR_STATUS_TYPES; i++)
+		{
+			for(j = 0; j < EVENT_COUNT[i]; j++)
+			{
+				//todo: delete event descriptions ?
+				delete ms_pAllEvents[i][j];
+				ms_pAllEvents[i][j] = NULL;
+			}
+			delete[] ms_pAllEvents[i];
+		}
+		delete[] ms_pAllEvents;
 }
 
 transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ...)
