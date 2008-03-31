@@ -200,7 +200,7 @@ AC_ARG_ENABLE(replay_detection,
 )
 
 dnl type-b mixes ??
-REPLAY_DETECTION=""
+NEW_MIX_TYPE=""
 AC_ARG_ENABLE(new_mix_type,
 	AS_HELP_STRING([--enable-new_mix_type],
 			[Specify if to build with type B mixes]),
