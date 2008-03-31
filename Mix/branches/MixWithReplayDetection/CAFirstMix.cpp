@@ -752,6 +752,7 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 								CAMsg::printMsg(LOG_DEBUG,"CAFirstMix - sent a packet from the next mix to the ControlChanelDispatcher... \n");
 							#endif
 							pControlChannelDispatcher->proccessMixPacket(pMixPacket);
+							getcurrentTimeMillis(keepaliveLast);
 							continue;
 						}
 				#ifdef USE_POOL

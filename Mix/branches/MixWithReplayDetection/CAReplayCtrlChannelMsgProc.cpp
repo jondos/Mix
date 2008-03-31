@@ -72,7 +72,7 @@ CAReplayCtrlChannelMsgProc::CAReplayCtrlChannelMsgProc(const CAMixWithReplayDB* 
 CAReplayCtrlChannelMsgProc::~CAReplayCtrlChannelMsgProc()
 	{
 		#ifdef DEBUG
-			CAMsg::printMsg(LOG_DEBUG,"CAReplayCtrlChannelMsgProc::~CAReplayCtrlChannelMsgProc()");
+			CAMsg::printMsg(LOG_DEBUG,"CAReplayCtrlChannelMsgProc::~CAReplayCtrlChannelMsgProc()\n");
 		#endif
 		stopTimeStampPorpagation();
 		CAControlChannelDispatcher* pDispatcher=m_pMix->getDownstreamControlChannelDispatcher();
@@ -243,7 +243,7 @@ SINT32 CAReplayCtrlChannelMsgProc::initTimestampsMessageTemplate()
 		DOMElement *elemReplay=createDOMElement(m_docTemplate,"Replay");
 		elemMix->appendChild(elemReplay);
 		DOMElement *elemReplayOffset=createDOMElement(m_docTemplate,"ReplayOffset");
-		setDOMElementValue(elemReplayOffset,(UINT32) (time(NULL)-m_pMix->m_u64ReferenceTime));
+//		setDOMElementValue(elemReplayOffset,(UINT32) (time(NULL)-m_pMix->m_u64ReferenceTime));
 		elemReplay->appendChild(elemReplayOffset);
 		m_docTemplate->appendChild(elemMix);
 
