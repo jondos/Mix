@@ -25,17 +25,22 @@ LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
 NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
+
 #include "CAStatusManager.hpp"
+
+#ifdef SERVER_MONITORING
+
 #include "CAMsg.hpp"
 #include "CAMutex.hpp"
 #include "CAUtil.hpp"
 #include "xml/DOM_Output.hpp"
 
+#define DEBUG
 /**
  * @author Simon Pecher, JonDos GmbH
  * 
- * Here we keep track of the Mix states to be able to answer
- * Server monitoring requests.
+ * Here we keep track of the current mix state to answer
+ * server monitoring requests.
  */
 CAStatusManager *CAStatusManager::ms_pStatusManager = NULL;
 
@@ -60,15 +65,17 @@ void CAStatusManager::init()
 	
 void CAStatusManager::cleanup()
 {
-	CAMsg::printMsg(LOG_INFO, 
+#ifdef DEBUG
+	CAMsg::printMsg(LOG_DEBUG, 
 				"CAStatusManager: doing cleanup\n");
-	if(ms_pStatusManager->m_pStatusSocket != NULL)
+#endif
+	/*if(ms_pStatusManager->m_pStatusSocket != NULL)
 	{
-		/*if(!(ms_pStatusManager->m_pStatusSocket->isClosed()))
+		if(!(ms_pStatusManager->m_pStatusSocket->isClosed()))
 		{
 			ms_pStatusManager->m_pStatusSocket->close();
-		}*/
-	}
+		}
+	}*/
 	
 	if(ms_pStatusManager != NULL)
 	{
@@ -111,10 +118,10 @@ CAStatusManager::CAStatusManager()
 	{
 		m_pCurrentStates[i] = 
 				ms_pAllStates[i][ENTRY_STATE];
-//#ifdef DEBUG
+#ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG, "Init state: %s - %s\n", STATUS_NAMES[i], 
 						m_pCurrentStates[i]->st_description);
-//#endif
+#endif
 	}
 	
 	m_pStatusLock = new CAMutex();
@@ -122,11 +129,9 @@ CAStatusManager::CAStatusManager()
 
 	if(initSocket() == E_SUCCESS)
 	{
-		
 		m_pMonitoringThread = new CAThread((UINT8*)"Monitoring Thread");
 		m_pMonitoringThread->setMainLoop(serveMonitoringRequests);
 		m_pMonitoringThread->start(this);
-		
 	}
 	else
 	{
@@ -135,6 +140,7 @@ CAStatusManager::CAStatusManager()
 					" server monitoring socket\n");
 	}
 	initStatusMessage();
+	/* pass entry state staus information to the DOM structure */
 	for(i = 0; i < NR_STATUS_TYPES; i++)
 	{
 		setDOMElementValue(
@@ -146,7 +152,6 @@ CAStatusManager::CAStatusManager()
 		setDOMElementValue(
 				(m_pCurrentStatesInfo[i]).dsi_stateLevel,
 				(UINT8*)(STATUS_LEVEL_NAMES[(m_pCurrentStates[i])->st_stateLevel]));
-
 	}
 }
 
@@ -168,8 +173,10 @@ CAStatusManager::~CAStatusManager()
 		CAMsg::printMsg(LOG_INFO, 
 				"CAStatusManager: monitoring thread joined\n");*/
 		delete m_pMonitoringThread;
-		CAMsg::printMsg(LOG_INFO, 
+#ifdef DEBUG
+		CAMsg::printMsg(LOG_DEBUG, 
 				"CAStatusManager: The monitoring thread is no more.\n");
+#endif
 		m_pMonitoringThread = NULL;
 	}
 	if(m_pStatusLock != NULL)
@@ -296,8 +303,8 @@ SINT32 CAStatusManager::transition(event_type_t e_type, status_type_t s_type)
 		setDOMElementValue(
 				(m_pCurrentStatesInfo[s_type]).dsi_stateLevel,
 				(UINT8*)(STATUS_LEVEL_NAMES[(m_pCurrentStates[s_type])->st_stateLevel]));
-//#ifdef DEBUG
-		CAMsg::printMsg(LOG_INFO, 
+#ifdef DEBUG
+		CAMsg::printMsg(LOG_DEBUG, 
 				"StatusManager: status %s: "
 				"transition from state %d (%s) "
 				"to state %d (%s) caused by event %d (%s)\n",
@@ -305,7 +312,7 @@ SINT32 CAStatusManager::transition(event_type_t e_type, status_type_t s_type)
 				prev->st_type, prev->st_description,
 				m_pCurrentStates[s_type]->st_type, m_pCurrentStates[s_type]->st_description,
 				e_type, (ms_pAllEvents[s_type][e_type])->ev_description);
-//#endif
+#endif
 	}
 	m_pStatusLock->unlock();
 	return E_SUCCESS;
@@ -315,7 +322,6 @@ SINT32 CAStatusManager::transition(event_type_t e_type, status_type_t s_type)
 SINT32 CAStatusManager::initStatusMessage()
 {
 	int i;
-	
 	m_pPreparedStatusMessage = createDOMDocument();
 	m_pCurrentStatesInfo = new dom_state_info[NR_STATUS_TYPES];
 	DOMElement *elemRoot = createDOMElement(m_pPreparedStatusMessage, "StatusMessage");
@@ -343,11 +349,9 @@ SINT32 CAStatusManager::initStatusMessage()
 		status_dom_element->appendChild((m_pCurrentStatesInfo[i]).dsi_stateType);
 		status_dom_element->appendChild((m_pCurrentStatesInfo[i]).dsi_stateLevel);
 		status_dom_element->appendChild((m_pCurrentStatesInfo[i]).dsi_stateDesc);
-		
 		elemRoot->appendChild(status_dom_element);
 	}
 	m_pPreparedStatusMessage->appendChild(elemRoot);
-
 #ifdef DEBUG
 	UINT32 debuglen = 3000;
 	UINT8 debugout[3000];
@@ -355,7 +359,6 @@ SINT32 CAStatusManager::initStatusMessage()
 	debugout[debuglen] = 0;			
 	CAMsg::printMsg(LOG_DEBUG, "the status message template looks like this: %s \n",debugout);
 #endif
-	
 	return E_SUCCESS;
 }
 
@@ -414,7 +417,6 @@ THREAD_RETURN serveMonitoringRequests(void* param)
 void CAStatusManager::initStates()
 {
 	int i, j; 
-	
 	ms_pAllStates = new state_t**[NR_STATUS_TYPES];
 	
 	for(i = 0; i < NR_STATUS_TYPES; i++)
@@ -465,8 +467,8 @@ void CAStatusManager::deleteStates()
 void CAStatusManager::initEvents()
 {
 	int i , j;
-	
 	ms_pAllEvents = new event_t**[NR_STATUS_TYPES];
+	
 	for(i = 0; i < NR_STATUS_TYPES; i++)
 	{
 		ms_pAllEvents[i] = new event_t*[EVENT_COUNT[i]];
@@ -483,17 +485,18 @@ void CAStatusManager::initEvents()
 void CAStatusManager::deleteEvents()
 {
 	int i , j;
-		for(i = 0; i < NR_STATUS_TYPES; i++)
+	
+	for(i = 0; i < NR_STATUS_TYPES; i++)
+	{
+		for(j = 0; j < EVENT_COUNT[i]; j++)
 		{
-			for(j = 0; j < EVENT_COUNT[i]; j++)
-			{
-				//todo: delete event descriptions ?
-				delete ms_pAllEvents[i][j];
-				ms_pAllEvents[i][j] = NULL;
-			}
-			delete[] ms_pAllEvents[i];
+			//todo: delete event descriptions ?
+			delete ms_pAllEvents[i][j];
+			ms_pAllEvents[i][j] = NULL;
 		}
-		delete[] ms_pAllEvents;
+		delete[] ms_pAllEvents[i];
+	}
+	delete[] ms_pAllEvents;
 }
 
 transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ...)
@@ -555,3 +558,4 @@ transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ..
 	return transitions;
 	
 }
+#endif

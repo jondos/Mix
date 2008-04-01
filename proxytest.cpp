@@ -35,7 +35,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CALocalProxy.hpp"
 #include "CAQueue.hpp"
 #include "CAThreadList.hpp"
-#include "CAStatusManager.hpp"
+
+#ifdef SERVER_MONITORING
+	#include "CAStatusManager.hpp"
+#endif
 
 #ifdef _DEBUG //For FreeBSD memory checking functionality
 	const char* _malloc_options="AX";
@@ -150,7 +153,9 @@ void init()
 		#endif
 		initRandom();
 		pglobalOptions=new CACmdLnOptions();
+#ifdef SERVER_MONITORING
 		CAStatusManager::init();
+#endif
 	}
 
 /**do necessary cleanups of libraries etc.*/
@@ -196,7 +201,9 @@ void cleanup()
 				pThreadList = NULL;
 			}
 #endif
+#ifdef SERVER_MONITORING
 		CAStatusManager::cleanup();
+#endif
 		CAMsg::cleanup();
 		
 	}
@@ -799,31 +806,31 @@ int main(int argc, const char* argv[])
 						CAMsg::printMsg(LOG_INFO,"I am the First MIX..\n");
 						#if !defined(NEW_MIX_TYPE)
 							pMix=new CAFirstMixA();
-//#ifdef SERVER_MONITORING					
-							CAStatusManager::fireEvent(ev_net_firstMixInited, stat_networking);
-//#endif				
 						#else
 							pMix=new CAFirstMixB();
 						#endif
+#ifdef SERVER_MONITORING					
+						CAStatusManager::fireEvent(ev_net_firstMixInited, stat_networking);
+#endif			
 					}
 				else if(pglobalOptions->isMiddleMix())
 					{
 						CAMsg::printMsg(LOG_INFO,"I am a Middle MIX..\n");
 						pMix=new CAMiddleMix();
-//#ifdef SERVER_MONITORING					
+#ifdef SERVER_MONITORING					
 						CAStatusManager::fireEvent(ev_net_middleMixInited, stat_networking);
-//#endif
+#endif
 					}
 				else
 				{
 						#if !defined(NEW_MIX_TYPE)
 							pMix=new CALastMixA();
-//#ifdef SERVER_MONITORING					
-							CAStatusManager::fireEvent(ev_net_lastMixInited, stat_networking);
-//#endif	
 						#else
 							pMix=new CALastMixB();
 						#endif
+#ifdef SERVER_MONITORING					
+						CAStatusManager::fireEvent(ev_net_lastMixInited, stat_networking);
+#endif	
 				}
 #else
 				CAMsg::printMsg(LOG_ERR,"this Mix is compile to work only as local proxy!\n");

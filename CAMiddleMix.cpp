@@ -42,7 +42,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CABase64.hpp"
 #include "CAPool.hpp"
 #include "xml/DOM_Output.hpp"
-
+#ifdef SERVER_MONITORING
+	#include "CAStatusManager.hpp"
+#endif
 extern CACmdLnOptions* pglobalOptions;
 
 SINT32 CAMiddleMix::initOnce()
@@ -86,6 +88,9 @@ SINT32 CAMiddleMix::processKeyExchange()
 		if(((CASocket*)*m_pMuxOut)->receiveFully((UINT8*)&len,2)!=E_SUCCESS)
 			{
 				CAMsg::printMsg(LOG_INFO,"Error receiving Key Info lenght from Mix n+1!\n");
+#ifdef SERVER_MONITORING	
+				CAStatusManager::fireEvent(ev_net_keyExchangeNextFailed, stat_networking);
+#endif
 				return E_UNKNOWN;
 			}
 		len=ntohs(len);
@@ -96,6 +101,9 @@ SINT32 CAMiddleMix::processKeyExchange()
 		if(((CASocket*)*m_pMuxOut)->receiveFully(recvBuff,len)!=E_SUCCESS)
 			{
 				CAMsg::printMsg(LOG_INFO,"Error receiving Key Info from Mix n+1!\n");
+#ifdef SERVER_MONITORING	
+				CAStatusManager::fireEvent(ev_net_keyExchangeNextFailed, stat_networking);
+#endif
 				delete []recvBuff;
 				return E_UNKNOWN;
 			}
@@ -109,6 +117,9 @@ SINT32 CAMiddleMix::processKeyExchange()
 		if(doc==NULL)
 			{
 				CAMsg::printMsg(LOG_INFO,"Error parsing Key Info from Mix n+1!\n");
+#ifdef SERVER_MONITORING	
+				CAStatusManager::fireEvent(ev_net_keyExchangeNextFailed, stat_networking);
+#endif
 				return E_UNKNOWN;
 			}
 
@@ -129,6 +140,9 @@ SINT32 CAMiddleMix::processKeyExchange()
 						delete nextCert;
 						if(ret!=E_SUCCESS)
 							{
+#ifdef SERVER_MONITORING	
+								CAStatusManager::fireEvent(ev_net_keyExchangeNextFailed, stat_networking);
+#endif
 								CAMsg::printMsg(LOG_INFO,"Could not verify Key Info from Mix n+1!\n");
 								return E_UNKNOWN;
 							}
@@ -140,6 +154,9 @@ SINT32 CAMiddleMix::processKeyExchange()
 						UINT32 tmpLen=1024;
 						if(elemNonce==NULL)
 							{
+#ifdef SERVER_MONITORING	
+								CAStatusManager::fireEvent(ev_net_keyExchangeNextFailed, stat_networking);
+#endif
 								CAMsg::printMsg(LOG_INFO,"No nonce found in Key Info from Mix n+1!\n");
 								return E_UNKNOWN;
 							}
@@ -213,6 +230,9 @@ SINT32 CAMiddleMix::processKeyExchange()
 		if(!bFoundNextMix)
 			{
 				CAMsg::printMsg(LOG_INFO,"Error -- no Key Info from Mix n+1 found!\n");
+#ifdef SERVER_MONITORING	
+				CAStatusManager::fireEvent(ev_net_keyExchangeNextFailed, stat_networking);
+#endif
 				return E_UNKNOWN;
 			}
 		// -----------------------------------------
@@ -222,6 +242,9 @@ SINT32 CAMiddleMix::processKeyExchange()
 		UINT32 count=0;
 		if(getDOMElementAttribute(root,"count",count)!=E_SUCCESS)
 			{
+#ifdef SERVER_MONITORING	
+				CAStatusManager::fireEvent(ev_net_keyExchangeNextFailed, stat_networking);
+#endif
 				return E_UNKNOWN;
 			}
 		count++;
@@ -271,18 +294,18 @@ SINT32 CAMiddleMix::processKeyExchange()
 
 		// create signature
 		if(signXML(mixNode)!=E_SUCCESS)
-			{
-				CAMsg::printMsg(LOG_DEBUG,"Could not sign KeyInfo send to users...\n");
-			}
+		{
+			CAMsg::printMsg(LOG_DEBUG,"Could not sign KeyInfo send to users...\n");
+		}
 		
 		
 
 		UINT8* out=new UINT8[0xFFFF];
 		UINT32 outlen=0xFFFD;
 		DOM_Output::dumpToMem(doc,out+2,&outlen);
-		#ifdef _DEBUG
-			CAMsg::printMsg(LOG_DEBUG,"New Key Info size: %u\n",outlen);
-		#endif
+#ifdef _DEBUG
+		CAMsg::printMsg(LOG_DEBUG,"New Key Info size: %u\n",outlen);
+#endif
 		len=htons((UINT16)outlen);
 		memcpy(out,&len,2);
 		ret=((CASocket*)*m_pMuxIn)->send(out,outlen+2);
@@ -290,16 +313,25 @@ SINT32 CAMiddleMix::processKeyExchange()
 		if(ret<0||(UINT32)ret!=outlen+2)
 			{
 				CAMsg::printMsg(LOG_DEBUG,"Error sending new New Key Info\n");
+#ifdef SERVER_MONITORING	
+				CAStatusManager::fireEvent(ev_net_keyExchangeNextFailed, stat_networking);
+#endif
 				return E_UNKNOWN;
 			}
+#ifdef SERVER_MONITORING	
+		CAStatusManager::fireEvent(ev_net_keyExchangeNextSuccessful, stat_networking);
+#endif
 		CAMsg::printMsg(LOG_DEBUG,"Sending new New Key Info succeded\n");
-		
-			//Now receiving the symmetric key form Mix n-1
+
+		//Now receiving the symmetric key form Mix n-1
 		((CASocket*)*m_pMuxIn)->receive((UINT8*)&len,2);
 		len=ntohs(len);
 		recvBuff=new UINT8[len+1]; //for \0 at the end
 		if(((CASocket*)*m_pMuxIn)->receive(recvBuff,len)!=len)
 			{
+#ifdef SERVER_MONITORING	
+				CAStatusManager::fireEvent(ev_net_keyExchangePrevFailed, stat_networking);
+#endif
 				CAMsg::printMsg(LOG_ERR,"Error receiving symetric key from Mix n-1!\n");
 				delete []recvBuff;
 				return E_UNKNOWN;
@@ -311,10 +343,13 @@ SINT32 CAMiddleMix::processKeyExchange()
 		doc=parseDOMDocument(recvBuff,len);
 		delete[] recvBuff;
 		if(doc==NULL)
-			{
-				CAMsg::printMsg(LOG_INFO,"Error parsing Key Info from Mix n-1!\n");
-				return E_UNKNOWN;
-			}
+		{
+#ifdef SERVER_MONITORING	
+			CAStatusManager::fireEvent(ev_net_keyExchangePrevFailed, stat_networking);
+#endif
+			CAMsg::printMsg(LOG_INFO,"Error parsing Key Info from Mix n-1!\n");
+			return E_UNKNOWN;
+		}
 		DOMElement* elemRoot=doc->getDocumentElement();
 		//verify signature
 		CASignature oSig;
@@ -322,10 +357,13 @@ SINT32 CAMiddleMix::processKeyExchange()
 		oSig.setVerifyKey(pCert);
 		delete pCert;
 		if(oSig.verifyXML(elemRoot)!=E_SUCCESS)
-			{
-				CAMsg::printMsg(LOG_CRIT,"Could not verify the symetric key form Mix n-1!\n");		
-				return E_UNKNOWN;
-			}
+		{
+#ifdef SERVER_MONITORING	
+			CAStatusManager::fireEvent(ev_net_keyExchangePrevFailed, stat_networking);
+#endif
+			CAMsg::printMsg(LOG_CRIT,"Could not verify the symetric key form Mix n-1!\n");		
+			return E_UNKNOWN;
+		}
 		//Verifying nonce
 		elemNonce=NULL;
 		getDOMChildByName(elemRoot,"Nonce",elemNonce,false);
@@ -336,10 +374,13 @@ SINT32 CAMiddleMix::processKeyExchange()
 			tmpLen!=SHA_DIGEST_LENGTH ||
 			memcmp(SHA1(arNonce,16,NULL),tmpBuff,SHA_DIGEST_LENGTH)!=0
 			)
-			{
-				CAMsg::printMsg(LOG_CRIT,"Could not verify the Nonce!\n");		
-				return E_UNKNOWN;
-			}
+		{
+#ifdef SERVER_MONITORING	
+			CAStatusManager::fireEvent(ev_net_keyExchangePrevFailed, stat_networking);
+#endif
+			CAMsg::printMsg(LOG_CRIT,"Could not verify the Nonce!\n");		
+			return E_UNKNOWN;
+		}
 		CAMsg::printMsg(LOG_INFO,"Verified the symmetric key!\n");		
 
 		UINT8 key[150];
@@ -347,10 +388,16 @@ SINT32 CAMiddleMix::processKeyExchange()
 	
 		ret=decodeXMLEncryptedKey(key,&keySize,elemRoot,m_pRSA);
 		if(ret!=E_SUCCESS||keySize!=64)
-			{
-				CAMsg::printMsg(LOG_CRIT,"Could not set the symmetric key to be used by the MuxSocket!\n");		
-				return E_UNKNOWN;
-			}
+		{
+#ifdef SERVER_MONITORING	
+			CAStatusManager::fireEvent(ev_net_keyExchangePrevFailed, stat_networking);
+#endif
+			CAMsg::printMsg(LOG_CRIT,"Could not set the symmetric key to be used by the MuxSocket!\n");		
+			return E_UNKNOWN;
+		}
+#ifdef SERVER_MONITORING	
+			CAStatusManager::fireEvent(ev_net_keyExchangePrevSuccessful, stat_networking);
+#endif
 		m_pMuxIn->setReceiveKey(key,32);
 		m_pMuxIn->setSendKey(key+32,32);
 
@@ -454,6 +501,9 @@ SINT32 CAMiddleMix::init()
 				return E_UNKNOWN;
 			}
 		CAMsg::printMsg(LOG_INFO," connected!\n");
+#ifdef SERVER_MONITORING	
+		CAStatusManager::fireEvent(ev_net_prevConnected, stat_networking);
+#endif
 		((CASocket*)*m_pMuxIn)->setRecvBuff(50*MIXPACKET_SIZE);
 		((CASocket*)*m_pMuxIn)->setSendBuff(50*MIXPACKET_SIZE);
 		if(((CASocket*)*m_pMuxIn)->setKeepAlive((UINT32)1800)!=E_SUCCESS)
@@ -467,13 +517,22 @@ SINT32 CAMiddleMix::init()
 		if(connectToNextMix(pAddrNext) != E_SUCCESS)
 		{
 			delete pAddrNext;
+#ifdef SERVER_MONITORING	
+			CAStatusManager::fireEvent(ev_net_prevConnectionClosed, stat_networking);
+#endif
 			CAMsg::printMsg(LOG_DEBUG, "CAMiddleMix::init - Unable to connect to next mix\n");
 			return E_UNKNOWN;
 		}
 		delete pAddrNext;
 
 //		mSocketGroup.add(muxOut);
+#ifdef SERVER_MONITORING	
+		CAStatusManager::fireEvent(ev_net_nextConnected, stat_networking);
+#endif
 		CAMsg::printMsg(LOG_INFO," connected!\n");
+//#ifdef SERVER_MONITORING
+		
+//#endif
 		if(((CASocket*)*m_pMuxOut)->setKeepAlive((UINT32)1800)!=E_SUCCESS)
 			{
 				CAMsg::printMsg(LOG_INFO,"Socket option TCP-KEEP-ALIVE returned an error - so not set!\n");
@@ -481,11 +540,11 @@ SINT32 CAMiddleMix::init()
 					CAMsg::printMsg(LOG_INFO,"Socket option KEEP-ALIVE returned an error - so also not set!\n");
 			}
 
-    if((ret = processKeyExchange())!=E_SUCCESS)
-			{
-				CAMsg::printMsg(LOG_CRIT,"Error in proccessKeyExchange()!\n");
-        			return ret;
-			}
+	    if((ret = processKeyExchange())!=E_SUCCESS)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Error in proccessKeyExchange()!\n");
+				return ret;
+		}
 
 		m_pQueueSendToMixBefore=new CAQueue(sizeof(tQueueEntry));
 		m_pQueueSendToMixAfter=new CAQueue(sizeof(tQueueEntry));
@@ -499,8 +558,6 @@ SINT32 CAMiddleMix::init()
 		m_pReplayMsgProc->startTimeStampPorpagation(REPLAY_TIMESTAMP_PROPAGATION_INTERVALL);
 		m_u64ReferenceTime=time(NULL);
 #endif
-
-
 		m_pMiddleMixChannelList=new CAMiddleMixChannelList();
 		
 		return E_SUCCESS;
@@ -533,12 +590,18 @@ THREAD_RETURN mm_loopSendToMixAfter(void* param)
 					}
 				else if(ret!=E_SUCCESS||len!=sizeof(tQueueEntry))
 					{
+#ifdef SERVER_MONITORING	
+						CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
+#endif
 						CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopSendToMixAfter - Error in dequeueing MixPaket\n");
 						CAMsg::printMsg(LOG_ERR,"ret=%i len=%i\n",ret,len);
 						break;
 					}
 				if((pMuxSocket->send(pMixPacket)!=MIXPACKET_SIZE))
 					{
+#ifdef SERVER_MONITORING	
+						CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
+#endif
 						CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopSendToMixAfter - Error in sending MixPaket\n");
 						break;
 					}
@@ -584,12 +647,18 @@ THREAD_RETURN mm_loopSendToMixBefore(void* param)
 					}
 				else if(ret!=E_SUCCESS||len!=sizeof(tQueueEntry))
 					{
+#ifdef SERVER_MONITORING	
+						CAStatusManager::fireEvent(ev_net_prevConnectionClosed, stat_networking);
+#endif
 						CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopSendToMixBefore - Error in dequeueing MixPaket\n");
 						CAMsg::printMsg(LOG_ERR,"ret=%i len=%i\n",ret,len);
 						break;
 					}
 				if((pMuxSocket->send(pMixPacket)!=MIXPACKET_SIZE))
 					{
+#ifdef SERVER_MONITORING	
+						CAStatusManager::fireEvent(ev_net_prevConnectionClosed, stat_networking);
+#endif
 						CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopSendToMixBefore - Error in sending MixPaket\n");
 						break;
 					}
@@ -652,7 +721,10 @@ THREAD_RETURN mm_loopReadFromMixBefore(void* param)
 						else
 							{
 								CAMsg::printMsg(LOG_CRIT,"loopUpStream -- Fehler bei select() -- goto ERR!\n");
-								pMix->m_bRun=false;								
+								pMix->m_bRun=false;
+#ifdef SERVER_MONITORING	
+								CAStatusManager::fireEvent(ev_net_prevConnectionClosed, stat_networking);
+#endif
 							}
 					}
 				else
@@ -667,8 +739,12 @@ THREAD_RETURN mm_loopReadFromMixBefore(void* param)
 
 						if(ret==SOCKET_ERROR)
 							{
+								
 								CAMsg::printMsg(LOG_CRIT,"Fehler beim Empfangen -- Exiting!\n");
-								pMix->m_bRun=false;								
+								pMix->m_bRun=false;
+#ifdef SERVER_MONITORING	
+								CAStatusManager::fireEvent(ev_net_prevConnectionClosed, stat_networking);
+#endif
 							}
 						#ifdef USE_POOL	
 						else if(pMixPacket->channel==DUMMY_CHANNEL)
@@ -787,6 +863,9 @@ THREAD_RETURN mm_loopReadFromMixAfter(void* param)
 							{
 								CAMsg::printMsg(LOG_CRIT,"loopReadFromMixAfter -- Fehler bei select() -- goto ERR!\n");
 								pMix->m_bRun=false;
+#ifdef SERVER_MONITORING	
+								CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
+#endif
 							}
 					}
 				else
@@ -802,6 +881,9 @@ THREAD_RETURN mm_loopReadFromMixAfter(void* param)
 							{
 								CAMsg::printMsg(LOG_CRIT,"loopReadFromMixAfter -- Fehler bei receive() -- goto ERR!\n");
 								pMix->m_bRun=false;
+#ifdef SERVER_MONITORING	
+								CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
+#endif
 							}
 						#ifdef USE_POOL	
 						else if(pMixPacket->channel==DUMMY_CHANNEL)
@@ -929,7 +1011,7 @@ SINT32 CAMiddleMix::loop()
 		m_pMuxIn->close();
 		m_pMuxOut->close();
 
-		CAMsg::printMsg(LOG_CRIT,"loop(): Seams that we are restarting now!!\n");
+		CAMsg::printMsg(LOG_CRIT,"loop(): Seems that we are restarting now!!\n");
 		return E_UNKNOWN;
 	}
 SINT32 CAMiddleMix::clean()
