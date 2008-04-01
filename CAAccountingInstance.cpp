@@ -949,13 +949,15 @@ SINT32 CAAccountingInstance::prepareCCRequest(CAMix* callingMix, UINT8* a_AiName
 	}
 	    //concatenate the hashes, and store for future reference to indentify the cascade
     m_currentCascade = new UINT8[256];
+    memset(m_currentCascade, 0, (sizeof(UINT8)*256 ));
     for (UINT32 j = 0; j < nrOfMixes; j++)
     {
         //check for hash value size (should always be OK)
         if (strlen((const char*)m_currentCascade) > ( 256 - strlen((const char*)m_allHashes[j]) )   )
         {
-            return E_UNKNOWN;
-            CAMsg::printMsg(LOG_CRIT, "CAAccountingInstance::prepareCCRequest: Too many/too long hash values, ran out of allocated memory\n");
+        	CAMsg::printMsg(LOG_CRIT, "CAAccountingInstance::prepareCCRequest: "
+        			"Too many/too long hash values, ran out of allocated memory\n");
+        	return E_UNKNOWN;
         }
         if (j == 0)
         {
