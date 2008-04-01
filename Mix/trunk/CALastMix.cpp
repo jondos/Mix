@@ -122,6 +122,7 @@ SINT32 CALastMix::init()
 					CAMsg::printMsg(LOG_CRIT,"Reason: call to accept() faild with error code: %i\n",ret); 
 					return E_UNKNOWN;
 		    }
+		// connected to previous mix
 		((CASocket*)*m_pMuxIn)->setRecvBuff(500*MIXPACKET_SIZE);
 		((CASocket*)*m_pMuxIn)->setSendBuff(500*MIXPACKET_SIZE);
 		if(((CASocket*)*m_pMuxIn)->setKeepAlive((UINT32)1800)!=E_SUCCESS)
@@ -131,6 +132,9 @@ SINT32 CALastMix::init()
 					CAMsg::printMsg(LOG_INFO,"Socket option KEEP-ALIVE returned an error - so also not set!\n");
 			}
 		
+#ifdef SERVER_MONITORING	
+		CAStatusManager::fireEvent(ev_net_prevConnected, stat_networking);
+#endif
 		CAMsg::printMsg(LOG_INFO,"connected!\n");
 
 #ifdef LOG_CRIME
@@ -141,7 +145,16 @@ SINT32 CALastMix::init()
 #endif	
 		ret=processKeyExchange();
 		if(ret!=E_SUCCESS)
+		{
+#ifdef SERVER_MONITORING	
+			CAStatusManager::fireEvent(ev_net_keyExchangePrevFailed, stat_networking);
+#endif
 			return ret;
+		}
+#ifdef SERVER_MONITORING	
+		CAStatusManager::fireEvent(ev_net_keyExchangePrevSuccessful, stat_networking);
+#endif
+		//keyexchange successful
 #ifdef REPLAY_DETECTION
 		m_pReplayDB=new CADatabase();
 		m_pReplayDB->start();

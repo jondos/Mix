@@ -1328,6 +1328,9 @@ Optional Features:
                           optionally the limit in kByte/s of each
                           communication channel
   --enable-payment        Specify if to build with payment support
+  --enable-server_monitoring
+                          Specify if to build with state tracking for server
+                          monitoring
   --enable-replay_detection
                           Specify if to build with replay detection support
   --enable-new_mix_type   Specify if to build with type B mixes
@@ -4561,6 +4564,18 @@ if test "${enable_payment+set}" = set; then
   enableval=$enable_payment;
 		if test "x$enableval" != "xno" ; then
 		    PAYMENT="-DPAYMENT"
+		fi
+
+
+fi
+
+
+SERVER_MONITORING=""
+# Check whether --enable-server_monitoring was given.
+if test "${enable_server_monitoring+set}" = set; then
+  enableval=$enable_server_monitoring;
+		if test "x$enableval" != "xno" ; then
+		    SERVER_MONITORING="-DSERVER_MONITORING"
 		fi
 
 
@@ -12874,8 +12889,8 @@ if test "x$DOTHETEST" != "xyes" ; then
 
 fi
 
-CFLAGS="$CFLAGS $POOL $BANDWIDTH_LIMIT $BANDWIDTH_LIMIT_THROUGHPUT $PAYMENT $REPLAY_DETECTION $NEW_MIX_TYPE $CRIME $OFLAGS"
-CXXFLAGS="$CXXFLAGS $POOL $BANDWIDTH_LIMIT $BANDWIDTH_LIMIT_THROUGHPUT $PAYMENT $REPLAY_DETECTION $NEW_MIX_TYPE $CRIME $OFLAGS"
+CFLAGS="$CFLAGS $POOL $BANDWIDTH_LIMIT $BANDWIDTH_LIMIT_THROUGHPUT $PAYMENT $SERVER_MONITORING $REPLAY_DETECTION $NEW_MIX_TYPE $CRIME $OFLAGS"
+CXXFLAGS="$CXXFLAGS $POOL $BANDWIDTH_LIMIT $BANDWIDTH_LIMIT_THROUGHPUT $PAYMENT $SERVER_MONITORING $REPLAY_DETECTION $NEW_MIX_TYPE $CRIME $OFLAGS"
 LIBS="$LIBS $PAYMENT_LIB"
 
  if test x$DOTHETESTS = xyes; then
