@@ -45,6 +45,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CABase64.hpp"
 #include "CAPool.hpp"
 #include "xml/DOM_Output.hpp"
+#include "CAStatusManager.hpp"
 
 extern CACmdLnOptions* pglobalOptions;
 
@@ -126,15 +127,12 @@ SINT32 CALastMix::init()
 		((CASocket*)*m_pMuxIn)->setRecvBuff(500*MIXPACKET_SIZE);
 		((CASocket*)*m_pMuxIn)->setSendBuff(500*MIXPACKET_SIZE);
 		if(((CASocket*)*m_pMuxIn)->setKeepAlive((UINT32)1800)!=E_SUCCESS)
-			{
-				CAMsg::printMsg(LOG_INFO,"Socket option TCP-KEEP-ALIVE returned an error - so not set!\n");
-				if(((CASocket*)*m_pMuxIn)->setKeepAlive(true)!=E_SUCCESS)
-					CAMsg::printMsg(LOG_INFO,"Socket option KEEP-ALIVE returned an error - so also not set!\n");
-			}
-		
-#ifdef SERVER_MONITORING	
-		CAStatusManager::fireEvent(ev_net_prevConnected, stat_networking);
-#endif
+		{
+			CAMsg::printMsg(LOG_INFO,"Socket option TCP-KEEP-ALIVE returned an error - so not set!\n");
+			if(((CASocket*)*m_pMuxIn)->setKeepAlive(true)!=E_SUCCESS)
+				CAMsg::printMsg(LOG_INFO,"Socket option KEEP-ALIVE returned an error - so also not set!\n");
+		}
+		MONITORING_FIRE_NET_EVENT(ev_net_prevConnected);
 		CAMsg::printMsg(LOG_INFO,"connected!\n");
 
 #ifdef LOG_CRIME
@@ -146,14 +144,10 @@ SINT32 CALastMix::init()
 		ret=processKeyExchange();
 		if(ret!=E_SUCCESS)
 		{
-#ifdef SERVER_MONITORING	
-			CAStatusManager::fireEvent(ev_net_keyExchangePrevFailed, stat_networking);
-#endif
+			MONITORING_FIRE_NET_EVENT(ev_net_keyExchangePrevFailed);
 			return ret;
 		}
-#ifdef SERVER_MONITORING	
-		CAStatusManager::fireEvent(ev_net_keyExchangePrevSuccessful, stat_networking);
-#endif
+		MONITORING_FIRE_NET_EVENT(ev_net_keyExchangePrevSuccessful);
 		//keyexchange successful
 #ifdef REPLAY_DETECTION
 		m_pReplayDB=new CADatabase();
@@ -476,11 +470,13 @@ THREAD_RETURN lm_loopSendToMix(void* param)
 					{
 						CAMsg::printMsg(LOG_ERR,"CALastMix::lm_loopSendToMix - Error in dequeueing MixPaket\n");
 						CAMsg::printMsg(LOG_ERR,"ret=%i len=%i\n",ret,len);
+						MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
 						break;
 					}
 				if(pMuxSocket->send(pMixPacket)!=MIXPACKET_SIZE)
 					{
 						CAMsg::printMsg(LOG_ERR,"CALastMix::lm_loopSendToMix - Error in sending MixPaket\n");
+						MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
 						break;
 					}
 #ifdef LOG_PACKET_TIMES
@@ -572,6 +568,7 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 					{
 						CAMsg::printMsg(LOG_ERR,"CALastMix::loopReadFromMix() -- restart because of KeepAlive-Traffic Timeout!\n");
 						pLastMix->m_bRestart=true;
+						MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
 						break;
 					}
 				SINT32 ret=pSocketGroup->select(MIX_POOL_TIMEOUT);
@@ -602,18 +599,19 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 							}
 					}
 				else if(ret>0)
-					{
-						ret=pMuxSocket->receive(pMixPacket); //receives a whole MixPacket
-						#ifdef LOG_PACKET_TIMES
-							getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_start);
-						#endif
-						if(ret!=MIXPACKET_SIZE)
-							{//something goes wrong...
-								CAMsg::printMsg(LOG_ERR,"CALastMix::lm_loopReadFromMix - received returned: %i\n",ret);
-								pLastMix->m_bRestart=true;
-								break;
-							}
+				{
+					ret=pMuxSocket->receive(pMixPacket); //receives a whole MixPacket
+					#ifdef LOG_PACKET_TIMES
+						getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_start);
+					#endif
+					if(ret!=MIXPACKET_SIZE)
+					{//something goes wrong...
+						CAMsg::printMsg(LOG_ERR,"CALastMix::lm_loopReadFromMix - received returned: %i\n",ret);
+						pLastMix->m_bRestart=true;
+						MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
+						break;
 					}
+				}
 		#ifdef USE_POOL
 			#ifdef LOG_PACKET_TIMES
 				getcurrentTimeMicros(pQueueEntry->pool_timestamp_in);
@@ -738,6 +736,7 @@ SINT32 CALastMix::setTargets()
 SINT32 CALastMix::clean()
 {
 		m_bRestart=true;
+		MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
 		m_bRunLog=false;
 #ifdef REPLAY_DETECTION
 		if(m_pReplayMsgProc!=NULL)

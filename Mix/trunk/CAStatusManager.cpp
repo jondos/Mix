@@ -353,10 +353,10 @@ SINT32 CAStatusManager::initStatusMessage()
 	}
 	m_pPreparedStatusMessage->appendChild(elemRoot);
 #ifdef DEBUG
-	UINT32 debuglen = 3000;
-	UINT8 debugout[3000];
-	DOM_Output::dumpToMem(m_pPreparedStatusMessage,debugout,&debuglen);
-	debugout[debuglen] = 0;			
+	UINT32 debuglen = STATUS_MESSAGE_OUTBUF_SIZE - 1;
+	UINT8 debugout[STATUS_MESSAGE_OUTBUF_SIZE];
+	memset(debugout, 0, (sizeof(UINT8)*STATUS_MESSAGE_OUTBUF_SIZE));
+	DOM_Output::dumpToMem(m_pPreparedStatusMessage,debugout,&debuglen);		
 	CAMsg::printMsg(LOG_DEBUG, "the status message template looks like this: %s \n",debugout);
 #endif
 	return E_SUCCESS;
@@ -386,20 +386,19 @@ THREAD_RETURN serveMonitoringRequests(void* param)
 		
 		if(statusManager->m_pStatusSocket->accept(monitoringRequestSocket) == E_SUCCESS)
 		{
-			UINT32 stausMessageOutBufLen = 3000;
-			UINT8 statusMessageOutBuf[3000];
-			
+			UINT32 statusMessageOutBufLen = STATUS_MESSAGE_OUTBUF_SIZE - 1;
+			UINT8 statusMessageOutBuf[STATUS_MESSAGE_OUTBUF_SIZE];
+			memset(statusMessageOutBuf, 0, (sizeof(UINT8)*STATUS_MESSAGE_OUTBUF_SIZE));
 			statusManager->m_pStatusLock->lock();
 			DOM_Output::dumpToMem(
 					statusManager->m_pPreparedStatusMessage,
 					statusMessageOutBuf,
-					&stausMessageOutBufLen);
+					&statusMessageOutBufLen);
 			statusManager->m_pStatusLock->unlock();
 			
-			statusMessageOutBuf[stausMessageOutBufLen] = 0;			
 			//CAMsg::printMsg(LOG_DEBUG, "the status message looks like this: %s \n",debugout);
 				
-			if(monitoringRequestSocket.send(statusMessageOutBuf, stausMessageOutBufLen) < 0)
+			if(monitoringRequestSocket.send(statusMessageOutBuf, statusMessageOutBufLen) < 0)
 			{
 				CAMsg::printMsg(LOG_ERR, 
 						"StatusManager: error: could not send status message.\n");
