@@ -65,10 +65,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NR_STATE_LEVELS 2
 
 #define ENTRY_STATE 0
-
 #define MAX_DESCRIPTION_LENGTH 50
-
 #define MONITORING_SERVER_PORT 8080
+#define STATUS_MESSAGE_OUTBUF_SIZE 3000
 
 #define EVER 1
 
@@ -481,6 +480,25 @@ private:
 	/* monitoring server routine */
 	friend THREAD_RETURN serveMonitoringRequests(void* param);		
 };
-#endif
+
+#define MONITORING_FIRE_NET_EVENT(e_type) \
+	MONITORING_FIRE_EVENT(e_type, stat_networking) 
+#define MONITORING_FIRE_PAY_EVENT(e_type) \
+	MONITORING_FIRE_EVENT(e_type, stat_payment)
+#define MONITORING_FIRE_SYS_EVENT(e_type) \
+	MONITORING_FIRE_EVENT(e_type, stat_system) 
+
+#define MONITORING_FIRE_EVENT(e_type, s_type) \
+			CAStatusManager::fireEvent(e_type, s_type)
+
+#else /* SERVER_MONITORING */
+
+#define MONITORING_FIRE_NET_EVENT(e_type) 
+#define MONITORING_FIRE_PAY_EVENT(e_type)
+#define MONITORING_FIRE_SYS_EVENT(e_type)
+
+#define MONITORING_FIRE_EVENT(e_type, s_type) 
+
+#endif /* SERVER_MONITORING */ 
 
 #endif /*CASTATUSMANAGER_HPP_*/

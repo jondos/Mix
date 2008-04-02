@@ -55,9 +55,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #endif
 extern CACmdLnOptions* pglobalOptions;
 #include "CAReplayControlChannel.hpp"
-#ifdef SERVER_MONITORING
-	#include "CAStatusManager.hpp"
-#endif
+#include "CAStatusManager.hpp"
+
 const UINT32 CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS = NUM_LOGIN_WORKER_TRHEADS * 2;
 
 bool CAFirstMix::isShuttingDown()
@@ -194,9 +193,7 @@ SINT32 CAFirstMix::init()
 				return E_UNKNOWN;
 			}
 		delete pAddrNext;
-#ifdef SERVER_MONITORING
-		CAStatusManager::fireEvent(ev_net_nextConnected, stat_networking);
-#endif
+		MONITORING_FIRE_NET_EVENT(ev_net_nextConnected);
 		CAMsg::printMsg(LOG_INFO," connected!\n");
 		if(((CASocket*)(*m_pMuxOut))->setKeepAlive((UINT32)1800)!=E_SUCCESS)
 			{
@@ -207,9 +204,7 @@ SINT32 CAFirstMix::init()
 
     if(processKeyExchange()!=E_SUCCESS)
     {
-#ifdef SERVER_MONITORING
-    	CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
-#endif
+    	MONITORING_FIRE_NET_EVENT(ev_net_nextConnectionClosed);
     	CAMsg::printMsg(LOG_CRIT,"Error in establishing secure communication with next Mix!\n");
         return E_UNKNOWN;
     }
@@ -272,9 +267,7 @@ SINT32 CAFirstMix::init()
 //		sendReplayTimestampRequestsToAllMixes();
 #endif
 		CAMsg::printMsg(LOG_DEBUG,"CAFirstMix init() succeded\n");
-#ifdef SERVER_MONITORING
-		CAStatusManager::fireEvent(ev_net_keyExchangeNextSuccessful, stat_networking);
-#endif
+		MONITORING_FIRE_NET_EVENT(ev_net_keyExchangeNextSuccessful);
 		return E_SUCCESS;
 }
 
@@ -727,9 +720,7 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 					{
 						CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::loopReadFromMix() -- restart because of KeepAlive-Traffic Timeout!\n");
 						pFirstMix->m_bRestart=true;
-#ifdef SERVER_MONITORING
-						CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
-#endif
+						MONITORING_FIRE_NET_EVENT(ev_net_nextConnectionClosed);
 						break;
 					}
 				SINT32 ret=pSocketGroup->select(MIX_POOL_TIMEOUT);
@@ -756,9 +747,7 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 							{
 								pFirstMix->m_bRestart=true;
 								CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopReadFromMix - received returned: %i -- restarting!\n",ret);
-#ifdef SERVER_MONITORING								
-								CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
-#endif								
+								MONITORING_FIRE_NET_EVENT(ev_net_nextConnectionClosed);	
 								break;
 							}
 					}
@@ -1515,9 +1504,7 @@ SINT32 CAFirstMix::clean()
 		#endif
 		m_bRunLog=false;
 		m_bRestart=true;
-#ifdef SERVER_MONITORING		
-		CAStatusManager::fireEvent(ev_net_nextConnectionClosed, stat_networking);
-#endif	
+		MONITORING_FIRE_NET_EVENT(ev_net_nextConnectionClosed);
 		if(m_pthreadAcceptUsers!=NULL)
 		{
 			CAMsg::printMsg(LOG_CRIT,"Wait for LoopAcceptUsers!\n");
