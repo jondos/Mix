@@ -58,8 +58,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define NR_NETWORKING_EVENTS 11
 
 #define SYSTEM_STATUS_NAME "SystemStatus"
-#define NR_SYSTEM_STATES 1
-#define NR_SYSTEM_EVENTS 1
+#define NR_SYSTEM_STATES 6
+#define NR_SYSTEM_EVENTS 6
 
 #define NR_STATE_LEVELS 2
 
@@ -106,19 +106,22 @@ enum state_type
 {
 	st_ignore = -1,
 	/* networking states */
-	st_net_entry,
+	st_net_entry = 0,
 	st_net_firstMixInit, st_net_firstMixConnectedToNext, st_net_firstMixOnline , 
 	st_net_middleMixInit, st_net_middleMixConnectedToPrev, 
 	st_net_middleMixConnectedToNext, st_net_middleMixOnline,
 	st_net_lastMixInit, st_net_lastMixConnectedToPrev, st_net_lastMixOnline,
 #ifdef PAYMENT
 	/* payment states */
-	st_pay_entry = 0, st_pay_aiInit, st_pay_aiShutdown,
+	st_pay_entry = 0, 
+	st_pay_aiInit, st_pay_aiShutdown,
 	st_pay_biAvailable, st_pay_biUnreachable, st_pay_biPermanentlyUnreachable,
 	st_pay_dbError, st_pay_dbErrorBiUnreachable, st_pay_dbErrorBiPermanentlyUnreachable,
 #endif
 	/* system states */
-	st_sys_entry = 0
+	st_sys_entry = 0, 
+	st_sys_initializing, st_sys_operating, st_sys_restarting,
+	st_sys_shuttingDown, st_sys_ShuttingDownAfterSegFault
 };
 
 enum status_type
@@ -144,8 +147,10 @@ enum event_type
 	ev_pay_biConnectionSuccess, ev_pay_biConnectionFailure, ev_pay_biConnectionCriticalSubseqFailures,
 	ev_pay_dbConnectionSuccess, ev_pay_dbConnectionFailure,
 #endif
-	/* system states */
-	ev_sys_dummy = 0
+	/* system events */
+	ev_sys_start = 0,
+	ev_sys_enterMainLoop, ev_sys_leavingMainLoop,
+	ev_sys_sigTerm, ev_sys_sigInt, ev_sys_sigSegV
 };
 
 /* indices must correspond to strings in STATUS_LEVEL_NAMES */
@@ -265,7 +270,6 @@ typedef struct dom_state_info dom_state_info_t;
 					"connection to next mix closed")
 		
 #ifdef PAYMENT
-
 	/* payment states description and transition assignment 
 	 * new payment state definitions can be appended here 
 	 * (after being declared as payment enum state_type)
@@ -327,13 +331,38 @@ typedef struct dom_state_info dom_state_info_t;
 #define FINISH_SYSTEM_STATE_DEFINITIONS(state_array) \
 			SYS_STATE_DEF(state_array, st_sys_entry, \
 					"system entry state", \
-					TRANS_SYS_DUMMY, stl_ok)
+					TRANS_SYS_ENTRY, stl_ok) \
+			SYS_STATE_DEF(state_array, st_sys_initializing, \
+					"mix is initializing", \
+					TRANS_SYS_INITIALIZING, stl_ok) \
+			SYS_STATE_DEF(state_array, st_sys_operating, \
+					"mix is operating", \
+					TRANS_SYS_OPERATING, stl_ok) \
+			SYS_STATE_DEF(state_array, st_sys_restarting, \
+					"mix is restarting", \
+					TRANS_SYS_RESTARTING, stl_ok) \
+			SYS_STATE_DEF(state_array, st_sys_shuttingDown, \
+					"mix is shutting down", \
+					TRANS_SYS_SHUTTING_DOWN, stl_critical) \
+			SYS_STATE_DEF(state_array, st_sys_ShuttingDownAfterSegFault, \
+					"mix is shutting down due to a segmentation fault!", \
+					TRANS_SYS_SHUTTING_DOWN_AFTER_SEG_FAULT, stl_critical)
 
 /* payment events descriptions */
 #define FINISH_SYSTEM_EVENT_DEFINITIONS(event_array) \
-			SYS_EVENT_DEF(event_array, ev_sys_dummy, \
-					  "system event")
-					  
+			SYS_EVENT_DEF(event_array, ev_sys_start, \
+					"mix startup") \
+			SYS_EVENT_DEF(event_array, ev_sys_enterMainLoop, \
+					"mix entering main loop") \
+			SYS_EVENT_DEF(event_array, ev_sys_leavingMainLoop, \
+					"mix leaving main loop") \
+			SYS_EVENT_DEF(event_array, ev_sys_sigTerm, \
+					"mix caught SIG_TERM") \
+			SYS_EVENT_DEF(event_array, ev_sys_sigInt, \
+					"mix caught SIG_INT") \
+			SYS_EVENT_DEF(event_array, ev_sys_sigSegV, \
+					"mix caught SIG_SEGV")
+					
 /* conveinience macros for special status state and event definitions */
 #define NET_STATE_DEF(state_array, state_type, description, transitions, stateLevel) \
 			STATE_DEF(state_array, stat_networking, state_type, description, transitions, stateLevel)
@@ -389,6 +418,8 @@ THREAD_RETURN serveMonitoringRequests(void* param);
  * 			has to be disposed by delete[] when reference is not needed anymore)!
  */
 transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ...);
+
+/** NETWORKING STATE TRANSITIONS **/
 
 /* transitions for the networking entry state: */
 #define TRANS_NET_ENTRY \
@@ -457,6 +488,8 @@ transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ..
 
 #ifdef PAYMENT
 
+/** PAYMENT STATE TRANSITIONS **/
+
 /* transitions for st_pay_entry */
 #define TRANS_PAY_ENTRY \
 	(defineTransitions(stat_payment, 1, \
@@ -517,7 +550,44 @@ transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ..
 			
 #endif /* PAYMENT */
 
-#define TRANS_SYS_DUMMY \
+/** SYSTEM STATE TRANSITIONS **/
+
+/* transitions for st_sys_entry */
+#define TRANS_SYS_ENTRY \
+	(defineTransitions(stat_system, 1, \
+			ev_sys_start, st_sys_initializing))
+
+/* transitions for st_sys_initializing */
+#define TRANS_SYS_INITIALIZING \
+	(defineTransitions(stat_system, 4, \
+			ev_sys_enterMainLoop, st_sys_operating, \
+			ev_sys_sigTerm, st_sys_shuttingDown, \
+			ev_sys_sigInt, st_sys_shuttingDown, \
+			ev_sys_sigSegV, st_sys_ShuttingDownAfterSegFault))
+
+/* transitions for st_sys_operating */
+#define TRANS_SYS_OPERATING \
+	(defineTransitions(stat_system, 4, \
+			ev_sys_leavingMainLoop, st_sys_restarting, \
+			ev_sys_sigTerm, st_sys_shuttingDown, \
+			ev_sys_sigInt, st_sys_shuttingDown, \
+			ev_sys_sigSegV, st_sys_ShuttingDownAfterSegFault))
+
+/* transitions for st_sys_restarting */
+#define TRANS_SYS_RESTARTING \
+	(defineTransitions(stat_system, 4, \
+			ev_sys_enterMainLoop, st_sys_operating, \
+			ev_sys_sigTerm, st_sys_shuttingDown, \
+			ev_sys_sigInt, st_sys_shuttingDown, \
+			ev_sys_sigSegV, st_sys_ShuttingDownAfterSegFault))
+
+/* transitions for st_sys_shuttingDown */
+#define TRANS_SYS_SHUTTING_DOWN \
+	(defineTransitions(stat_system, 1, \
+			ev_sys_sigSegV, st_sys_ShuttingDownAfterSegFault))
+
+/* transitions for st_sys_ShuttingDownAfterSegFault */
+#define TRANS_SYS_SHUTTING_DOWN_AFTER_SEG_FAULT \
 	(defineTransitions(stat_system, 0))
 
 class CAStatusManager
