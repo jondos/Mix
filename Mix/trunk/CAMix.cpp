@@ -135,7 +135,9 @@ SINT32 CAMix::start()
 							if(pglobalOptions->isFirstMix() && pglobalOptions->isDynamic())
 								m_pInfoService->sendCascadeHelo();
 #endif
+							MONITORING_FIRE_SYS_EVENT(ev_sys_enterMainLoop);
 							loop();
+							MONITORING_FIRE_SYS_EVENT(ev_sys_leavingMainLoop);
 #ifdef DYNAMIC_MIX
 							m_bCascadeEstablished = false;
 							/** If the cascade breaks down, some mix might have been reconfigured. Let's have a look if there is new information */

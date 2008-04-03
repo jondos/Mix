@@ -228,6 +228,7 @@ void my_terminate(void)
 
 void signal_segv( int ) 
 {
+	MONITORING_FIRE_SYS_EVENT(ev_sys_sigSegV);
 	CAMsg::printMsg(LOG_CRIT,"Oops ... caught SIG_SEGV! Exiting ...\n");
 #ifdef PRINT_THREAD_STACK_TRACE
 	CAThread::METHOD_STACK* stack = CAThread::getCurrentStack();
@@ -250,6 +251,7 @@ void signal_segv( int )
 
 void signal_term( int )
 	{ 
+		MONITORING_FIRE_SYS_EVENT(ev_sys_sigTerm);
 		CAMsg::printMsg(LOG_INFO,"Hm.. Signal SIG_TERM received... exiting!\n");
 		my_terminate();
 		exit(0);
@@ -257,6 +259,7 @@ void signal_term( int )
 
 void signal_interrupt( int)
 	{
+		MONITORING_FIRE_SYS_EVENT(ev_sys_sigInt);
 		CAMsg::printMsg(LOG_INFO,"Hm.. Strg+C pressed... exiting!\n");
 #if defined _DEBUG && ! defined (ONLY_LOCAL_PROXY)
 		CAMsg::printMsg(LOG_INFO,"%d threads listed.\n",pThreadList->getSize());
@@ -799,6 +802,7 @@ int main(int argc, const char* argv[])
 				{
 				CASocket::setMaxNormalSockets(s32MaxSockets-10);
 				}
+				MONITORING_FIRE_SYS_EVENT(ev_sys_start);
 				if(pglobalOptions->isFirstMix())
 				{
 					CAMsg::printMsg(LOG_INFO,"I am the First MIX..\n");
