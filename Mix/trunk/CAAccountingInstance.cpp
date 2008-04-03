@@ -76,7 +76,7 @@ const UINT32 CAAccountingInstance::MAX_TOLERATED_MULTIPLE_LOGINS = 10;
 CAAccountingInstance::CAAccountingInstance(CAMix* callingMix)
 	{	
 		CAMsg::printMsg( LOG_DEBUG, "AccountingInstance initialising\n" );
-		
+		m_seqBIConnErrors = 0;
 		m_pMutex = new CAMutex();
 		//m_pIPBlockList = new CATempIPBlockList(60000);
 		m_pSettlementMutex = new CAConditionVariable();
@@ -126,7 +126,9 @@ CAAccountingInstance::~CAAccountingInstance()
 		INIT_STACK;
 		BEGIN_STACK("~CAAccountingInstance");
 		
-		//@todo: Why locks? concurrent processing of a destructor is nonsense !!
+		/* Why locks?
+		 * @todo: avoid calling this desctructor concurrently!
+		 */
 		m_pMutex->lock(); 
 		
 		CAMsg::printMsg( LOG_DEBUG, "AccountingInstance dying\n" );
@@ -2402,9 +2404,10 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	if(dbInterface == NULL)
 	{
 		CAMsg::printMsg(LOG_ERR, "Settlement transaction: could not connect to Database. Retry later...\n");
+		//MONITORING_FIRE_PAY_EVENT(ev_pay_dbConnectionFailure);
 		return E_NOT_CONNECTED;
 	}
-	
+	//MONITORING_FIRE_PAY_EVENT(ev_pay_dbConnectionSuccess);
 	ms_pInstance->m_pSettlementMutex->lock();
 	/* First part get unsettled CCs from the AI database */
 	#ifdef DEBUG	
@@ -2459,16 +2462,28 @@ SINT32 CAAccountingInstance::settlementTransaction()
 		ret = ms_pInstance->m_pPiInterface->initBIConnection();
 		if(ret != E_SUCCESS)
 		{
+			ms_pInstance->m_seqBIConnErrors++;
+			if(ms_pInstance->m_seqBIConnErrors >= CRITICAL_SUBSEQUENT_BI_CONN_ERRORS)
+			{
+				//transition to critical BI conn payment state
+				MONITORING_FIRE_PAY_EVENT(ev_pay_biConnectionCriticalSubseqFailures);
+			}
+			else
+			{
+				MONITORING_FIRE_PAY_EVENT(ev_pay_biConnectionFailure);
+			}
 			CAMsg::printMsg(LOG_DEBUG, "Settlement transaction: could not connect to BI. Try later...\n");
 			//q.clean();
 			pErrMsg = NULL; // continue in order to tell AUTH_WAITING_FOR_FIRST_SETTLED_CC for all accounts
 			ms_pInstance->m_pPiInterface->terminateBIConnection(); // make sure the socket is closed
 		}
 		else
-		{					
+		{
+			MONITORING_FIRE_PAY_EVENT(ev_pay_biConnectionSuccess);
 #ifdef DEBUG				
 			CAMsg::printMsg(LOG_DEBUG, "Settlement transaction: successfully connected to payment instance");
 #endif				
+			ms_pInstance->m_seqBIConnErrors = 0;
 			pErrMsg = ms_pInstance->m_pPiInterface->settle( *pCC );					
 			ms_pInstance->m_pPiInterface->terminateBIConnection();
 			CAMsg::printMsg(LOG_DEBUG, "Settlement transaction: settle done!\n");
