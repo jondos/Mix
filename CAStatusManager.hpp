@@ -35,7 +35,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * for reporting networking, payment and system status to server
  * monitoring systems
  */
-
 #include "StdAfx.h"
 
 #ifdef SERVER_MONITORING
@@ -43,13 +42,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "CASocket.hpp"
 #include "CAThread.hpp"
 
-/* How many different status types do exist*/
+/* How many different status types exist*/
 #ifdef PAYMENT
 	#define NR_STATUS_TYPES 3
 
 	#define PAYMENT_STATUS_NAME "PaymentStatus"
-	#define NR_PAYMENT_STATES 1
-	#define NR_PAYMENT_EVENTS 1
+	#define NR_PAYMENT_STATES 9
+	#define NR_PAYMENT_EVENTS 7
 #else
 	#define NR_STATUS_TYPES 2	
 #endif
@@ -114,7 +113,9 @@ enum state_type
 	st_net_lastMixInit, st_net_lastMixConnectedToPrev, st_net_lastMixOnline,
 #ifdef PAYMENT
 	/* payment states */
-	st_pay_entry = 0,
+	st_pay_entry = 0, st_pay_aiInit, st_pay_aiShutdown,
+	st_pay_biAvailable, st_pay_biUnreachable, st_pay_biPermanentlyUnreachable,
+	st_pay_dbError, st_pay_dbErrorBiUnreachable, st_pay_dbErrorBiPermanentlyUnreachable,
 #endif
 	/* system states */
 	st_sys_entry = 0
@@ -139,23 +140,25 @@ enum event_type
 	ev_net_keyExchangePrevFailed, ev_net_keyExchangeNextFailed,
 #ifdef PAYMENT	
 	/* payment events */
-	ev_pay_dummy = 0,
+	ev_pay_aiInited = 0, ev_pay_aiShutdown, 
+	ev_pay_biConnectionSuccess, ev_pay_biConnectionFailure, ev_pay_biConnectionCriticalSubseqFailures,
+	ev_pay_dbConnectionSuccess, ev_pay_dbConnectionFailure,
 #endif
 	/* system states */
 	ev_sys_dummy = 0
 };
 
-/* indexes must correspond to strings in STATUS_LEVEL_NAMES */
+/* indices must correspond to strings in STATUS_LEVEL_NAMES */
 enum state_level
 {
-	stl_ok = 0, stl_critcial
+	stl_ok = 0, stl_critical
 };
 
 typedef enum state_type state_type_t;
 typedef enum status_type status_type_t;
+typedef enum state_type transition_t;
 typedef enum event_type event_type_t;
 typedef enum state_level state_level_t;
-typedef enum state_type transition_t;
 
 struct event
 {
@@ -262,23 +265,60 @@ typedef struct dom_state_info dom_state_info_t;
 					"connection to next mix closed")
 		
 #ifdef PAYMENT
-/* payment states description and transition assignment 
- * new payment state definitions can be appended here 
- * (after being declared as payment enum state_type)
- */
+
+	/* payment states description and transition assignment 
+	 * new payment state definitions can be appended here 
+	 * (after being declared as payment enum state_type)
+	 */
 	#define FINISH_PAYMENT_STATE_DEFINITIONS(state_array) \
 				PAY_STATE_DEF(state_array, st_pay_entry, \
 						"payment entry state", \
-						TRANS_PAY_DUMMY, stl_ok)
-	
+						TRANS_PAY_ENTRY, stl_ok) \
+				PAY_STATE_DEF(state_array, st_pay_aiInit, \
+						"accounting instance initialized", \
+						TRANS_PAY_AI_INIT, stl_ok) \
+				PAY_STATE_DEF(state_array, st_pay_aiShutdown, \
+						"accounting instance shutdown", \
+						TRANS_PAY_AI_SHUTDOWN, stl_ok) \
+				PAY_STATE_DEF(state_array, st_pay_biAvailable, \
+						"payment instance available", \
+						TRANS_PAY_BI_AVAILABLE, stl_ok) \
+				PAY_STATE_DEF(state_array, st_pay_biUnreachable, \
+						"payment instance temporarily unreachable", \
+						TRANS_PAY_BI_UNREACHABLE, stl_ok) \
+				PAY_STATE_DEF(state_array, st_pay_biPermanentlyUnreachable, \
+						"payment instance permanently unreachable", \
+						TRANS_PAY_BI_PERMANENTLY_UNREACHABLE, stl_critical) \
+				PAY_STATE_DEF(state_array, st_pay_dbError, \
+						"pay DB cannot be accessed ", \
+						TRANS_PAY_DB_ERROR, stl_critical) \
+				PAY_STATE_DEF(state_array, st_pay_dbErrorBiUnreachable, \
+						"pay DB cannot be accessed and Payment Instance temporarily unreachable", \
+						TRANS_PAY_DB_ERROR_BI_UNREACHABLE, stl_critical) \
+				PAY_STATE_DEF(state_array, st_pay_dbErrorBiPermanentlyUnreachable, \
+						"pay DB cannot be accessed and Payment Instance permanently unreachable", \
+						TRANS_PAY_DB_ERROR_BI_PERMANENTLY_UNREACHABLE, stl_critical)
+
 	/* payment events descriptions */
 	#define FINISH_PAYMENT_EVENT_DEFINITIONS(event_array) \
-				PAY_EVENT_DEF(event_array, ev_pay_dummy, \
-						  "payment event")
+				PAY_EVENT_DEF(event_array, ev_pay_aiInited, \
+						"accounting instance initialization finished") \
+				PAY_EVENT_DEF(event_array, ev_pay_aiShutdown, \
+			  			"accounting instance shutdown finished") \
+	  			PAY_EVENT_DEF(event_array, ev_pay_biConnectionSuccess, \
+  						"successfully connected to payment instance") \
+				PAY_EVENT_DEF(event_array, ev_pay_biConnectionFailure, \
+  						"connection to payment instance failed") \
+				PAY_EVENT_DEF(event_array, ev_pay_biConnectionCriticalSubseqFailures, \
+  						"connection to payment instance failed permanently") \
+				PAY_EVENT_DEF(event_array, ev_pay_dbConnectionSuccess, \
+  						"pay DB access successful") \
+				PAY_EVENT_DEF(event_array, ev_pay_dbConnectionFailure, \
+  						"pay DB access failed")
 #else
 	#define FINISH_PAYMENT_STATE_DEFINITIONS(state_array) 
 	#define FINISH_PAYMENT_EVENT_DEFINITIONS(event_array)
-#endif
+#endif /* PAYMENT */
 
 /* system states description and transition assignment 
  * new system state definitions can be appended here 
@@ -416,9 +456,66 @@ transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ..
 			ev_net_prevConnectionClosed, st_net_lastMixInit))
 
 #ifdef PAYMENT
-#define TRANS_PAY_DUMMY \
-	(defineTransitions(stat_payment, 0))
-#endif
+
+/* transitions for st_pay_entry */
+#define TRANS_PAY_ENTRY \
+	(defineTransitions(stat_payment, 1, \
+			ev_pay_aiInited, st_pay_aiInit))
+
+/* transitions for st_pay_aiInit */
+#define TRANS_PAY_AI_INIT \
+	(defineTransitions(stat_payment, 4, \
+			ev_pay_aiShutdown, st_pay_aiShutdown, \
+			ev_pay_biConnectionSuccess, st_pay_biAvailable, \
+			ev_pay_biConnectionFailure, st_pay_biUnreachable, \
+			ev_pay_dbConnectionFailure, st_pay_dbError))
+
+/* transitions for st_pay_aiShutdown */
+#define TRANS_PAY_AI_SHUTDOWN \
+	(defineTransitions(stat_payment, 1, \
+			ev_pay_aiInited, st_pay_aiInit))
+
+/* transitions for st_pay_biAvailable */
+#define TRANS_PAY_BI_AVAILABLE \
+	(defineTransitions(stat_payment, 3, \
+			ev_pay_aiShutdown, st_pay_aiShutdown, \
+			ev_pay_biConnectionFailure, st_pay_biUnreachable, \
+			ev_pay_dbConnectionFailure, st_pay_dbError))
+
+/* transitions for st_pay_biUnreachable */
+#define TRANS_PAY_BI_UNREACHABLE \
+	(defineTransitions(stat_payment, 4, \
+			ev_pay_aiShutdown, st_pay_aiShutdown, \
+			ev_pay_biConnectionSuccess, st_pay_biAvailable, \
+			ev_pay_biConnectionCriticalSubseqFailures, st_pay_biPermanentlyUnreachable, \
+			ev_pay_dbConnectionFailure, st_pay_dbErrorBiUnreachable))
+
+/* transitions for st_pay_biPermanentlyUnreachable */
+#define TRANS_PAY_BI_PERMANENTLY_UNREACHABLE \
+	(defineTransitions(stat_payment, 3, \
+			ev_pay_aiShutdown, st_pay_aiShutdown, \
+			ev_pay_biConnectionSuccess, st_pay_biAvailable, \
+			ev_pay_dbConnectionFailure, st_pay_dbErrorBiPermanentlyUnreachable))
+
+/* transitions for st_pay_dbError */
+#define TRANS_PAY_DB_ERROR \
+	(defineTransitions(stat_payment, 2, \
+			ev_pay_aiShutdown, st_pay_aiShutdown, \
+			ev_pay_dbConnectionSuccess, st_pay_aiInit))
+			
+/* transitions for st_pay_dbErrorBiUnreachable */
+#define TRANS_PAY_DB_ERROR_BI_UNREACHABLE \
+	(defineTransitions(stat_payment, 2, \
+			ev_pay_aiShutdown, st_pay_aiShutdown, \
+			ev_pay_dbConnectionSuccess, st_pay_biUnreachable))
+			
+/* transitions for st_pay_dbErrorBiPermanentlyUnreachable */
+#define TRANS_PAY_DB_ERROR_BI_PERMANENTLY_UNREACHABLE \
+	(defineTransitions(stat_payment, 2, \
+			ev_pay_aiShutdown, st_pay_aiShutdown, \
+			ev_pay_dbConnectionSuccess, st_pay_biPermanentlyUnreachable))
+			
+#endif /* PAYMENT */
 
 #define TRANS_SYS_DUMMY \
 	(defineTransitions(stat_system, 0))
