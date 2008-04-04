@@ -151,9 +151,6 @@ void init()
 		#endif
 		initRandom();
 		pglobalOptions=new CACmdLnOptions();
-#ifdef SERVER_MONITORING
-		CAStatusManager::init();
-#endif
 	}
 
 /**do necessary cleanups of libraries etc.*/
@@ -627,7 +624,9 @@ int main(int argc, const char* argv[])
         close(STDERR_FILENO);			
 			}
 #endif
-
+#ifdef SERVER_MONITORING
+		CAStatusManager::init();
+#endif
 #ifndef WIN32
 		maxFiles=pglobalOptions->getMaxOpenFiles();
 		
