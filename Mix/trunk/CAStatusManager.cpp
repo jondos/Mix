@@ -423,9 +423,9 @@ SINT32 CAStatusManager::initStatusMessage()
 	}
 	m_pPreparedStatusMessage->appendChild(elemRoot);
 #ifdef DEBUG
-	UINT32 debuglen = STATUS_MESSAGE_OUTBUF_SIZE - 1;
-	UINT8 debugout[STATUS_MESSAGE_OUTBUF_SIZE];
-	memset(debugout, 0, (sizeof(UINT8)*STATUS_MESSAGE_OUTBUF_SIZE));
+	UINT32 debuglen = XML_STATUS_MESSAGE_MAX_SIZE - 1;
+	UINT8 debugout[XML_STATUS_MESSAGE_MAX_SIZE];
+	memset(debugout, 0, (sizeof(UINT8)*XML_STATUS_MESSAGE_MAX_SIZE));
 	DOM_Output::dumpToMem(m_pPreparedStatusMessage,debugout,&debuglen);		
 	CAMsg::printMsg(LOG_DEBUG, "the status message template looks like this: %s \n",debugout);
 #endif
@@ -456,19 +456,33 @@ THREAD_RETURN serveMonitoringRequests(void* param)
 		
 		if(statusManager->m_pStatusSocket->accept(monitoringRequestSocket) == E_SUCCESS)
 		{
-			UINT32 statusMessageOutBufLen = STATUS_MESSAGE_OUTBUF_SIZE - 1;
-			UINT8 statusMessageOutBuf[STATUS_MESSAGE_OUTBUF_SIZE];
-			memset(statusMessageOutBuf, 0, (sizeof(UINT8)*STATUS_MESSAGE_OUTBUF_SIZE));
+			UINT32 xmlStatusMessageLength = XML_STATUS_MESSAGE_MAX_SIZE - 1;
+			char xmlStatusMessage[XML_STATUS_MESSAGE_MAX_SIZE];
+			memset(xmlStatusMessage, 0, (sizeof(char)*XML_STATUS_MESSAGE_MAX_SIZE));
 			statusManager->m_pStatusLock->lock();
 			DOM_Output::dumpToMem(
 					statusManager->m_pPreparedStatusMessage,
-					statusMessageOutBuf,
-					&statusMessageOutBufLen);
+					(UINT8*)xmlStatusMessage,
+					&xmlStatusMessageLength);
 			statusManager->m_pStatusLock->unlock();
 			
-			//CAMsg::printMsg(LOG_DEBUG, "the status message looks like this: %s \n",debugout);
-				
-			if(monitoringRequestSocket.send(statusMessageOutBuf, statusMessageOutBufLen) < 0)
+			char http_prefix[HTTP_ANSWER_PREFIX_MAX_LENGTH];
+			memset(http_prefix, 0, (sizeof(char)*HTTP_ANSWER_PREFIX_MAX_LENGTH));
+			snprintf(http_prefix, HTTP_ANSWER_PREFIX_MAX_LENGTH,
+					HTTP_ANSWER_PREFIX_FORMAT, xmlStatusMessageLength);
+			size_t http_prefix_length = strlen(http_prefix);
+			
+			char statusMessageResponse[http_prefix_length+xmlStatusMessageLength+1];
+			strncpy(statusMessageResponse, http_prefix, http_prefix_length);
+			strncpy((statusMessageResponse+http_prefix_length), xmlStatusMessage, xmlStatusMessageLength);
+			statusMessageResponse[xmlStatusMessageLength+http_prefix_length]=0;
+			
+#ifdef DEBUG
+			CAMsg::printMsg(LOG_DEBUG, "the status message looks like this: %s \n",statusMessageResponse);
+#endif	
+			
+			if(monitoringRequestSocket.send((UINT8*)statusMessageResponse, 
+											(http_prefix_length+xmlStatusMessageLength)) < 0)
 			{
 				CAMsg::printMsg(LOG_ERR, 
 						"StatusManager: error: could not send status message.\n");
