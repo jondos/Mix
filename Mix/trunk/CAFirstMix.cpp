@@ -574,7 +574,7 @@ SINT32 CAFirstMix::setMixParameters(const tMixParameters& params)
 		UINT32 diff=time(NULL)-m_u64LastTimestampReceived;
 		for(UINT32 i=0;i<m_u32MixCount-1;i++)
 			{
-//dangerous strcmp
+//@todo dangerous strcmp
 				if(strcmp((char*)m_arMixParameters[i].m_strMixID,(char*)params.m_strMixID)==0)
 					{
 						m_arMixParameters[i].m_u32ReplayOffset=params.m_u32ReplayOffset;

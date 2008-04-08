@@ -50,7 +50,7 @@ typedef UINT32 HCHANNEL;
 #ifdef LOG_CRIME
 	#define	CHANNEL_SIG_CRIME 0x20
 	#define	CHANNEL_SIG_CRIME_ID_MASK 0x0000FF00
-	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME|CHANNEL_SIG_CRIME|CHANNEL_SIG_CRIME_ID_MASK)
+	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME|CHANNEL_TIMESTAMPS_UP|CHANNEL_TIMESTAMPS_DOWN|CHANNEL_SIG_CRIME|CHANNEL_SIG_CRIME_ID_MASK)
 #else
 	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME|CHANNEL_TIMESTAMPS_UP|CHANNEL_TIMESTAMPS_DOWN)
 #endif
@@ -110,11 +110,13 @@ typedef t_MixPacket MIXPACKET;
 struct t_queue_entry
 	{
 		MIXPACKET packet;
-		#ifdef LOG_PACKET_TIMES
+		#if defined  (LOG_PACKET_TIMES) || defined (LOG_CHANNEL)
 			UINT64 timestamp_proccessing_start;
-			UINT64 timestamp_proccessing_end;
-			//without send/receive or queueing times
 			UINT64 timestamp_proccessing_start_OP;
+			UINT64 timestamp_proccessing_end;
+		#endif
+		#if defined  (LOG_PACKET_TIMES)
+			//without send/receive or queueing times
 			UINT64 timestamp_proccessing_end_OP;
 			#ifdef USE_POOL
 				UINT64 pool_timestamp_in;
