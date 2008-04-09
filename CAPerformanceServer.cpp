@@ -215,12 +215,12 @@ SINT32 CAPerformanceServer::sendDummyData(CASocket* pClient, UINT32 len)
 {
 	SINT32 ret = E_UNKNOWN;
 	
+	len = len > MAX_DUMMY_DATA_LENGTH ? MAX_DUMMY_DATA_LENGTH : len;
+
 #ifdef DEBUG
 	CAMsg::printMsg(LOG_DEBUG,
 			"CAPerformanceServer: sending %d bytes of dummy data to client\n", len);
-#endif
-	
-	len = len > MAX_DUMMY_DATA_LENGTH ? MAX_DUMMY_DATA_LENGTH : len;
+#endif	
 	
 	UINT8* buff = new UINT8[len];
 	
