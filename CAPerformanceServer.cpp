@@ -225,7 +225,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request, UINT32 len)
 	ret = request->pSocket->sendFully((UINT8*)buff, len);
 	delete buff;
 	buff = NULL;
-	
+	sleep(4000);
 	return ret;
 }
 
