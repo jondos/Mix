@@ -287,7 +287,6 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 	if(len == 0)
 	{
 #ifdef DEBUG
-		// TODO: send http response to client
 		CAMsg::printMsg(LOG_DEBUG,
 				"CAPerformanceServer: 400 Bad Request\n");
 #endif
@@ -298,8 +297,7 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 	{
 		UINT8* buff = new UINT8[len];
 		memset(buff, 0, sizeof(UINT8)*len);
-		// TODO: timeout
-		pClient->receiveFullyT(buff, len, 5000);
+		pClient->receiveFullyT(buff, len, PERFORMANCE_SERVER_TIMEOUT);
 		
 		DOMDocument* doc = parseDOMDocument(buff, len);
 		delete[] buff;
@@ -342,8 +340,7 @@ SINT32 CAPerformanceServer::sendHTTPResponseHeader(CASocket* pClient, UINT16 cod
 	UINT32 ret = E_UNKNOWN;
 	snprintf(buff, 255, "HTTP/1.1 %s\r\nContent-Length: %u\r\nConnection: close\r\n\r\n", getResponseText(code), len);
 	
-	// TODO: timeouts
-	ret = pClient->sendFullyTimeOut((UINT8*)buff, strlen(buff), 5000, 5000);
+	ret = pClient->sendFullyTimeOut((UINT8*)buff, strlen(buff), PERFORMANCE_SERVER_TIMEOUT, PERFORMANCE_SERVER_TIMEOUT);
 	delete buff;
 	buff = NULL;
 	
@@ -445,7 +442,7 @@ THREAD_RETURN handleRequest(void* param)
 	{
 #ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: error while handling request from client %s (code: %d)\n", request->ip, ret);
-#endif				
+#endif
 	}
 	
 	request->pSocket->close();

@@ -48,6 +48,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define PERFORMANCE_SERVER_HOST		(UINT8*) "localhost"
 #define PERFORMANCE_SERVER_PORT		7777	
 
+#define PERFORMANCE_SERVER_TIMEOUT	5000
+
 /** 
  * the server routine which: 
  *  * accepts socket connections,
