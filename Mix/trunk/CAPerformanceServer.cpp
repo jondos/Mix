@@ -220,6 +220,8 @@ SINT32 CAPerformanceServer::sendDummyData(CASocket* pClient, UINT32 len)
 			"CAPerformanceServer: sending %d bytes of dummy data to client\n", len);
 #endif
 	
+	len = len > MAX_DUMMY_DATA_LENGTH ? MAX_DUMMY_DATA_LENGTH : len;
+	
 	UINT8* buff = new UINT8[len];
 	
 	getRandom(buff, len);
