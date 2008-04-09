@@ -321,6 +321,8 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
             
             delete doc;
             doc = NULL;
+            
+            return E_SUCCESS;
         }
         else
         {
@@ -332,8 +334,6 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
         	return E_UNKNOWN;
         }
 	}
-	
-	return E_SUCCESS;
 }
 
 SINT32 CAPerformanceServer::sendHTTPResponseHeader(CASocket* pClient, UINT16 code, UINT32 len)
