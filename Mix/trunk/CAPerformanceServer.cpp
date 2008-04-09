@@ -384,7 +384,6 @@ char* CAPerformanceServer::getResponseText(UINT16 code)
 
 THREAD_RETURN acceptRequests(void* param)
 {
-
 	CAPerformanceServer* pServer = (CAPerformanceServer*) param;
 	
 	if(pServer == NULL)
@@ -447,7 +446,7 @@ THREAD_RETURN handleRequest(void* param)
 	}
 	
 	ret = request->pServer->handleRequest(request);
-
+	
 	if(ret != E_SUCCESS)
 	{
 #ifdef DEBUG
