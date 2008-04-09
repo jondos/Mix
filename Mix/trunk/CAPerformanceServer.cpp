@@ -323,8 +323,7 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
            			"CAPerformanceServer: 200 OK\n");
 #endif
            	sendHTTPResponseHeader(pClient, 200, length);
-           	
-           	sendDummyData(pClient, length);
+           	sendDummyData(request, length);
             
             delete doc;
             doc = NULL;
