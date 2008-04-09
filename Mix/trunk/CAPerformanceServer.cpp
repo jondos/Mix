@@ -222,7 +222,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request, UINT32 len)
 	
 	getRandom(buff, len);
 	
-	ret = request->pClient->sendFullyTimeOut((UINT8*)buff, len, 5000, 5000);
+	ret = request->pSocket->sendFullyTimeOut((UINT8*)buff, len, 5000, 5000);
 	delete buff;
 	buff = NULL;
 	
