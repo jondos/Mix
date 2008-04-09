@@ -430,10 +430,6 @@ THREAD_RETURN acceptRequests(void* param)
 				CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: accepting connection from %s\n", t->ip);
 #endif
 				pServer->m_pRequestHandler->addRequest(handleRequest, t);
-						
-#ifdef DEBUG
-				CAMsg::printMsg(LOG_DEBUG, "CAPerformaceServer: client request added\n");
-#endif
 			}
 		}
 	}
