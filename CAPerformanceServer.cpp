@@ -430,6 +430,7 @@ THREAD_RETURN acceptRequests(void* param)
 
 THREAD_RETURN handleRequest(void* param)
 {
+	SINT32 ret;
 	perfrequest_t* request = (perfrequest_t*) param;
 	
 	if(request == NULL || request->pServer == NULL)
@@ -438,10 +439,12 @@ THREAD_RETURN handleRequest(void* param)
 		THREAD_RETURN_ERROR;
 	}
 	
-	if(request->pServer->handleRequest(request) != E_SUCCESS);
+	ret = request->pServer->handleRequest(request);
+
+	if(ret != E_SUCCESS)
 	{
 #ifdef DEBUG
-		CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: error while handling request from client %s\n", request->ip);
+		CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: error while handling request from client %s (code: %d)\n", request->ip, ret);
 #endif				
 	}
 	
