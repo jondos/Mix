@@ -28,9 +28,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CAPerformanceServer.hpp"
 
-//////
-#define DEBUG
-
 #ifdef PERFORMANCE_SERVER
 
 #include "CACmdLnOptions.hpp"
@@ -218,11 +215,9 @@ SINT32 CAPerformanceServer::sendDummyData(CASocket* pClient, UINT32 len)
 	if(len > MAX_DUMMY_DATA_LENGTH)
 		return E_UNKNOWN;
 
-#ifdef DEBUG
-	CAMsg::printMsg(LOG_DEBUG,
+	CAMsg::printMsg(LOG_INFO,
 			"CAPerformanceServer: sending %d bytes of dummy data to client\n", len);
-#endif	
-	
+
 	UINT8* buff = new UINT8[len];
 	
 	getRandom(buff, len);
