@@ -611,6 +611,28 @@ SINT32 CASocket::receiveFullyT(UINT8* buff,UINT32 len,UINT32 msTimeOut)
 			}
 	}
 
+SINT32 CASocket::recieveLine(UINT8* line, UINT32 maxLen)
+{
+	UINT32 i = 0;
+	UINT8 byte = 0;
+	SINT32 ret = 0;
+	do
+	{
+		ret = receive(&byte, 1);
+		if(byte == '\r' || byte == '\n')
+		{
+			line[i++] = 0;
+		}
+		else
+		{
+			line[i++] = byte;
+		}
+	}
+	while(byte != '\n' && i<maxLen && ret > 0);
+	
+	return ret;
+}
+
 SINT32 CASocket::getLocalPort()
 	{
 		struct sockaddr_in addr;

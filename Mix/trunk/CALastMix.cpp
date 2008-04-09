@@ -46,7 +46,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAPool.hpp"
 #include "xml/DOM_Output.hpp"
 #include "CAStatusManager.hpp"
-
+#ifdef PERFORMANCE_SERVER
+	#include "CAPerformanceServer.hpp"
+#endif
 extern CACmdLnOptions* pglobalOptions;
 
 /*#ifdef LOG_CHANNEL
@@ -87,6 +89,9 @@ SINT32 CALastMix::initOnce()
 
 SINT32 CALastMix::init()
 	{
+#ifdef PERFORMANCE_SERVER
+		CAPerformanceServer::init();
+#endif
 		m_pRSA=new CAASymCipher();	
 		if(m_pRSA->generateKeyPair(1024)!=E_SUCCESS)
 			{
@@ -735,6 +740,9 @@ SINT32 CALastMix::setTargets()
 
 SINT32 CALastMix::clean()
 {
+#ifdef PERFORMANCE_SERVER
+		CAPerformanceServer::cleanup();
+#endif
 		m_bRestart=true;
 		MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
 		m_bRunLog=false;
