@@ -95,7 +95,7 @@ private:
 	SINT32 initSocket();
 	SINT32 handleRequest(perfrequest_t* request);
 	
-	SINT32 sendDummyData(CASocket* pClient, UINT32 len);
+	SINT32 sendDummyData(perfrequest_t* request, UINT32 len);
 	SINT32 sendHTTPResponseHeader(CASocket* pClient, UINT16 code, UINT32 len = 0);
 	
 	char* getResponseText(UINT16 code);
