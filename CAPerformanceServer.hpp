@@ -50,6 +50,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define PERFORMANCE_SERVER_TIMEOUT	5000
 
+#define MAX_DUMMY_DATA_LENGTH		1024*1024
+
 /** 
  * the server routine which: 
  *  * accepts socket connections,
