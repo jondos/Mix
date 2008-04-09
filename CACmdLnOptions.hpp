@@ -304,6 +304,12 @@ class CACmdLnOptions
 			UINT16 getMonitoringListenerPort();
 #endif /* SERVER_MONITORING */
 			
+
+#ifdef PERFORMANCE_SERVER
+			UINT8* getPerformanceServerListenerHost();
+			UINT16 getPerformanceServerListenerPort();
+#endif /* PERFORMANCE_SERVER */	
+			
 			bool isLocalProxy();
 			bool isFirstMix();
 			bool isMiddleMix();
@@ -549,6 +555,11 @@ class CACmdLnOptions
 		private:
 			char *m_strMonitoringListenerHost;
 			UINT16 m_iMonitoringListenerPort;
+#endif
+#ifdef PERFORMANCE_SERVER
+		private:
+			UINT8* m_strPerformanceServerListenerHost;
+			UINT16 m_iPerformanceServerListenerPort;
 #endif
 			
 		private:
