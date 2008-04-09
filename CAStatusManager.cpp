@@ -36,6 +36,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "xml/DOM_Output.hpp"
 #include "CACmdLnOptions.hpp"
 #include "CASocketAddrINet.hpp"
+#include "monitoringDefs.h"
 
 /**
  * @author Simon Pecher, JonDos GmbH
