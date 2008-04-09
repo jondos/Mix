@@ -124,7 +124,7 @@ CAStatusManager::CAStatusManager()
 	
 	m_pCurrentStates = new state_t*[NR_STATUS_TYPES];
 	
-	for(i = 0; i < NR_STATUS_TYPES; i++)
+	for(i = FIRST_STATUS; i < NR_STATUS_TYPES; i++)
 	{
 		m_pCurrentStates[i] = 
 				ms_pAllStates[i][ENTRY_STATE];
@@ -151,7 +151,7 @@ CAStatusManager::CAStatusManager()
 	}
 	initStatusMessage();
 	/* pass entry state staus information to the DOM structure */
-	for(i = 0; i < NR_STATUS_TYPES; i++)
+	for(i = FIRST_STATUS; i < NR_STATUS_TYPES; i++)
 	{
 		setDOMElementValue(
 				(m_pCurrentStatesInfo[i]).dsi_stateType,
@@ -196,7 +196,7 @@ CAStatusManager::~CAStatusManager()
 	}
 	if(m_pCurrentStates != NULL)
 	{
-		for(i = 0; i < NR_STATUS_TYPES; i++)
+		for(i = FIRST_STATUS; i < NR_STATUS_TYPES; i++)
 		{
 			m_pCurrentStates[i] = NULL;
 		}
@@ -324,13 +324,13 @@ SINT32 CAStatusManager::transition(event_type_t e_type, status_type_t s_type)
 				"StatusManager: fatal error\n");
 		return E_UNKNOWN;
 	}
-	if((s_type >= NR_STATUS_TYPES) || (s_type < 0))
+	if((s_type >= NR_STATUS_TYPES) || (s_type < FIRST_STATUS))
 	{
 		CAMsg::printMsg(LOG_ERR, 
 				"StatusManager: received event for an invalid status type: %d\n", s_type);
 		return E_INVALID;
 	}
-	if((e_type >= EVENT_COUNT[s_type]) || (e_type < 0))
+	if((e_type >= EVENT_COUNT[s_type]) || (e_type < FIRST_EVENT))
 	{
 		CAMsg::printMsg(LOG_ERR, 
 				"StatusManager: received an invalid event: %d\n", e_type);
@@ -395,25 +395,25 @@ SINT32 CAStatusManager::initStatusMessage()
 	int i = 0;
 	m_pPreparedStatusMessage = createDOMDocument();
 	m_pCurrentStatesInfo = new dom_state_info[NR_STATUS_TYPES];
-	DOMElement *elemRoot = createDOMElement(m_pPreparedStatusMessage, "StatusMessage");
+	DOMElement *elemRoot = createDOMElement(m_pPreparedStatusMessage, DOM_ELEMENT_STATUS_MESSAGE_NAME);
 	DOMElement *status_dom_element = NULL;
 	
-	for(i = 0; i < NR_STATUS_TYPES; i++)
+	for(i = FIRST_STATUS; i < NR_STATUS_TYPES; i++)
 	{
 		status_dom_element = 
 			createDOMElement(m_pPreparedStatusMessage, STATUS_NAMES[i]); 
 		(m_pCurrentStatesInfo[i]).dsi_stateType = 
-			createDOMElement(m_pPreparedStatusMessage, "State");
+			createDOMElement(m_pPreparedStatusMessage, DOM_ELEMENT_STATE_NAME);
 #ifdef DEBUG		
 		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateType, (UINT8*)"Statenumber");
 #endif		
 		(m_pCurrentStatesInfo[i]).dsi_stateLevel =
-			createDOMElement(m_pPreparedStatusMessage, "StateLevel");
+			createDOMElement(m_pPreparedStatusMessage, DOM_ELEMENT_STATE_LEVEL_NAME);
 #ifdef DEBUG
 		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateLevel, (UINT8*)"OK or Critcal or something");
 #endif
 		(m_pCurrentStatesInfo[i]).dsi_stateDesc =
-			createDOMElement(m_pPreparedStatusMessage, "StateDescription");
+			createDOMElement(m_pPreparedStatusMessage, DOM_ELEMENT_STATE_DESCRIPTION_NAME);
 #ifdef DEBUG
 		setDOMElementValue((m_pCurrentStatesInfo[i]).dsi_stateDesc, (UINT8*)"Description of the state");
 #endif
@@ -503,12 +503,12 @@ void CAStatusManager::initStates()
 	int i = 0, j = 0; 
 	ms_pAllStates = new state_t**[NR_STATUS_TYPES];
 	
-	for(i = 0; i < NR_STATUS_TYPES; i++)
+	for(i = FIRST_STATUS; i < NR_STATUS_TYPES; i++)
 	{
 		ms_pAllStates[i] = 
 			new state_t*[STATE_COUNT[i]];
 		
-		for(j=0; j < STATE_COUNT[i]; j++)
+		for(j = ENTRY_STATE; j < STATE_COUNT[i]; j++)
 		{
 			ms_pAllStates[i][j] = new state_t; 
 			/* only state identifier are set, transitions and state description
@@ -526,10 +526,10 @@ void CAStatusManager::deleteStates()
 {
 	int i = 0, j = 0;
 	
-	for(i = 0; i < NR_STATUS_TYPES; i++)
+	for(i = FIRST_STATUS; i < NR_STATUS_TYPES; i++)
 	{
 		//m_pCurrentStates[i] = NULL;
-		for(j=0; j < STATE_COUNT[i]; j++)
+		for(j = ENTRY_STATE; j < STATE_COUNT[i]; j++)
 		{
 			if(ms_pAllStates[i][j] != NULL)
 			{
@@ -553,10 +553,10 @@ void CAStatusManager::initEvents()
 	int i = 0, j = 0;
 	ms_pAllEvents = new event_t**[NR_STATUS_TYPES];
 	
-	for(i = 0; i < NR_STATUS_TYPES; i++)
+	for(i = FIRST_STATUS; i < NR_STATUS_TYPES; i++)
 	{
 		ms_pAllEvents[i] = new event_t*[EVENT_COUNT[i]];
-		for(j = 0; j < EVENT_COUNT[i]; j++)
+		for(j = FIRST_EVENT; j < EVENT_COUNT[i]; j++)
 		{
 			ms_pAllEvents[i][j] = new event_t;
 			ms_pAllEvents[i][j]->ev_type = (event_type_t) j;
@@ -570,9 +570,9 @@ void CAStatusManager::deleteEvents()
 {
 	int i = 0, j = 0;
 	
-	for(i = 0; i < NR_STATUS_TYPES; i++)
+	for(i = FIRST_STATUS; i < NR_STATUS_TYPES; i++)
 	{
-		for(j = 0; j < EVENT_COUNT[i]; j++)
+		for(j = FIRST_EVENT; j < EVENT_COUNT[i]; j++)
 		{
 			//todo: delete event descriptions ?
 			delete ms_pAllEvents[i][j];
@@ -600,7 +600,7 @@ transition_t *defineTransitions(status_type_t s_type, SINT32 transitionCount, ..
 	}
 	va_end(ap);
 	
-	if((s_type >= NR_STATUS_TYPES) || (s_type < 0))
+	if((s_type >= NR_STATUS_TYPES) || (s_type < FIRST_STATUS))
 	{
 		/* invalid status type specified */
 		return NULL;
