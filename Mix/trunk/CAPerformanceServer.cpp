@@ -215,7 +215,8 @@ SINT32 CAPerformanceServer::sendDummyData(CASocket* pClient, UINT32 len)
 {
 	SINT32 ret = E_UNKNOWN;
 	
-	len = len > MAX_DUMMY_DATA_LENGTH ? MAX_DUMMY_DATA_LENGTH : len;
+	if(len > MAX_DUMMY_DATA_LENGTH)
+		return E_UNKNOWN;
 
 #ifdef DEBUG
 	CAMsg::printMsg(LOG_DEBUG,
@@ -310,6 +311,17 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
         {
           	UINT32 length = 0;
            	getDOMElementAttribute(root, "dataLength", (SINT32*) &length);
+           	
+           	
+           	if(length > MAX_DUMMY_DATA_LENGTH)
+           	{
+#ifdef DEBUG
+        	CAMsg::printMsg(LOG_DEBUG,
+        			"CAPerformanceServer: 400 Bad Request\n");
+#endif
+        	sendHTTPResponseHeader(pClient, 400);
+        	return E_UNKNOWN;
+           	}
            	
 #ifdef DEBUG
            	CAMsg::printMsg(LOG_DEBUG,
