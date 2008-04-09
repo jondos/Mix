@@ -208,7 +208,7 @@ SINT32 CAPerformanceServer::initSocket()
 	return E_SUCCESS;
 }
 
-SINT32 CAPerformanceServer::sendDummyData(CASocket* pClient, UINT32 len)
+SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request, UINT32 len)
 {
 	SINT32 ret = E_UNKNOWN;
 	
@@ -216,13 +216,13 @@ SINT32 CAPerformanceServer::sendDummyData(CASocket* pClient, UINT32 len)
 		return E_UNKNOWN;
 
 	CAMsg::printMsg(LOG_INFO,
-			"CAPerformanceServer: sending %d bytes of dummy data to client\n", len);
+			"CAPerformanceServer: sending %d bytes of dummy data to %s\n", len, request->ip);
 
 	UINT8* buff = new UINT8[len];
 	
 	getRandom(buff, len);
 	
-	ret = pClient->sendFullyTimeOut((UINT8*)buff, len, 5000, 5000);
+	ret = request->pClient->sendFullyTimeOut((UINT8*)buff, len, 5000, 5000);
 	delete buff;
 	buff = NULL;
 	
