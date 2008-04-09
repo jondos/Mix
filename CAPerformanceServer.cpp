@@ -441,7 +441,7 @@ THREAD_RETURN handleRequest(void* param)
 	if(request->pServer->handleRequest(request) != E_SUCCESS);
 	{
 #ifdef DEBUG
-		CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: error while handling request from client %s\n");
+		CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: error while handling request from client %s\n", request->ip);
 #endif				
 	}
 	
