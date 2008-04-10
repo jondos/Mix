@@ -65,12 +65,13 @@ class CAPerformanceServer;
 
 struct perfrequest_t
 {
+	UINT32 uiDataLength;
+	
 	char* ip;
 	CAPerformanceServer* pServer;
 	CASocket* pSocket;
 
 	UINT8* pstrInfoServiceId;
-	UINT32 uiDataLength;
 };
 
 class CAPerformanceServer
