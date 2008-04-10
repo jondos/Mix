@@ -453,11 +453,11 @@ THREAD_RETURN acceptRequests(void* param)
 		{
 			UINT8 peerIp[4];
 			
-			if(request->getPeerIP(&peerIp) == E_SUCCESS)
+			if(request->getPeerIP(peerIp) == E_SUCCESS)
 			{
 				perfrequest_t* t = new perfrequest_t;
 				t->ip = new char[16];
-				strncpy(t->ip, inet_ntoa(*((in_addr*) peerIp)), 15);
+				strncpy(t->ip, inet_ntoa(*((in_addr*) &peerIp)), 15);
 				
 				t->pServer = pServer;
 				t->pSocket = request;
