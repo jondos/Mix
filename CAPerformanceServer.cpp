@@ -347,8 +347,9 @@ SINT32 CAPerformanceServer::parseXMLRequest(perfrequest_t* request, UINT8* xml, 
 	DOMElement* root = NULL;
 	DOMElement* infoservice = NULL;
 	
-	if(doc != NULL &&  (root = doc->getDocumentElement()) == NULL && equals(root->getNodeName(), "GenerateDummyDataRequest"))
+	if(doc != NULL &&  (root = doc->getDocumentElement()) == NULL /*&& equals(root->getNodeName(), "GenerateDummyDataRequest")*/)
 	{
+		char* c = XMLString::transcode((XMLCh*) root->getNodeName());
 		getDOMElementAttribute(root, "dataLength", (SINT32*) &(request->uiDataLength));
 		
 		getDOMChildByName(root, "InfoService", infoservice, false);
