@@ -231,7 +231,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request, UINT32 len)
 	strncpy((char*)buff, (char*)header, headerLen - 1);
 	
 	//getRandom(buff + headerLen, len);
-	memset(buff + headerLen, 0, len);
+	memset(buff + headerLen, 65, len);
 	ret = request->pSocket->sendFully((UINT8*)buff, len + headerLen);
 	
 	CAMsg::printMsg(LOG_INFO,
