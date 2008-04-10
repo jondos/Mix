@@ -361,12 +361,6 @@ SINT32 CAPerformanceServer::parseXMLRequest(perfrequest_t* request, UINT8* xml, 
 			ret = E_SUCCESS;
 		}
 	}
-
-	if(root != NULL)
-	{
-		delete root;
-		root = NULL;
-	}
 	
 	if(doc != NULL)
 	{
