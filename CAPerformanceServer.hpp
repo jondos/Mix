@@ -68,6 +68,9 @@ struct perfrequest_t
 	char* ip;
 	CAPerformanceServer* pServer;
 	CASocket* pSocket;
+
+	UINT8* pstrInfoServiceId;
+	UINT32 uiDataLength;
 };
 
 class CAPerformanceServer
@@ -94,11 +97,11 @@ private:
 	
 	SINT32 initSocket();
 	SINT32 handleRequest(perfrequest_t* request);
+	SINT32 parseXMLRequest(perfrequest_t* request, UINT8* xml, UINT32 len);
+	SINT32 sendDummyData(perfrequest_t* request);
+	SINT32 sendHTTPResponseHeader(perfrequest_t* request, UINT16 code, UINT32 contentLength = 0);
 	
-	SINT32 sendDummyData(perfrequest_t* request, UINT32 len);
-	SINT32 sendHTTPResponseHeader(CASocket* pClient, UINT16 code, UINT32 len = 0);
-	
-	UINT8* createHTTPResponseHeader(UINT16 code, UINT32 len);
+	UINT8* createHTTPResponseHeader(UINT16 code, UINT32 contentLength);
 	char* getResponseText(UINT16 code);
 	
 	friend THREAD_RETURN handleRequest(void* param);

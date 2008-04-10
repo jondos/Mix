@@ -208,36 +208,44 @@ SINT32 CAPerformanceServer::initSocket()
 	return E_SUCCESS;
 }
 
-SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request, UINT32 len)
+SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 {
 	SINT32 ret = E_UNKNOWN;
 	SINT32 headerLen;
 	UINT8* header;
 	UINT8* buff;
 	
-	if(len > MAX_DUMMY_DATA_LENGTH)
+	if(request->uiDataLength > MAX_DUMMY_DATA_LENGTH)
 	{
 #ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG,
 				"CAPerformanceServer: 400 Bad Request\n");
 #endif		
-		sendHTTPResponseHeader(request->pSocket, 400);
+		sendHTTPResponseHeader(request, 400);
 		return E_UNKNOWN;
 	}
-
-	header = (UINT8*) createHTTPResponseHeader(200, len);
+	
+#ifdef DEBUG
+	CAMsg::printMsg(LOG_DEBUG,
+			"CAPerformanceServer: 200 OK\n");
+#endif	
+	header = (UINT8*) createHTTPResponseHeader(200, request->uiDataLength);
 	headerLen = strlen((char*)header);
-	buff = new UINT8[len + headerLen + 1];
+	buff = new UINT8[request->uiDataLength + headerLen + 1];
 	strncpy((char*)buff, (char*)header, headerLen);
 	
-	memset(buff + headerLen, 65, len);
-	ret = request->pSocket->sendFully((UINT8*)buff, len + headerLen);
+	// TODO: random data
+	memset(buff + headerLen, 65, request->uiDataLength);
+	
+	ret = request->pSocket->sendFully((UINT8*)buff, request->uiDataLength + headerLen);
 	
 	CAMsg::printMsg(LOG_INFO,
-			"CAPerformanceServer: sent %d bytes of dummy data to %s\n", len, request->ip);
+			"CAPerformanceServer: sent %d bytes of dummy data\n", request->uiDataLength, request->ip);
 	
+	delete[] header;
+	delete[] buff;
 	
-	delete buff;
+	header = NULL;
 	buff = NULL;
 	
 	return ret;
@@ -270,19 +278,19 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 				"CAPerformanceServer: 405 Method Not Allowed\n");
 
 #endif
-		sendHTTPResponseHeader(pClient, 405);
+		sendHTTPResponseHeader(request, 405);
 		return E_UNKNOWN;
 	}
 	
 	url = strtok(NULL, " ");
 	
-	if(url == NULL || strncmp(url, "/generatedummydata", 18) != 0)
+	if(url == NULL || strncmp(url, "/senddummydata", 18) != 0)
 	{
 #ifdef DEBUG		
 		CAMsg::printMsg(LOG_ERR,
 						"CAPerformanceServer: 404 Not Found\n");
 #endif
-		sendHTTPResponseHeader(pClient, 404);
+		sendHTTPResponseHeader(request, 404);
 		return E_UNKNOWN;
 	}
 	
@@ -291,10 +299,12 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 		pClient->recieveLine((UINT8*)line, 255);
 		if(strnicmp(line, "Content-Length: ", 16) == 0)
 		{
-			len = (UINT32) atol(line+16);
+			len = (UINT32) atol(line + 16);
 		}
 	} while(strlen(line) > 0);
-	delete line;
+	delete method;
+	delete url;
+	delete[] line;
 	
 	if(len == 0)
 	{
@@ -302,77 +312,92 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 		CAMsg::printMsg(LOG_DEBUG,
 				"CAPerformanceServer: 400 Bad Request\n");
 #endif
-		sendHTTPResponseHeader(pClient, 400);
+		sendHTTPResponseHeader(request, 400);
 		return E_UNKNOWN;
 	}
 	else
 	{
+		SINT32 ret = E_UNKNOWN;
 		UINT8* buff = new UINT8[len];
 		memset(buff, 0, sizeof(UINT8)*len);
 		pClient->receiveFullyT(buff, len, PERFORMANCE_SERVER_TIMEOUT);
 		
-		DOMDocument* doc = parseDOMDocument(buff, len);
+		if(parseXMLRequest(request, buff, len) != E_SUCCESS)
+		{
+#ifdef DEBUG
+        	CAMsg::printMsg(LOG_DEBUG,
+        			"CAPerformanceServer: 400 Bad Request\n");
+#endif
+        	sendHTTPResponseHeader(request, 400);
+		}
+		else
+        {
+			ret = sendDummyData(request);
+        }
+		
 		delete[] buff;
-        buff = NULL;
-        
-        DOMElement* root = NULL;
-        if(doc != NULL && (root = doc->getDocumentElement()) != NULL && equals(root->getNodeName(), "GenerateDummyDataRequest"))
-        {
-          	UINT32 length = 0;
-           	getDOMElementAttribute(root, "dataLength", (SINT32*) &length);
-           	
-           	
-           	if(length > MAX_DUMMY_DATA_LENGTH)
-           	{
-#ifdef DEBUG
-        	CAMsg::printMsg(LOG_DEBUG,
-        			"CAPerformanceServer: 400 Bad Request\n");
-#endif
-        	sendHTTPResponseHeader(pClient, 400);
-        	return E_UNKNOWN;
-           	}
-           	
-#ifdef DEBUG
-           	CAMsg::printMsg(LOG_DEBUG,
-           			"CAPerformanceServer: 200 OK\n");
-#endif
-           	//sendHTTPResponseHeader(pClient, 200, length);
-           	sendDummyData(request, length);
-            
-            delete doc;
-            doc = NULL;
-            
-            return E_SUCCESS;
-        }
-        else
-        {
-#ifdef DEBUG
-        	CAMsg::printMsg(LOG_DEBUG,
-        			"CAPerformanceServer: 400 Bad Request\n");
-#endif
-        	sendHTTPResponseHeader(pClient, 400);
-        	return E_UNKNOWN;
-        }
+		buff = NULL;		
+		
+		return ret;
 	}
 }
 
-SINT32 CAPerformanceServer::sendHTTPResponseHeader(CASocket* pClient, UINT16 code, UINT32 len)
+SINT32 CAPerformanceServer::parseXMLRequest(perfrequest_t* request, UINT8* xml, UINT32 len)
+{
+	SINT32 ret = E_UNKNOWN;
+	
+	DOMDocument* doc = parseDOMDocument(xml, len);
+	DOMElement* root = NULL;
+	DOMElement* infoservice = NULL;
+	
+	if(doc != NULL &&  (root = doc->getDocumentElement()) == NULL && equals(root->getNodeName(), "GenerateDummyDataRequest"))
+	{
+		getDOMElementAttribute(root, "dataLength", (SINT32*) &(request->uiDataLength));
+		
+		getDOMChildByName(root, "InfoService", infoservice, false);
+		
+		if(infoservice != NULL)
+		{
+			request->pstrInfoServiceId = new UINT8[256];
+			UINT32 idlen = 255;
+			getDOMElementAttribute(infoservice, "id", request->pstrInfoServiceId, &idlen);
+			
+			ret = E_SUCCESS;
+		}
+	}
+
+	if(root != NULL)
+	{
+		delete root;
+		root = NULL;
+	}
+	
+	if(doc != NULL)
+	{
+		delete doc;
+		doc = NULL;
+	}
+	
+	return ret;
+}
+
+SINT32 CAPerformanceServer::sendHTTPResponseHeader(perfrequest_t* request, UINT16 code, UINT32 contentLength)
 {
 	SINT32 ret;
 	
-	UINT8* buff = createHTTPResponseHeader(code, len);
-	ret = pClient->sendFullyTimeOut(buff, strlen((char*)buff), PERFORMANCE_SERVER_TIMEOUT, PERFORMANCE_SERVER_TIMEOUT);
-	delete buff;
+	UINT8* buff = createHTTPResponseHeader(code, contentLength);
+	ret = request->pSocket->sendFullyTimeOut(buff, strlen((char*)buff), PERFORMANCE_SERVER_TIMEOUT, PERFORMANCE_SERVER_TIMEOUT);
+	delete[] buff;
 	buff = NULL;
 	
 	return ret;
 }
 
-UINT8* CAPerformanceServer::createHTTPResponseHeader(UINT16 code, UINT32 len)
+UINT8* CAPerformanceServer::createHTTPResponseHeader(UINT16 code, UINT32 contentLength)
 {
 	UINT8* header = new UINT8[256];
 	
-	snprintf((char*)header, 255, "HTTP/1.1 %s\r\nContent-Length: %u\r\nConnection: close\r\n\r\n", getResponseText(code), len);
+	snprintf((char*)header, 255, "HTTP/1.1 %s\r\nContent-Length: %u\r\nConnection: close\r\n\r\n", getResponseText(code), contentLength);
 	
 	return header;
 }
@@ -469,12 +494,27 @@ THREAD_RETURN handleRequest(void* param)
 		CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: error while handling request from client %s (code: %d)\n", request->ip, ret);
 #endif
 	}
+		
+	if(request->pSocket != NULL)
+	{
+		request->pSocket->close();
+		delete request->pSocket;
+		request->pSocket = NULL;
+	}
 	
-	request->pSocket->close();
-	delete request->pSocket;
-	delete request->ip;
+	if(request->ip != NULL)
+	{
+		delete[] request->ip;
+		request->ip = NULL;
+	}
+	
+	if(request->pstrInfoServiceId != NULL)
+	{
+		delete[] request->pstrInfoServiceId;
+		request->pstrInfoServiceId = NULL;
+	}
+	
 	delete request;
-	
 	request = NULL;
 	
 	THREAD_RETURN_SUCCESS;
