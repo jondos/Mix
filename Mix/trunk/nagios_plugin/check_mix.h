@@ -1,10 +1,82 @@
 #ifndef CHECK_MIX_H_
 #define CHECK_MIX_H_
 
-#define CMP_EQUAL 0
-#define STATUS_TYPE_FOUND 0
-#define NO_STATUS_TYPE_FOUND 1
+#include "../monitoringDefs.h"
 
-static int setCurrentStatusType(status_type_t *currStatusTypePtr, const char *name);
+#define CMP_EQUAL 0
+
+#define PARSE_MATCH 0
+#define PARSE_NO_MATCH 1
+
+#define MAX_CMD_LINE_OPT 20 
+#define ERROR -1
+#define SUCCESS 0
+
+#define TEST_STRING \
+"<StatusMessage>\n\
+	<NetworkingStatus>\n\
+		<State>3</State>\n\
+		<StateLevel>WARNING</StateLevel>\n\
+		<StateDescription>first mix online</StateDescription>\n\
+	</NetworkingStatus>\n\
+	<PaymentStatus>\n\
+		<State>1</State>\n\
+		<StateLevel>OK</StateLevel>\n\
+		<StateDescription>accounting instance initialized</StateDescription>\n\
+	</PaymentStatus>\n\
+	<SystemStatus>\n\
+		<State>2</State>\n\
+		<StateLevel>UNKNOWN</StateLevel>\n\
+		<StateDescription>mix is operating</StateDescription>\n\
+	</SystemStatus>\n\
+</StatusMessage>"
+
+#define NETWORKING_STATUS_OPT_NAME "networking"
+#define PAYMENT_STATUS_OPT_NAME "payment"
+#define SYSTEM_STATUS_OPT_NAME "system"
+
+/* must correspond to enum status_types */
+static const char *STATUS_OPT_NAMES[NR_STATUS_TYPES] =
+{
+		NETWORKING_STATUS_OPT_NAME, 
+#ifdef PAYMENT
+		PAYMENT_STATUS_OPT_NAME, 
+#endif		
+		SYSTEM_STATUS_OPT_NAME
+};
+
+enum curr_state_field
+{
+	field_st_ignore = -1,
+	field_st_type = 0, st_stateLevel, field_st_description
+};
+
+typedef unsigned int status_type_flag_t;
+typedef enum curr_state_field curr_state_field_t;
+
+struct state_parse_data
+{
+	status_type_t curr_status;
+	status_type_flag_t desired_status;
+	int all_states_code;
+	curr_state_field_t curr_state_field;
+};
+
+struct checkMix_cmdLineOpts
+{
+	status_type_flag_t desired_status;
+	char mix_address[MAX_CMD_LINE_OPT];
+	int mix_port;
+};
+
+typedef struct checkMix_cmdLineOpts checkMix_cmdLineOpts_t;
+typedef struct state_parse_data state_parse_data_t;
+
+static int setCurrentStatusType(state_parse_data_t *parseData, const char *name, int elemNameLength);
+static int setCurrentStateField(state_parse_data_t *parseData, const char *name, int elemNameLength);
+static int handleCmdLineOptions(int argc, char *argv[], checkMix_cmdLineOpts_t *cmdLineOpts);
+static int connectToMix(char* mix_address, int mix_port);
+
+static void printDefinedStatusTypes();
 
 #endif /*CHECK_MIX_H_*/
