@@ -253,7 +253,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 
 SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 {
-	char* line = new char[255];
+	char* line = new char[256];
 	char* method = NULL;
 	char* url = NULL;
 	CASocket* pClient;
@@ -314,9 +314,10 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 	else
 	{
 		SINT32 ret = E_UNKNOWN;
-		UINT8* buff = new UINT8[len];
-		memset(buff, 0, sizeof(UINT8)*len);
+		UINT8* buff = new UINT8[len + 1];
+		memset(buff, 0, sizeof(UINT8)*len+1);
 		pClient->receiveFullyT(buff, len, PERFORMANCE_SERVER_TIMEOUT);
+		buff[len] = '\0';
 		
 		if(parseXMLRequest(request, buff, len) != E_SUCCESS)
 		{
