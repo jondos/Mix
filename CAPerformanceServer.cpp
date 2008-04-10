@@ -226,13 +226,13 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request, UINT32 len)
 	}
 
 	header = (UINT8*) createHTTPResponseHeader(200, len);
-	headerLen = strlen((char*)header) + 1;
+	headerLen = strlen((char*)header);
 	buff = new UINT8[len + headerLen];
 	strncpy((char*)buff, (char*)header, headerLen - 1);
 	
 	//getRandom(buff + headerLen, len);
 	memset(buff + headerLen, 0, len);
-	ret = request->pSocket->sendFully((UINT8*)buff, len);
+	ret = request->pSocket->sendFully((UINT8*)buff, len + headerLen);
 	
 	CAMsg::printMsg(LOG_INFO,
 			"CAPerformanceServer: sent %d bytes of dummy data to %s\n", len, request->ip);
