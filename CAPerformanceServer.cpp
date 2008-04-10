@@ -227,10 +227,9 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request, UINT32 len)
 
 	header = (UINT8*) createHTTPResponseHeader(200, len);
 	headerLen = strlen((char*)header);
-	buff = new UINT8[len + headerLen];
-	strncpy((char*)buff, (char*)header, headerLen - 1);
+	buff = new UINT8[len + headerLen + 1];
+	strncpy((char*)buff, (char*)header, headerLen);
 	
-	//getRandom(buff + headerLen, len);
 	memset(buff + headerLen, 65, len);
 	ret = request->pSocket->sendFully((UINT8*)buff, len + headerLen);
 	
