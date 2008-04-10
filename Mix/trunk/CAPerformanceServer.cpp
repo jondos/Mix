@@ -359,8 +359,10 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 
 SINT32 CAPerformanceServer::sendHTTPResponseHeader(CASocket* pClient, UINT16 code, UINT32 len)
 {
-	char* buff = createHTTPResponseHeader(code, len);
-	ret = pClient->sendFullyTimeOut((UINT8*)buff, strlen(buff), PERFORMANCE_SERVER_TIMEOUT, PERFORMANCE_SERVER_TIMEOUT);
+	SINT32 ret;
+	
+	UINT8* buff = createHTTPResponseHeader(code, len);
+	ret = pClient->sendFullyTimeOut(buff, strlen((char*)buff), PERFORMANCE_SERVER_TIMEOUT, PERFORMANCE_SERVER_TIMEOUT);
 	delete buff;
 	buff = NULL;
 	
@@ -369,8 +371,7 @@ SINT32 CAPerformanceServer::sendHTTPResponseHeader(CASocket* pClient, UINT16 cod
 
 UINT8* CAPerformanceServer::createHTTPResponseHeader(UINT16 code, UINT32 len)
 {
-	UINT8* header = new char[255];
-	UINT32 ret = E_UNKNOWN;
+	UINT8* header = new UINT8[256];
 	
 	snprintf((char*)header, 255, "HTTP/1.1 %s\r\nContent-Length: %u\r\nConnection: close\r\n\r\n", getResponseText(code), len);
 	
