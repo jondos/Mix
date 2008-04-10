@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CACmdLnOptions.hpp"
 #include "CASocketAddrINet.hpp"
+#include "CABase64.hpp"
 
 /**
  * @author Christian Banse
@@ -234,13 +235,27 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	buff = new UINT8[request->uiDataLength + headerLen + 1];
 	strncpy((char*)buff, (char*)header, headerLen);
 	
-	// TODO: random data
 	memset(buff + headerLen, 65, request->uiDataLength);
+
+	/*
+	 * DOES NOT WORK!!
+	 * 
+	 * UINT32 randBytesLen = (request->uiDataLength * 3) / 4;	
+	UINT8* randBytes = new UINT8[randBytesLen];
+	getRandom(randBytes, randBytesLen);
+
+#ifdef DEBUG
+	CAMsg::printMsg(LOG_DEBUG,
+			"CAPerformanceServer: generated %d bytes of random data", randBytesLen);
+#endif
+	
+	CABase64::encode(randBytes, randBytesLen, buff + headerLen, &request->uiDataLength);
+	*/
 	
 	ret = request->pSocket->sendFully((UINT8*)buff, request->uiDataLength + headerLen);
 	
 	CAMsg::printMsg(LOG_INFO,
-			"CAPerformanceServer: sent %d bytes of dummy data\n", request->uiDataLength, request->ip);
+			"CAPerformanceServer: sent %d bytes of dummy data to %s\n", request->uiDataLength, request->ip, request->pstrInfoServiceId);
 	
 	delete[] header;
 	delete[] buff;
@@ -345,21 +360,19 @@ SINT32 CAPerformanceServer::parseXMLRequest(perfrequest_t* request, UINT8* xml, 
 	
 	DOMDocument* doc = parseDOMDocument(xml, len);
 	DOMElement* root = NULL;
-	DOMElement* infoservice = NULL;
+	DOMNode* infoservice = NULL;
 	
-	if(doc != NULL &&  (root = doc->getDocumentElement()) == NULL /*&& equals(root->getNodeName(), "GenerateDummyDataRequest")*/)
+	if(doc != NULL &&  (root = doc->getDocumentElement()) != NULL && equals(root->getNodeName(), "SendDummyDataRequest"))
 	{
-		char* c = XMLString::transcode((XMLCh*) root->getNodeName());
 		getDOMElementAttribute(root, "dataLength", (SINT32*) &(request->uiDataLength));
-		
-		getDOMChildByName(root, "InfoService", infoservice, false);
-		
+		getDOMChildByName(root, "InfoService", infoservice);
 		if(infoservice != NULL)
 		{
-			request->pstrInfoServiceId = new UINT8[256];
 			UINT32 idlen = 255;
-			getDOMElementAttribute(infoservice, "id", request->pstrInfoServiceId, &idlen);
+			request->pstrInfoServiceId = new UINT8[256];
+			memset(request->pstrInfoServiceId, 0, idlen + 1);
 			
+			getDOMElementAttribute(infoservice, "id", request->pstrInfoServiceId, &idlen);
 			ret = E_SUCCESS;
 		}
 	}

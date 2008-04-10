@@ -33,7 +33,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "CAMsg.hpp"
 #include "CAMutex.hpp"
 #include "CAUtil.hpp"
-#include "xml/DOM_Output.hpp"
+Ä
 #include "CACmdLnOptions.hpp"
 #include "CASocketAddrINet.hpp"
 #include "monitoringDefs.h"
