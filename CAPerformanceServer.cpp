@@ -211,18 +211,33 @@ SINT32 CAPerformanceServer::initSocket()
 SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request, UINT32 len)
 {
 	SINT32 ret = E_UNKNOWN;
+	SINT32 headerLen;
+	UINT8* header;
+	UINT8* buff;
 	
 	if(len > MAX_DUMMY_DATA_LENGTH)
+	{
+#ifdef DEBUG
+		CAMsg::printMsg(LOG_DEBUG,
+				"CAPerformanceServer: 400 Bad Request\n");
+#endif		
+		sendHTTPResponseHeader(request->pSocket, 400);
 		return E_UNKNOWN;
+	}
 
-	CAMsg::printMsg(LOG_INFO,
-			"CAPerformanceServer: sending %d bytes of dummy data to %s\n", len, request->ip);
-
-	UINT8* buff = new UINT8[len];
+	header = (UINT8*) createHTTPResponseHeader(200, len);
+	headerLen = strlen((char*)header) + 1;
+	buff = new UINT8[len + headerLen];
+	strncpy((char*)buff, (char*)header, headerLen - 1);
 	
-	getRandom(buff, len);
-	
+	//getRandom(buff + headerLen, len);
+	memset(buff + headerLen, 0, len);
 	ret = request->pSocket->sendFully((UINT8*)buff, len);
+	
+	CAMsg::printMsg(LOG_INFO,
+			"CAPerformanceServer: sent %d bytes of dummy data to %s\n", len, request->ip);
+	
+	
 	delete buff;
 	buff = NULL;
 	
@@ -322,7 +337,7 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
            	CAMsg::printMsg(LOG_DEBUG,
            			"CAPerformanceServer: 200 OK\n");
 #endif
-           	sendHTTPResponseHeader(pClient, 200, length);
+           	//sendHTTPResponseHeader(pClient, 200, length);
            	sendDummyData(request, length);
             
             delete doc;
@@ -344,15 +359,22 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 
 SINT32 CAPerformanceServer::sendHTTPResponseHeader(CASocket* pClient, UINT16 code, UINT32 len)
 {
-	char* buff = new char[255];
-	UINT32 ret = E_UNKNOWN;
-	snprintf(buff, 255, "HTTP/1.1 %s\r\nContent-Length: %u\r\nConnection: close\r\n\r\n", getResponseText(code), len);
-	
+	char* buff = createHTTPResponseHeader(code, len);
 	ret = pClient->sendFullyTimeOut((UINT8*)buff, strlen(buff), PERFORMANCE_SERVER_TIMEOUT, PERFORMANCE_SERVER_TIMEOUT);
 	delete buff;
 	buff = NULL;
 	
 	return ret;
+}
+
+UINT8* CAPerformanceServer::createHTTPResponseHeader(UINT16 code, UINT32 len)
+{
+	UINT8* header = new char[255];
+	UINT32 ret = E_UNKNOWN;
+	
+	snprintf((char*)header, 255, "HTTP/1.1 %s\r\nContent-Length: %u\r\nConnection: close\r\n\r\n", getResponseText(code), len);
+	
+	return header;
 }
 
 char* CAPerformanceServer::getResponseText(UINT16 code)
