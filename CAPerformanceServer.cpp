@@ -259,18 +259,16 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 	CASocket* pClient;
 	
 	UINT32 len = 0;
-	
+	printf("noch da2\n");
 	if(request == NULL || request->pSocket == NULL)
 	{
 		return E_UNKNOWN;
 	}
-	
+	printf("noch da3\n");
 	pClient = request->pSocket;
-
 	pClient->recieveLine((UINT8*)line, 255);
-	
+	printf("noch da4\n");
 	method = strtok (line," ");
-	
 	if(method == NULL || strncmp(method, "POST", 3) != 0)
 	{
 #ifdef DEBUG
@@ -281,7 +279,7 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 		sendHTTPResponseHeader(request, 405);
 		return E_UNKNOWN;
 	}
-	
+	printf("noch da5\n");
 	url = strtok(NULL, " ");
 	
 	if(url == NULL || strncmp(url, "/senddummydata", 18) != 0)
@@ -302,8 +300,6 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 			len = (UINT32) atol(line + 16);
 		}
 	} while(strlen(line) > 0);
-	delete method;
-	delete url;
 	delete[] line;
 	
 	if(len == 0)
@@ -465,10 +461,14 @@ THREAD_RETURN acceptRequests(void* param)
 				
 				t->pServer = pServer;
 				t->pSocket = request;
+				t->uiDataLength = 0;
+				t->pstrInfoServiceId = NULL;
 				
+				printf("noch dsdfdsfa???\n");
 #ifdef DEBUG
 				CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: accepting connection from %s\n", t->ip);
 #endif
+				
 				pServer->m_pRequestHandler->addRequest(handleRequest, t);
 			}
 		}
@@ -479,13 +479,13 @@ THREAD_RETURN handleRequest(void* param)
 {
 	SINT32 ret;
 	perfrequest_t* request = (perfrequest_t*) param;
-	
+	printf("noch da???\n");
 	if(request == NULL || request->pServer == NULL)
 	{
 		CAMsg::printMsg(LOG_INFO, "CAPerformanceServer: error occured while processing client request\n");
 		THREAD_RETURN_ERROR;
 	}
-	
+	printf("noch da\n");
 	ret = request->pServer->handleRequest(request);
 	
 	if(ret != E_SUCCESS)
