@@ -98,6 +98,7 @@ private:
 	SINT32 sendDummyData(perfrequest_t* request, UINT32 len);
 	SINT32 sendHTTPResponseHeader(CASocket* pClient, UINT16 code, UINT32 len = 0);
 	
+	UINT8* createHTTPResponseHeader(UINT16 code, UINT32 len);
 	char* getResponseText(UINT16 code);
 	
 	friend THREAD_RETURN handleRequest(void* param);
