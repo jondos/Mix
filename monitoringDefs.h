@@ -20,7 +20,9 @@
 #define NR_SYSTEM_STATES 6
 #define NR_SYSTEM_EVENTS 6
 
-#define NR_STATE_LEVELS 2
+#define STATUS_FLAG(status_type) (1<<(unsigned int)status_type)
+
+#define NR_STATE_LEVELS 4
 
 #define FIRST_STATUS 0
 #define FIRST_EVENT 0
@@ -68,7 +70,7 @@ static const char *STATUS_NAMES[NR_STATUS_TYPES] =
 
 static const char *STATUS_LEVEL_NAMES[NR_STATE_LEVELS] =
 {
-		"OK", "Critical"
+		"OK", "WARNING", "CRITICAL", "UNKNOWN"
 };
 
 enum state_type
@@ -100,7 +102,8 @@ enum status_type
 #ifdef PAYMENT
 	stat_payment, 
 #endif
-	stat_system 
+	stat_system,
+	stat_all
 };
 
 enum event_type
@@ -126,7 +129,7 @@ enum event_type
 /* indices must correspond to strings in STATUS_LEVEL_NAMES */
 enum state_level
 {
-	stl_ok = 0, stl_critical
+	stl_ok = 0, stl_warning, stl_critical, stl_unknown
 };
 
 typedef enum state_type state_type_t;
