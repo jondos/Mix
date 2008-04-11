@@ -36,7 +36,10 @@
 #define MAX_DESCRIPTION_LENGTH 50
 #define MONITORING_SERVER_PORT 8080
 #define XML_STATUS_MESSAGE_MAX_SIZE 3000
+
+#define XML_STATUS_MESSAGE_START "<StatusMessage>"
 #define HTTP_ANSWER_PREFIX_FORMAT "HTTP/1.1 200 OK\nContent-Length: %u\nConnection: close\nContent-Type: text/xml; charset=UTF-8\n\n"
+			
 #define HTTP_ANSWER_PREFIX_MAX_LENGTH 100
 
 #define EVER 1
