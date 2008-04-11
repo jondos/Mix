@@ -8,28 +8,9 @@
 #define PARSE_MATCH 0
 #define PARSE_NO_MATCH 1
 
-#define MAX_CMD_LINE_OPT 20 
+#define MAX_CMD_LINE_OPT 100 
 #define ERROR -1
 #define SUCCESS 0
-
-#define TEST_STRING \
-"<StatusMessage>\n\
-	<NetworkingStatus>\n\
-		<State>3</State>\n\
-		<StateLevel>WARNING</StateLevel>\n\
-		<StateDescription>first mix online</StateDescription>\n\
-	</NetworkingStatus>\n\
-	<PaymentStatus>\n\
-		<State>1</State>\n\
-		<StateLevel>OK</StateLevel>\n\
-		<StateDescription>accounting instance initialized</StateDescription>\n\
-	</PaymentStatus>\n\
-	<SystemStatus>\n\
-		<State>2</State>\n\
-		<StateLevel>UNKNOWN</StateLevel>\n\
-		<StateDescription>mix is operating</StateDescription>\n\
-	</SystemStatus>\n\
-</StatusMessage>"
 
 #define NETWORKING_STATUS_OPT_NAME "networking"
 #define PAYMENT_STATUS_OPT_NAME "payment"
