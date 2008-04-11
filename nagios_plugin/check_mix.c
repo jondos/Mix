@@ -31,6 +31,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <expat.h>
 #include <stdio.h>
 #include <string.h>
+#include <strings.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -45,22 +46,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * nagios_plugin for server monitoring
  */
 
-/* @todo: this should become the nagios_plugin for server monitoring,
- * still a lot of work todo : ) 
- * */
-static void XMLCALL startElement(void *userData, const char *name, const char **atts)
-{
-	state_parse_data_t *parseData = (state_parse_data_t *) userData;
-	int elemNameLength = strlen(name);
-	if(setCurrentStatusType(parseData, name, elemNameLength)==PARSE_NO_MATCH)
-	{
-		if(parseData->curr_status != stat_undef)
-		{
-			setCurrentStateField(parseData, name, elemNameLength); 
-		}
-	}
-}
-
 static int setCurrentStatusType(state_parse_data_t *parseData, const char *name, int elemNameLength)
 {
 	int i = 0;
@@ -71,7 +56,6 @@ static int setCurrentStatusType(state_parse_data_t *parseData, const char *name,
 			if( (parseData->desired_status & STATUS_FLAG(i)) )
 			{
 				parseData->curr_status = i;
-				/* parseData->mix_states[i].st_statusType = i; */
 				printf("%s: ",STATUS_NAMES[i]);
 			}
 			else
@@ -104,10 +88,49 @@ static int setCurrentStateField(state_parse_data_t *parseData, const char *name,
 	return PARSE_NO_MATCH;
 }
 
+static int unsetCurrentStateField(state_parse_data_t *parseData, const char *name, int elemNameLength)
+{
+	if( (strncmp(name, DOM_ELEMENT_STATE_NAME, elemNameLength) == CMP_EQUAL) )
+	{
+		parseData->curr_state_field = field_st_ignore; 
+		return PARSE_MATCH;
+	}
+	if(	(strncmp(name, DOM_ELEMENT_STATE_LEVEL_NAME, elemNameLength) == CMP_EQUAL) )
+	{	
+		fprintf(stdout," - ");	
+		parseData->curr_state_field = field_st_ignore;
+		return PARSE_MATCH;
+	}
+	if( (strncmp(name, DOM_ELEMENT_STATE_DESCRIPTION_NAME, elemNameLength) == CMP_EQUAL) )
+	{
+		fprintf(stdout," ");
+		parseData->curr_state_field = field_st_ignore;
+		return PARSE_MATCH;
+	}
+	return PARSE_NO_MATCH;
+}
+
+static void XMLCALL startElement(void *userData, const char *name, const char **atts)
+{
+	state_parse_data_t *parseData = (state_parse_data_t *) userData;
+	int elemNameLength = strlen(name);
+	if(setCurrentStatusType(parseData, name, elemNameLength)==PARSE_NO_MATCH)
+	{
+		if(parseData->curr_status != stat_undef)
+		{
+			setCurrentStateField(parseData, name, elemNameLength); 
+		}
+	}
+}
+
 static void XMLCALL endElement(void *userData, const char *name)
 {
-  /* int *depthPtr = (int *)userData; 
-  depthPtr -= 1; */
+	state_parse_data_t *parseData = (state_parse_data_t *) userData;
+	int elemNameLength = strlen(name);
+	if(parseData->curr_status != stat_undef)
+	{
+		unsetCurrentStateField(parseData, name, elemNameLength); 
+	}
 }
 
 static void XMLCALL handleText(void *userData, const XML_Char *s, int len)
@@ -135,7 +158,7 @@ static void XMLCALL handleText(void *userData, const XML_Char *s, int len)
 				}
 				if(retStateCode != -1)
 				{
-					printf("%s - ",text);
+					fprintf(stdout,"%s",STATUS_LEVEL_NAMES[i]);
 					if(parseData->all_states_code != stl_critical)
 					{
 						parseData->all_states_code = 
@@ -143,13 +166,20 @@ static void XMLCALL handleText(void *userData, const XML_Char *s, int len)
 									retStateCode : parseData->all_states_code;
 					}
 				}
-				parseData->curr_state_field = field_st_ignore;
 				break;
 			}
 			case field_st_description:
 			{
-				printf("%s ",text);
-				parseData->curr_state_field = field_st_ignore;
+				fprintf(stdout,"%s",text);
+				break;
+			}
+			/* Nothing to do yet */
+			case field_st_ignore:
+			{
+				break;
+			}
+			case field_st_type:
+			{
 				break;
 			}
 		}
@@ -159,10 +189,8 @@ static void XMLCALL handleText(void *userData, const XML_Char *s, int len)
 
 int main(int argc, char *argv[])
 {
-  char buf[BUFSIZ];
-  int i = 0;
-  int done = 0;
-  int sd = 0, bytesRead = 0;
+  char buf[BUFSIZ+1];
+  int sd = 0, ret = 0; 
   
   checkMix_cmdLineOpts_t cmdLineOpts;
   state_parse_data_t parseData; 
@@ -170,7 +198,8 @@ int main(int argc, char *argv[])
   
   memset(&parseData, 0, sizeof(state_parse_data_t));
   memset(&cmdLineOpts, 0, sizeof(checkMix_cmdLineOpts_t));
-  memset(buf, 0, (sizeof(char)*BUFSIZ));
+  memset(buf, 0, (sizeof(char)*(BUFSIZ+1)));
+  
   parseData.curr_status = stat_undef;
   parseData.all_states_code = -1;
   
@@ -189,47 +218,26 @@ int main(int argc, char *argv[])
   if(sd <= ERROR)
   {
 	 fprintf(stderr, "check_mix: an error occured while "
-			 "trying to connect to mix %s. exiting.\n", cmdLineOpts.mix_address);
+			 "trying to connect to mix %s. exiting now.\n", cmdLineOpts.mix_address);
 	 exit(1);
   }
   
-  do
-  {
-	  bytesRead = read(sd, buf, BUFSIZ);
-	  
-  } while(bytesRead > 0);
-  
+  /* read in and parse StatusMessage */
+  ret = processMixStatusMessage(sd, &parser,buf, BUFSIZ);
   close(sd);
   
-  printf("bytes read: %s\n", buf);
+  if(ret != SUCCESS)
+  {
+	  fprintf(stderr, "check_mix: an error occured while "
+			  "processing mix status message. exiting now.\n");  
+	  exit(1);
+  }
+  fprintf(stdout, "\n");
   
-  //printf("out: %s, length: %d \n", TEST_STRING, sizeof(TEST_STRING));
-  do 
-  {
-    //int len = (int)fread(buf, 1, sizeof(buf), stdin);
-	int len = sizeof(TEST_STRING);
-	//done = len < sizeof(buf);
-	done = 1;
-    //if (XML_Parse(parser, buf, len, done) == XML_STATUS_ERROR)
-	if (XML_Parse(parser, TEST_STRING, (len-1), done) == XML_STATUS_ERROR)
-    {
-      /*fprintf(stderr,
-              "%s at line %lu, column %lu\n",
-              XML_ErrorString(XML_GetErrorCode(parser)),
-              XML_GetCurrentLineNumber(parser),
-              XML_GetCurrentColumnNumber(parser));*/
-      
-      return stl_unknown;
-    }
-  } while (!done);
-  printf("\n");
-  /*for(i = FIRST_STATUS; i < NR_STATUS_TYPES; i++)
-  {
-	  fprintf(stdout, "StatusFlag: 0x%x\n", STATUS_FLAG(i) );
-  }*/
   XML_ParserFree(parser);
   if(parseData.all_states_code < 0)
   {
+	  fprintf(stderr, "check_mix: return code is invalid. exiting now.");
 	  exit(1);
   }
   return parseData.all_states_code;
@@ -238,7 +246,6 @@ int main(int argc, char *argv[])
 static int connectToMix(char* mix_address, int mix_port)
 {
 	int sd = 0, stat = 0;
-	int i = 0;
 	struct sockaddr_in mixInetAddr;
 	struct hostent *mixInfo = NULL;
 	struct in_addr mix_ip;
@@ -277,7 +284,6 @@ static int connectToMix(char* mix_address, int mix_port)
 	stat = connect(sd, (struct sockaddr *)&mixInetAddr, sizeof(struct sockaddr_in));
 	if(stat != SUCCESS)
 	{
-		//fprintf(stderr, "cannot connect to mix, cause: %d\n", stat);
 		perror("cannot connect to mix");
 		close(sd);
 		return ERROR;
@@ -304,7 +310,7 @@ static int handleCmdLineOptions(int argc, char *argv[],
 	 	 {
 	 		 for(i = FIRST_STATUS; i < NR_STATUS_TYPES; i++)
 	 		 {
-	 			 if(strncmp(optarg, 
+	 			 if(strncasecmp(optarg, 
 	 				STATUS_OPT_NAMES[i], 
 	 				strlen(STATUS_OPT_NAMES[i])) == CMP_EQUAL )
 	 			 {
@@ -367,6 +373,131 @@ static int handleCmdLineOptions(int argc, char *argv[],
 	  ret = ERROR;
   }
   return ret;
+}
+
+static int processMixStatusMessage(int mixSocket, XML_Parser *parser,
+									char *readBuf, int readBufLen)
+{
+	
+  char *xmlStatusMessage = NULL; 
+  char xmlStartCmp[strlen(XML_STATUS_MESSAGE_START)];
+  char *cmp_start = NULL;
+  int xmlStartCmpOffset = 0, theRest = 0, cmpSiz = 0, compareSuccess = 0;
+  int done = 0, bytesRead = 0, xmlPrefixRead = 0;
+
+  /* this should never happen */
+  if((readBuf == NULL) || (mixSocket < 0) || (parser == NULL) )
+  {
+	  fprintf(stderr, "check_mix: fatal error.\n");
+	  return ERROR;
+  }
+  
+  memset(xmlStartCmp, 0, (sizeof(char)*strlen(XML_STATUS_MESSAGE_START)));
+  do
+  {
+	  bytesRead = read(mixSocket, readBuf, readBufLen);
+	  if(bytesRead < 0)
+	  {
+		  fprintf(stderr,"check_mix: an error occured while receiving "
+				  "the status message.\n");
+		  return ERROR;
+	  }
+	  done = !bytesRead;
+	  if(!xmlPrefixRead)
+	  {
+		 if(bytesRead <= 0)
+		 {
+			 fprintf(stderr,
+					 "check_mix: received status message "
+					 "does not contain a valid start tag\n");
+			 return ERROR;
+		 }
+		 if((cmp_start == NULL) && ((cmp_start = strchr(readBuf, '<')) != NULL) )
+		 {  
+			 while(cmp_start != NULL)
+			 {
+				 /* read in first char of start tag: begin comparison */
+				 cmpSiz = (strlen(XML_STATUS_MESSAGE_START) < (bytesRead - (cmp_start - readBuf)) ) ? 
+				 		   strlen(XML_STATUS_MESSAGE_START) : (bytesRead - (cmp_start - readBuf));
+				 if(strncmp(XML_STATUS_MESSAGE_START, cmp_start, cmpSiz) == CMP_EQUAL)
+				 {
+ 		  			 xmlStartCmpOffset += cmpSiz;
+ 		  			 compareSuccess = 1;
+ 		  			 break; 
+				 }
+				 else
+				 {
+					 cmp_start = strchr(cmp_start+1,'<');
+				 }
+			 }
+		  	 if(cmp_start == NULL)
+		  	 {
+		  		continue;
+		  	 }
+		 }
+		 else
+		 { 	  
+		  	  /* Comparing already started */
+			  cmp_start = readBuf;
+			  theRest = (strlen(XML_STATUS_MESSAGE_START)-xmlStartCmpOffset);
+			  cmpSiz = (theRest < bytesRead) ? theRest : bytesRead;
+			  if(strncmp((XML_STATUS_MESSAGE_START+xmlStartCmpOffset), 
+					     cmp_start, cmpSiz) == CMP_EQUAL)
+			  {
+				  xmlStartCmpOffset += cmpSiz;
+				  compareSuccess = 1;
+			  }
+			  else
+			  {
+				  /* Comparing not equal: start again */
+				  cmp_start = NULL;
+				  xmlStartCmpOffset = 0;
+				  continue;
+			  }
+		 }
+		 if(compareSuccess)
+		 {
+			 if(xmlStartCmpOffset == strlen(XML_STATUS_MESSAGE_START))
+			 {
+				xmlPrefixRead = 1;
+				/* will not fail */
+				XML_Parse(*parser, XML_STATUS_MESSAGE_START, strlen(XML_STATUS_MESSAGE_START), done);
+				if(cmpSiz < BUFSIZ)
+				{
+					/* a part of buf needs to be parsed as well */
+					xmlStatusMessage = (cmp_start+cmpSiz);
+				}
+				/* Start of Status message already parsed: wait for next buf */
+				else
+				{
+					continue;
+				} 
+			 }
+			 else
+			 {
+				 compareSuccess = 0;
+				 continue;
+			 }
+		 }
+	  }
+	  else
+	  {
+		  xmlStatusMessage = readBuf;
+	  }
+	  if (XML_Parse(*parser, xmlStatusMessage, strlen(xmlStatusMessage), done) == XML_STATUS_ERROR)
+	  {
+		  fprintf(stderr,
+		          "%s at line %lu, column %lu\n",
+		           XML_ErrorString(XML_GetErrorCode(*parser)),
+		           XML_GetCurrentLineNumber(*parser),
+		           XML_GetCurrentColumnNumber(*parser));
+		  fprintf(stderr, "check_mix: cannot parse StatusMessage\n");
+		  return ERROR;
+	  }
+	  memset(readBuf, 0, readBufLen); 
+  } while(bytesRead > 0);
+  
+  return SUCCESS;
 }
 
 static void printDefinedStatusTypes()

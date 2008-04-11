@@ -74,6 +74,8 @@ typedef struct state_parse_data state_parse_data_t;
 
 static int setCurrentStatusType(state_parse_data_t *parseData, const char *name, int elemNameLength);
 static int setCurrentStateField(state_parse_data_t *parseData, const char *name, int elemNameLength);
+static int unsetCurrentStateField(state_parse_data_t *parseData, const char *name, int elemNameLength);
+static int processMixStatusMessage(int mixSocket, XML_Parser *parser, char *readBuf, int readBufLen);
 static int handleCmdLineOptions(int argc, char *argv[], checkMix_cmdLineOpts_t *cmdLineOpts);
 static int connectToMix(char* mix_address, int mix_port);
 
