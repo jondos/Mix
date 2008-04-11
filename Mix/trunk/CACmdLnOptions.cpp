@@ -2145,7 +2145,7 @@ SKIP_NEXT_MIX:
 		DOMElement* elemPerformanceServerHost = NULL;
 		DOMElement* elemPerformanceServerPort = NULL;
 		
-		m_strPerformanceServerListenerHost = "localhost";
+		m_strPerformanceServerListenerHost = (UINT8*) "localhost";
 		m_iPerformanceServerListenerPort = 7777;
 		
 		if (getDOMChildByName(elemNetwork,"PerformanceServer",elemPerformanceServerRoot,false) == E_SUCCESS)
