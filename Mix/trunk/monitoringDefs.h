@@ -180,34 +180,34 @@ typedef struct event event_t;
 #define FINISH_NETWORKING_STATE_DEFINITIONS(state_array) \
 			NET_STATE_DEF(state_array, st_net_entry, \
 					"networking entry state", \
-					TRANS_NET_ENTRY, stl_ok) \
+					TRANS_NET_ENTRY, stl_unknown) \
 			NET_STATE_DEF(state_array, st_net_firstMixInit,\
 					"first mix initialized", \
-					TRANS_NET_FIRST_MIX_INIT, stl_ok) \
+					TRANS_NET_FIRST_MIX_INIT, stl_warning) \
 			NET_STATE_DEF(state_array, st_net_firstMixConnectedToNext, \
 					"first mix connected to next mix", \
-					  TRANS_NET_FIRST_MIX_CONNECTED_TO_NEXT, stl_ok) \
+					  TRANS_NET_FIRST_MIX_CONNECTED_TO_NEXT, stl_warning) \
 			NET_STATE_DEF(state_array, st_net_firstMixOnline, \
 					"first mix online", \
 					 TRANS_NET_FIRST_MIX_ONLINE, stl_ok) \
 			NET_STATE_DEF(state_array, st_net_middleMixInit, \
 					"middle mix initialized", \
-					TRANS_NET_MIDDLE_MIX_INIT, stl_ok) \
+					TRANS_NET_MIDDLE_MIX_INIT, stl_warning) \
 			NET_STATE_DEF(state_array, st_net_middleMixConnectedToPrev, \
 					"middle mix connected to previous mix", \
-					TRANS_NET_MIDDLE_MIX_CONNECTED_TO_PREV, stl_ok) \
+					TRANS_NET_MIDDLE_MIX_CONNECTED_TO_PREV, stl_warning) \
 			NET_STATE_DEF(state_array, st_net_middleMixConnectedToNext, \
 					"middle mix connected to next mix", \
-					TRANS_NET_MIDDLE_MIX_CONNECTED_TO_NEXT, stl_ok) \
+					TRANS_NET_MIDDLE_MIX_CONNECTED_TO_NEXT, stl_warning) \
 			NET_STATE_DEF(state_array, st_net_middleMixOnline, \
 					"middle mix online", \
 					TRANS_NET_MIDDLE_MIX_ONLINE, stl_ok) \
 			NET_STATE_DEF(state_array, st_net_lastMixInit, \
 					"last mix initialized", \
-					TRANS_NET_LAST_MIX_INIT, stl_ok) \
+					TRANS_NET_LAST_MIX_INIT, stl_warning) \
 			NET_STATE_DEF(state_array, st_net_lastMixConnectedToPrev, \
 					"last mix connected to previous mix", \
-		  			TRANS_NET_LAST_MIX_CONNECTED_TO_PREV, stl_ok) \
+		  			TRANS_NET_LAST_MIX_CONNECTED_TO_PREV, stl_warning) \
 		  	NET_STATE_DEF(state_array, st_net_lastMixOnline, \
 		  			"last mix online", \
 					TRANS_NET_LAST_MIX_ONLINE, stl_ok) 
@@ -245,19 +245,19 @@ typedef struct event event_t;
 	#define FINISH_PAYMENT_STATE_DEFINITIONS(state_array) \
 				PAY_STATE_DEF(state_array, st_pay_entry, \
 						"payment entry state", \
-						TRANS_PAY_ENTRY, stl_ok) \
+						TRANS_PAY_ENTRY, stl_unknown) \
 				PAY_STATE_DEF(state_array, st_pay_aiInit, \
 						"accounting instance initialized", \
 						TRANS_PAY_AI_INIT, stl_ok) \
 				PAY_STATE_DEF(state_array, st_pay_aiShutdown, \
 						"accounting instance shutdown", \
-						TRANS_PAY_AI_SHUTDOWN, stl_ok) \
+						TRANS_PAY_AI_SHUTDOWN, stl_critical) \
 				PAY_STATE_DEF(state_array, st_pay_biAvailable, \
 						"payment instance available", \
 						TRANS_PAY_BI_AVAILABLE, stl_ok) \
 				PAY_STATE_DEF(state_array, st_pay_biUnreachable, \
 						"payment instance temporarily unreachable", \
-						TRANS_PAY_BI_UNREACHABLE, stl_ok) \
+						TRANS_PAY_BI_UNREACHABLE, stl_warning) \
 				PAY_STATE_DEF(state_array, st_pay_biPermanentlyUnreachable, \
 						"payment instance permanently unreachable", \
 						TRANS_PAY_BI_PERMANENTLY_UNREACHABLE, stl_critical) \
@@ -299,16 +299,16 @@ typedef struct event event_t;
 #define FINISH_SYSTEM_STATE_DEFINITIONS(state_array) \
 			SYS_STATE_DEF(state_array, st_sys_entry, \
 					"system entry state", \
-					TRANS_SYS_ENTRY, stl_ok) \
+					TRANS_SYS_ENTRY, stl_unknown) \
 			SYS_STATE_DEF(state_array, st_sys_initializing, \
 					"mix is initializing", \
-					TRANS_SYS_INITIALIZING, stl_ok) \
+					TRANS_SYS_INITIALIZING, stl_warning) \
 			SYS_STATE_DEF(state_array, st_sys_operating, \
 					"mix is operating", \
 					TRANS_SYS_OPERATING, stl_ok) \
 			SYS_STATE_DEF(state_array, st_sys_restarting, \
 					"mix is restarting", \
-					TRANS_SYS_RESTARTING, stl_ok) \
+					TRANS_SYS_RESTARTING, stl_warning) \
 			SYS_STATE_DEF(state_array, st_sys_shuttingDown, \
 					"mix is shutting down", \
 					TRANS_SYS_SHUTTING_DOWN, stl_critical) \
