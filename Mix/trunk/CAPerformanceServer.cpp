@@ -236,7 +236,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	strncpy((char*)buff, (char*)header, headerLen);
 	
 	memset(buff + headerLen, 65, request->uiDataLength);
-
+	
 	/*
 	 * DOES NOT WORK!!
 	 * MAY (AND PROBABLY WILL) CRASH THE MIX WITH SPECIFIC packet lengths
@@ -244,7 +244,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	 * UINT32 randBytesLen = (request->uiDataLength * 3) / 4;	
 	UINT8* randBytes = new UINT8[randBytesLen];
 	getRandom(randBytes, randBytesLen);
-
+	
 #ifdef DEBUG
 	CAMsg::printMsg(LOG_DEBUG,
 			"CAPerformanceServer: generated %d bytes of random data", randBytesLen);
@@ -499,9 +499,7 @@ THREAD_RETURN handleRequest(void* param)
 	
 	if(ret != E_SUCCESS)
 	{
-#ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: error while handling request from client %s (code: %d)\n", request->ip, ret);
-#endif
 	}
 		
 	if(request->pSocket != NULL)
