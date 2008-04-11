@@ -28,6 +28,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define PAYMENT
 
+#include <stdlib.h>
 #include <expat.h>
 #include <stdio.h>
 #include <string.h>
@@ -233,14 +234,13 @@ int main(int argc, char *argv[])
 			  "processing mix status message. exiting now.\n");  
 	  exit(1);
   }
-  fprintf(stdout, "\n");
-  
   XML_ParserFree(parser);
   if(parseData.all_states_code < 0)
   {
-	  fprintf(stderr, "check_mix: return code is invalid. exiting now.");
+	  fprintf(stderr, "check_mix: return code is invalid. exiting now.\n");
 	  exit(1);
   }
+  fprintf(stdout, "\n");
   return parseData.all_states_code;
 }
 
