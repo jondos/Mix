@@ -104,7 +104,7 @@ CACmdLnOptions::CACmdLnOptions()
 #endif
  }
 
-CACmdLnOptions::~CACmdLnOptions()
+CACmdLnOptions::~CACmdLnOptions()Ä
 	{
 		cleanup();
 	}
@@ -2145,8 +2145,8 @@ SKIP_NEXT_MIX:
 		DOMElement* elemPerformanceServerHost = NULL;
 		DOMElement* elemPerformanceServerPort = NULL;
 		
-		m_strPerformanceServerListenerHost = NULL;
-		m_iPerformanceServerListenerPort = 0xFFFF;
+		m_strPerformanceServerListenerHost = "localhost";
+		m_iPerformanceServerListenerPort = 7777;
 		
 		if (getDOMChildByName(elemNetwork,"PerformanceServer",elemPerformanceServerRoot,false) == E_SUCCESS)
 		{
