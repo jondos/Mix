@@ -340,7 +340,7 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
     setDOMElementAttribute(elemMixesDocCascade,"count",count);
     
     DOMElement* elemPerf = NULL;
-    if(getDOMChildByName(elemMix, "PerformanceServer", elemPerf, true) == E_SUCCESS && elemPerf != NULL)
+    if(getDOMChildByName(elemMixesDocCascade, "PerformanceServer", elemPerf, true) == E_SUCCESS && elemPerf != NULL)
     {
     	elemPerf = createDOMElement(m_docMixCascadeInfo, "PerformanceServer");    	
     	setDOMElementValue(elemPerf, (UINT8*) "true");
