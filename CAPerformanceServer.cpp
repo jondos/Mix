@@ -239,6 +239,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 
 	/*
 	 * DOES NOT WORK!!
+	 * MAY (AND PROBABLY WILL) CRASH THE MIX WITH SPECIFIC packet lengths
 	 * 
 	 * UINT32 randBytesLen = (request->uiDataLength * 3) / 4;	
 	UINT8* randBytes = new UINT8[randBytesLen];

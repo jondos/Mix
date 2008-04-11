@@ -2404,7 +2404,18 @@ SKIP_NEXT_MIX:
 		setDOMElementValue(elemVersion,(UINT8*)MIX_VERSION);
 		elemSoftware->appendChild(elemVersion);
 		elemMix->appendChild(elemSoftware);
-
+		
+#ifdef PERFORMANCE_SERVER
+		DOMElement* elemPerf=createDOMElement(m_docMixInfo, "PerformanceServer");
+		DOMElement* elemPerfHost=createDOMElement(m_docMixInfo, "Host");
+		DOMElement* elemPerfPort=createDOMElement(m_docMixInfo, "Port");
+		setDOMElementValue(elemPerfHost, m_strPerformanceServerListenerHost);
+		setDOMElementValue(elemPerfPort, (UINT32) m_iPerformanceServerListenerPort);
+		elemPerf->appendChild(elemPerfHost);
+		elemPerf->appendChild(elemPerfPort);
+		elemMix->appendChild(elemPerf);
+#endif		
+		
 #ifdef PAYMENT
 		
 		//insert price certificate
