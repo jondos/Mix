@@ -344,9 +344,13 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
     {
     	elemPerf = createDOMElement(m_docMixCascadeInfo, "PerformanceServer");
     	setDOMElementValue(elemPerf, (UINT8*) "true");
-    	elemRoot->appendChild(elemPerf);
     }
-   	
+    else
+    {
+    	setDOMElementValue(elemPerf, (UINT8*) "false");
+    }
+	elemRoot->appendChild(elemPerf);
+    
   DOMNode* elemPayment=createDOMElement(m_docMixCascadeInfo,"Payment");
 	elemRoot->appendChild(elemPayment);
 #ifdef PAYMENT
