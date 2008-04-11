@@ -209,6 +209,7 @@ int main(int argc, char *argv[])
   
   if(handleCmdLineOptions(argc, argv, &cmdLineOpts) != SUCCESS)
   {
+	  printUsage();
 	  fprintf(stderr, "check_mix: exiting due to invalid options.\n");
 	  exit(1);
   }
@@ -509,4 +510,9 @@ static void printDefinedStatusTypes()
 		fprintf(stderr, " \"%s\"%s",STATUS_OPT_NAMES[i],
 				(i != NR_STATUS_TYPES - 1) ? "," : "\n");
 	}
+}
+
+static void printUsage()
+{
+	fprintf(stderr, "usage: check_mix -a [networking | payment | system] -i <mix> -p <mixport>\n");
 }
