@@ -256,7 +256,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	ret = request->pSocket->sendFully((UINT8*)buff, request->uiDataLength + headerLen);
 	
 	CAMsg::printMsg(LOG_INFO,
-			"CAPerformanceServer: sent %d bytes of dummy data to %s\n", request->uiDataLength, request->ip, request->pstrInfoServiceId);
+			"CAPerformanceServer: sent %d bytes of dummy data to %s\n", request->uiDataLength, request->pstrInfoServiceId);
 	
 	delete[] header;
 	delete[] buff;
