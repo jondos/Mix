@@ -61,5 +61,6 @@ static int handleCmdLineOptions(int argc, char *argv[], checkMix_cmdLineOpts_t *
 static int connectToMix(char* mix_address, int mix_port);
 
 static void printDefinedStatusTypes();
+static void printUsage();
 
 #endif /*CHECK_MIX_H_*/
