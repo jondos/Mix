@@ -104,7 +104,7 @@ CACmdLnOptions::CACmdLnOptions()
 #endif
  }
 
-CACmdLnOptions::~CACmdLnOptions()Ä
+CACmdLnOptions::~CACmdLnOptions()
 	{
 		cleanup();
 	}
