@@ -2145,7 +2145,7 @@ SKIP_NEXT_MIX:
 		DOMElement* elemPerformanceServerHost = NULL;
 		DOMElement* elemPerformanceServerPort = NULL;
 		
-		m_strPerformanceServerListenerHost = (UINT8*) "localhost";
+		m_strPerformanceServerListenerHost = NULL;
 		m_iPerformanceServerListenerPort = 7777;
 		
 		if (getDOMChildByName(elemNetwork,"PerformanceServer",elemPerformanceServerRoot,false) == E_SUCCESS)
@@ -2177,13 +2177,19 @@ SKIP_NEXT_MIX:
 				UINT16 port = 0xFFFF;
 				if(getDOMElementValue(elemPerformanceServerPort,&port)==E_SUCCESS)
 				{
-					m_iPerformanceServerListenerPort = port;		
+					m_iPerformanceServerListenerPort = port;
 				}
 			}
 		}
 		else
 		{
 			CAMsg::printMsg(LOG_DEBUG, "Performance Server Config not found\n");
+		}
+		
+		if(!m_strPerformanceServerListenerHost)
+		{
+			m_strPerformanceServerListenerHost = new UINT8[10];
+			strncpy((char*)m_strPerformanceServerListenerHost, "localhost", 9);
 		}
 #endif /* PERFORMANCE_SERVER */
 		//Next Proxies and visible adresses
