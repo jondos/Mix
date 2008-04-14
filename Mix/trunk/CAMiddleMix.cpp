@@ -286,6 +286,7 @@ SINT32 CAMiddleMix::processKeyExchange()
 		
 
 		UINT8* out=new UINT8[0xFFFF];
+		memset(out, 0, (sizeof(UINT8)*0xFFFF));
 		UINT32 outlen=0xFFFD;
 		DOM_Output::dumpToMem(doc,out+2,&outlen);
 #ifdef _DEBUG
