@@ -2190,6 +2190,7 @@ SKIP_NEXT_MIX:
 		{
 			m_strPerformanceServerListenerHost = new UINT8[10];
 			strncpy((char*)m_strPerformanceServerListenerHost, "localhost", 9);
+			m_strPerformanceServerListenerHost[9] = 0;
 		}
 #endif /* PERFORMANCE_SERVER */
 		//Next Proxies and visible adresses
