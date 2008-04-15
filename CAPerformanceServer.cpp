@@ -140,7 +140,6 @@ SINT32 CAPerformanceServer::initSocket()
 		return ret;
 	}
 	m_pSocket->setReuseAddr(true);
-	m_pSocket->setNonBlocking(true);
 	
 	UINT8* host = PERFORMANCE_SERVER_HOST;
 	UINT16 port = PERFORMANCE_SERVER_PORT;
