@@ -98,8 +98,6 @@ CAPerformanceServer::~CAPerformanceServer()
 			m_pSocket->close();
 		}
 		
-		m_pAcceptThread->join();
-		
 		delete m_pAcceptThread;
 		m_pAcceptThread = NULL;
 	}
