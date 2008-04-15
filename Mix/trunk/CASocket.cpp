@@ -611,6 +611,33 @@ SINT32 CASocket::receiveFullyT(UINT8* buff,UINT32 len,UINT32 msTimeOut)
 			}
 	}
 
+SINT32 CASocket::sendFullySelect(const UINT8* buff,UINT32 len)
+	{
+	  if(len==0)
+			return E_SUCCESS; //nothing to send
+		SINT32 ret;
+		for(;;)
+			{
+				ret = CASingleSocketGroup::select_once(*this, true, 1000);
+				if(ret == 1)
+				{
+					ret=send(buff,len);
+					if((UINT32)ret==len)
+						return E_SUCCESS;
+				else if(ret<0)
+					{
+						#ifdef _DEBUG
+							CAMsg::printMsg(LOG_DEBUG,"CASocket::sendFullySelect() - send returned %i\n",ret);
+						#endif
+						return E_UNKNOWN;
+					}
+				len-=ret;
+				buff+=ret;
+				}
+			}
+			//could never be here....
+	}
+
 SINT32 CASocket::recieveLine(UINT8* line, UINT32 maxLen, UINT32 msTimeOut)
 {
 	UINT32 i = 0;
