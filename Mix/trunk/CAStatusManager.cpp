@@ -35,7 +35,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "CAUtil.hpp"
 #include "xml/DOM_Output.hpp"
 #include "CACmdLnOptions.hpp"
-#include "CASocketAddrINet.hpp"
 #include "monitoringDefs.h"
 
 /**
@@ -114,13 +113,15 @@ SINT32 CAStatusManager::fireEvent(event_type_t e_type, enum status_type s_type)
 
 CAStatusManager::CAStatusManager()
 {
-	int i = 0;
+	int i = 0, ret = 0;
 	m_pCurrentStates = NULL;
 	m_pCurrentStatesInfo = NULL;
 	m_pStatusLock = NULL;
 	m_pStatusSocket = NULL;
+	m_pListenAddr = NULL;
 	m_pMonitoringThread = NULL;
-	m_pPreparedStatusMessage = NULL; 
+	m_pPreparedStatusMessage = NULL;
+	m_bTryListen = false;
 	
 	m_pCurrentStates = new state_t*[NR_STATUS_TYPES];
 	
@@ -136,9 +137,12 @@ CAStatusManager::CAStatusManager()
 	
 	m_pStatusLock = new CAMutex();
 	m_pStatusSocket = new CASocket();
-
-	if(initSocket() == E_SUCCESS)
+	ret = initSocket();
+	if( (ret == E_SUCCESS) || (ret == EADDRINUSE) )
 	{
+		m_bTryListen = (ret == EADDRINUSE);
+		CAMsg::printMsg(LOG_ERR, 
+							"Socket is %s\n", (m_pStatusSocket->isClosed() ? "closed" : "not closed"));
 		m_pMonitoringThread = new CAThread((UINT8*)"Monitoring Thread");
 		m_pMonitoringThread->setMainLoop(serveMonitoringRequests);
 		m_pMonitoringThread->start(this);
@@ -208,6 +212,11 @@ CAStatusManager::~CAStatusManager()
 		delete m_pStatusSocket;
 		m_pStatusSocket = NULL;
 	}
+	if(m_pListenAddr != NULL)
+	{
+		delete m_pListenAddr;
+		m_pListenAddr = NULL;
+	}
 	/*if(m_pPreparedStatusMessage != NULL)
 	{
 		CAMsg::printMsg(LOG_INFO, 
@@ -221,7 +230,9 @@ CAStatusManager::~CAStatusManager()
 SINT32 CAStatusManager::initSocket()
 {
 	SINT32 ret = E_UNKNOWN;
-	CASocketAddrINet listenAddr;
+	//CASocketAddrINet listenAddr;
+	int errnum = 0;
+	
 	if(m_pStatusSocket == NULL)
 	{
 		m_pStatusSocket = new CASocket();
@@ -260,7 +271,8 @@ SINT32 CAStatusManager::initSocket()
 			userdefined = true;
 		}
 	}
-	ret = listenAddr.setAddr((UINT8 *) hostname, port);
+	m_pListenAddr = new CASocketAddrINet();
+	ret = m_pListenAddr->setAddr((UINT8 *) hostname, port);
 	if(ret != E_SUCCESS)
 	{
 		if(ret == E_UNKNOWN_HOST)
@@ -274,7 +286,7 @@ SINT32 CAStatusManager::initSocket()
 				CAMsg::printMsg(LOG_ERR, 
 						"StatusManager: trying %s.\n", hostname);
 				
-				ret = listenAddr.setAddr((UINT8 *) hostname, port);
+				ret = m_pListenAddr->setAddr((UINT8 *) hostname, port);
 				if(ret != E_SUCCESS)
 				{
 					CAMsg::printMsg(LOG_ERR, 
@@ -294,14 +306,26 @@ SINT32 CAStatusManager::initSocket()
 			return ret;
 		}
 	}
-	ret = m_pStatusSocket->listen(listenAddr);
+	ret = m_pStatusSocket->listen(*m_pListenAddr);
 		
 	if(ret != E_SUCCESS)
 	{
-		CAMsg::printMsg(LOG_ERR, 
-				"StatusManager: not to init server socket %s:%d "
-				"for server monitoring.\n",
-				hostname, port);
+		if(ret != E_UNKNOWN)
+		{
+			errnum = GET_NET_ERROR;
+			CAMsg::printMsg(LOG_ERR, 
+					"StatusManager: not able to init server socket %s:%d "
+					"for server monitoring. %s failed because: %s\n",
+					hostname, port,
+					((ret == E_SOCKET_BIND) ? "Bind" : "Listen"),
+					 GET_NET_ERROR_STR(errnum));
+			if( errnum == EADDRINUSE )
+			{
+				CAMsg::printMsg(LOG_DEBUG, "We should try later to listen\n");
+				return errnum;
+				//it's safer to avoid reuseaddr in this case
+			}
+		}
 		return ret;
 	}
 #ifdef DEBUG
@@ -436,11 +460,53 @@ SINT32 CAStatusManager::initStatusMessage()
 THREAD_RETURN serveMonitoringRequests(void* param)
 {
 	CASocket monitoringRequestSocket;
+	int ret = 0;
 	CAStatusManager *statusManager = (CAStatusManager*) param;
+
+	if(statusManager == NULL)
+	{
+		CAMsg::printMsg(LOG_CRIT, 
+				"Monitoring Thread: fatal error, exiting.\n");
+		THREAD_RETURN_ERROR;
+	}
+	
 	for(;EVER;)
 	{
+		
 		if(statusManager->m_pStatusSocket != NULL)
 		{
+			if(statusManager->m_bTryListen)
+			{
+				sleep(10);
+				
+				if(statusManager->m_pListenAddr == NULL)
+				{
+					CAMsg::printMsg(LOG_ERR, 
+								"Monitoring Thread: bind error, leaving loop.\n");
+					THREAD_RETURN_ERROR;
+				}
+				ret = statusManager-> m_pStatusSocket->listen(*(statusManager->m_pListenAddr));
+				
+				if(ret == E_UNKNOWN)
+				{
+					CAMsg::printMsg(LOG_ERR, 
+							"Monitoring Thread: bind error, leaving loop.\n");
+							THREAD_RETURN_ERROR;
+				}
+				statusManager->m_bTryListen = (ret != E_SUCCESS);
+				if(statusManager->m_bTryListen)
+				{
+						CAMsg::printMsg(LOG_DEBUG, 
+							"Monitoring Thread: wait again for listen: %s\n",
+							GET_NET_ERROR_STR(GET_NET_ERROR));
+				}
+				else
+				{
+					CAMsg::printMsg(LOG_DEBUG, 
+								"Monitoring Thread: socket listening again\n");
+				}
+				continue;
+			}
 			if(statusManager->m_pStatusSocket->isClosed())
 			{
 				CAMsg::printMsg(LOG_INFO, 

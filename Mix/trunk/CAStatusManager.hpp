@@ -41,6 +41,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CASocket.hpp"
 #include "CAThread.hpp"
+#include "CASocketAddrINet.hpp"
 /* This contains the whole state machine 
  * definitions including typedefs 
  */
@@ -86,6 +87,8 @@ private:
 	CAMutex *m_pStatusLock;
 	/* ServerSocket to listen for monitoring requests */ 
 	CASocket *m_pStatusSocket;
+	CASocketAddrINet *m_pListenAddr;
+	volatile bool m_bTryListen; 
 	/* Thread to answer monitoring requests */
 	CAThread *m_pMonitoringThread;
 	/* the DOM structure to create the XML status message */
