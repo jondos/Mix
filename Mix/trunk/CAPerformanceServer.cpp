@@ -123,7 +123,6 @@ SINT32 CAPerformanceServer::initSocket()
 	if(m_pSocket == NULL)
 	{
 		m_pSocket = new CASocket();
-		m_pSocket->setReuseAddr(true);
 	}
 	
 	if(!m_pSocket->isClosed())
@@ -140,6 +139,7 @@ SINT32 CAPerformanceServer::initSocket()
 				"CAPerformanceServer: could not create server socket\n");
 		return ret;
 	}
+	m_pSocket->setReuseAddr(true);
 	
 	UINT8* host = PERFORMANCE_SERVER_HOST;
 	UINT16 port = PERFORMANCE_SERVER_PORT;
