@@ -93,26 +93,20 @@ CAPerformanceServer::~CAPerformanceServer()
 {
 	if(m_pAcceptThread != NULL)
 	{
-		if(m_pSocket != NULL)
-		{
-			if(!m_pSocket->isClosed())
-			{
-				m_pSocket->close();
-			}
-		}
-		
 		delete m_pAcceptThread;
 		m_pAcceptThread = NULL;
-		
-		if(m_pRequestHandler != NULL)
-		{
-			delete m_pRequestHandler;
-			m_pRequestHandler = NULL;
-		}
 	}
+
+	if(m_pRequestHandler != NULL)
+	{
+		delete m_pRequestHandler;
+		m_pRequestHandler = NULL;
+	}	
 	
 	if(m_pSocket != NULL)
 	{
+		m_pSocket->close();
+		
 		delete m_pSocket;
 		m_pSocket = NULL;
 	}
@@ -201,7 +195,6 @@ SINT32 CAPerformanceServer::initSocket()
 				"CAPerformanceServer: could not listen on %s:%d\n", host, port);
 		return ret;
 	}
-	
 
 	CAMsg::printMsg(LOG_DEBUG,
 			"CAPerformanceServer: listening on %s:%d\n", host, port);
@@ -501,7 +494,7 @@ THREAD_RETURN handleRequest(void* param)
 	{
 		CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: error while handling request from client %s (code: %d)\n", request->ip, ret);
 	}
-		
+	
 	if(request->pSocket != NULL)
 	{
 		request->pSocket->close();
