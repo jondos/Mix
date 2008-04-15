@@ -93,7 +93,7 @@ CAPerformanceServer::~CAPerformanceServer()
 {
 	if(m_pAcceptThread != NULL)
 	{
-		m_pAcceptThread.join();
+		m_pAcceptThread->join();
 		
 		delete m_pAcceptThread;
 		m_pAcceptThread = NULL;
