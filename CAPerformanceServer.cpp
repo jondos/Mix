@@ -140,6 +140,7 @@ SINT32 CAPerformanceServer::initSocket()
 		return ret;
 	}
 	m_pSocket->setReuseAddr(true);
+	m_pSocket->setNonBlocking(true);
 	
 	UINT8* host = PERFORMANCE_SERVER_HOST;
 	UINT16 port = PERFORMANCE_SERVER_PORT;
@@ -279,6 +280,7 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 	}
 	
 	pClient = request->pSocket;
+	pClient->setNonBlocking(true);
 	pClient->recieveLine((UINT8*)line, 255, PERFORMANCE_SERVER_TIMEOUT);
 	
 	method = strtok (line," ");
