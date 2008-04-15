@@ -123,6 +123,7 @@ SINT32 CAPerformanceServer::initSocket()
 	if(m_pSocket == NULL)
 	{
 		m_pSocket = new CASocket();
+		m_pSocket->setReuseAddr(true);
 	}
 	
 	if(!m_pSocket->isClosed())
