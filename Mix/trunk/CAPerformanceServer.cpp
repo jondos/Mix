@@ -278,7 +278,7 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 	}
 	
 	pClient = request->pSocket;
-	pClient->recieveLine((UINT8*)line, 255);
+	pClient->recieveLine((UINT8*)line, 255, PERFORMANCE_SERVER_TIMEOUT);
 	
 	method = strtok (line," ");
 	if(method == NULL || strncmp(method, "POST", 3) != 0)
@@ -306,7 +306,7 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 	
 	do
 	{
-		pClient->recieveLine((UINT8*)line, 255);
+		pClient->recieveLine((UINT8*)line, 255, PERFORMANCE_SERVER_TIMEOUT);
 		if(strnicmp(line, "Content-Length: ", 16) == 0)
 		{
 			len = (UINT32) atol(line + 16);
