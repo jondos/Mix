@@ -2141,56 +2141,57 @@ SKIP_NEXT_MIX:
 		}
 #endif /* SERVER_MONITORING */
 #ifdef PERFORMANCE_SERVER
-		DOMElement* elemPerformanceServerRoot = NULL;
-		DOMElement* elemPerformanceServerHost = NULL;
-		DOMElement* elemPerformanceServerPort = NULL;
-		
 		m_strPerformanceServerListenerHost = NULL;
 		m_iPerformanceServerListenerPort = 7777;
 		
-		if (getDOMChildByName(elemNetwork,"PerformanceServer",elemPerformanceServerRoot,false) == E_SUCCESS)
+		if(isLastMix())
 		{
-			if(getDOMChildByName(elemPerformanceServerRoot,
-								"Host",
-								elemPerformanceServerHost,
-								false) == E_SUCCESS)
-			{
-				
-				UINT8 buffHost[255];
-				UINT32 buffHostLen=255;
-				memset(buffHost, 0, sizeof(UINT8)*buffHostLen);
-				if(getDOMElementValue(elemPerformanceServerHost,
-						buffHost,&buffHostLen) == E_SUCCESS)
-				{
-					/*m_strPerformanceServerListenerHost = new char[buffHostLen];
-					strncpy(m_strPerformanceServerListenerHost, (const char*) buffHost, buffHostLen);
-					m_strPerformanceServerListenerHost[254] = 0;*/
-					m_strPerformanceServerListenerHost = new UINT8[buffHostLen];
-					strncpy((char*) m_strPerformanceServerListenerHost, (const char*) buffHost, buffHostLen);
-				}
-			}
-			if(getDOMChildByName(elemPerformanceServerRoot,
-								"Port",
-								elemPerformanceServerPort,
-								false) == E_SUCCESS)
-			{
-				UINT16 port = 0xFFFF;
-				if(getDOMElementValue(elemPerformanceServerPort,&port)==E_SUCCESS)
-				{
-					m_iPerformanceServerListenerPort = port;
-				}
-			}
-		}
-		else
-		{
-			CAMsg::printMsg(LOG_DEBUG, "Performance Server Config not found\n");
-		}
+			DOMElement* elemPerformanceServerRoot = NULL;
+			DOMElement* elemPerformanceServerHost = NULL;
+			DOMElement* elemPerformanceServerPort = NULL;
 		
-		if(!m_strPerformanceServerListenerHost)
-		{
-			m_strPerformanceServerListenerHost = new UINT8[10];
-			strncpy((char*)m_strPerformanceServerListenerHost, "localhost", 9);
-			m_strPerformanceServerListenerHost[9] = 0;
+			if (getDOMChildByName(elemNetwork,"PerformanceServer",elemPerformanceServerRoot,false) == E_SUCCESS)
+			{
+				if(getDOMChildByName(elemPerformanceServerRoot,
+						"Host",
+						elemPerformanceServerHost,
+						false) == E_SUCCESS)
+				{
+					UINT8 buffHost[255];
+					UINT32 buffHostLen=255;
+					memset(buffHost, 0, sizeof(UINT8)*buffHostLen);
+					if(getDOMElementValue(elemPerformanceServerHost,
+							buffHost,&buffHostLen) == E_SUCCESS)
+					{
+						m_strPerformanceServerListenerHost = new UINT8[buffHostLen+1];
+						strncpy((char*) m_strPerformanceServerListenerHost, (const char*) buffHost, buffHostLen);
+						m_strPerformanceServerListenerHost[buffHostLen] = 0;
+					}
+				}
+				
+				if(getDOMChildByName(elemPerformanceServerRoot,
+							"Port",
+							elemPerformanceServerPort,
+							false) == E_SUCCESS)
+				{
+					UINT16 port = 0xFFFF;
+					if(getDOMElementValue(elemPerformanceServerPort,&port)==E_SUCCESS)
+					{
+						m_iPerformanceServerListenerPort = port;
+					}
+				}
+			}
+			else
+			{
+				CAMsg::printMsg(LOG_DEBUG, "Performance Server Config not found\n");
+			}
+		
+			if(!m_strPerformanceServerListenerHost)
+			{
+				m_strPerformanceServerListenerHost = new UINT8[10];
+				strncpy((char*)m_strPerformanceServerListenerHost, "localhost", 9);
+				m_strPerformanceServerListenerHost[9] = 0;
+			}
 		}
 #endif /* PERFORMANCE_SERVER */
 		//Next Proxies and visible adresses
