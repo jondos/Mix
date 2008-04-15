@@ -93,6 +93,11 @@ CAPerformanceServer::~CAPerformanceServer()
 {
 	if(m_pAcceptThread != NULL)
 	{
+		if(m_pSocket != NULL)
+		{
+			m_pSocket-close();
+		}
+		
 		m_pAcceptThread->join();
 		
 		delete m_pAcceptThread;
@@ -107,8 +112,6 @@ CAPerformanceServer::~CAPerformanceServer()
 	
 	if(m_pSocket != NULL)
 	{
-		m_pSocket->close();
-		
 		delete m_pSocket;
 		m_pSocket = NULL;
 	}
