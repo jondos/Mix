@@ -249,7 +249,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	
 	CABase64::encode(randBytes, randBytesLen, buff + headerLen, &request->uiDataLength);
 	*/
-	
+
 	ret = request->pSocket->sendFully((UINT8*)buff, request->uiDataLength + headerLen);
 	
 	CAMsg::printMsg(LOG_INFO,
@@ -279,7 +279,6 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 	}
 	
 	pClient = request->pSocket;
-	pClient->setNonBlocking(true);
 	pClient->recieveLine((UINT8*)line, 255, PERFORMANCE_SERVER_TIMEOUT);
 	
 	method = strtok (line," ");
