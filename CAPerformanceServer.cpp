@@ -95,7 +95,7 @@ CAPerformanceServer::~CAPerformanceServer()
 	{
 		if(m_pSocket != NULL)
 		{
-			m_pSocket-close();
+			m_pSocket->close();
 		}
 		
 		m_pAcceptThread->join();
