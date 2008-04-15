@@ -2414,14 +2414,17 @@ SKIP_NEXT_MIX:
 		elemMix->appendChild(elemSoftware);
 		
 #ifdef PERFORMANCE_SERVER
-		DOMElement* elemPerf=createDOMElement(m_docMixInfo, "PerformanceServer");
-		DOMElement* elemPerfHost=createDOMElement(m_docMixInfo, "Host");
-		DOMElement* elemPerfPort=createDOMElement(m_docMixInfo, "Port");
-		setDOMElementValue(elemPerfHost, m_strPerformanceServerListenerHost);
-		setDOMElementValue(elemPerfPort, (UINT32) m_iPerformanceServerListenerPort);
-		elemPerf->appendChild(elemPerfHost);
-		elemPerf->appendChild(elemPerfPort);
-		elemMix->appendChild(elemPerf);
+		if(isLastMix() && m_strPerformanceServerListenerHost != NULL)
+		{
+			DOMElement* elemPerf=createDOMElement(m_docMixInfo, "PerformanceServer");
+			DOMElement* elemPerfHost=createDOMElement(m_docMixInfo, "Host");
+			DOMElement* elemPerfPort=createDOMElement(m_docMixInfo, "Port");
+			setDOMElementValue(elemPerfHost, m_strPerformanceServerListenerHost);
+			setDOMElementValue(elemPerfPort, (UINT32) m_iPerformanceServerListenerPort);
+			elemPerf->appendChild(elemPerfHost);
+			elemPerf->appendChild(elemPerfPort);
+			elemMix->appendChild(elemPerf);
+		}
 #endif		
 		
 #ifdef PAYMENT
