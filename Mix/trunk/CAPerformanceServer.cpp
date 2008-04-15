@@ -71,7 +71,7 @@ CAPerformanceServer::CAPerformanceServer()
 {
 	m_pAcceptThread = NULL;
 	m_pSocket = NULL;
-	
+	m_pRequestHandler = NULL;
 	m_pSocket = new CASocket();
 	
 	if(initSocket() == E_SUCCESS)
