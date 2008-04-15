@@ -618,7 +618,7 @@ SINT32 CASocket::sendFullySelect(const UINT8* buff,UINT32 len)
 		SINT32 ret;
 		for(;;)
 			{
-				ret = CASingleSocketGroup::select_once(*this, true, 1000);
+				ret = CASingleSocketGroup::select_once(*this, true, 5000);
 				if(ret == 1)
 				{
 					ret=send(buff,len);
