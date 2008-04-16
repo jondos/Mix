@@ -268,7 +268,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 		ret = oSG.select(PERFORMANCE_SERVER_TIMEOUT);
 		if(ret == 1)
 		{
-			ret = request->pSocket->send(buff, len);
+			ret = request->pSocket->send(sendbuff, len);
 			if(ret == len)
 				break;
 			else if(GET_NET_ERROR == ERR_INTERN_WOULDBLOCK)
