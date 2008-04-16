@@ -270,11 +270,14 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 		{
 			ret = request->pSocket->send(sendbuff, len);
 			if(ret == len)
+			{
+				ret = E_SUCCESS;
 				break;
+			}
 			else if(GET_NET_ERROR == ERR_INTERN_WOULDBLOCK)
 			{
 				continue;
-			}					
+			}
 			else if(ret < 0)
 			{
 				#ifdef _DEBUG
@@ -288,9 +291,12 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 		}
 	}
 	
-	CAMsg::printMsg(LOG_INFO,
-			"CAPerformanceServer: sent %d bytes of dummy data to %s\n", request->uiDataLength, request->pstrInfoServiceId);
-	
+	if(ret == E_SUCCESS)
+	{
+		CAMsg::printMsg(LOG_INFO,
+				"CAPerformanceServer: sent %d bytes of dummy data to %s\n", request->uiDataLength, request->pstrInfoServiceId);
+	}
+		
 	delete[] header;
 	delete[] buff;
 	
