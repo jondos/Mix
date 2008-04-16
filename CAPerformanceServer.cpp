@@ -214,8 +214,9 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	SINT32 headerLen;
 	UINT8* header;
 	UINT8* buff;
+	UINT8* sendbuff;
 	CASingleSocketGroup oSG(true);
-		
+	
 	if(request->uiDataLength > MAX_DUMMY_DATA_LENGTH || request->uiDataLength == 0)
 	{
 #ifdef DEBUG
@@ -260,30 +261,30 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	//ret = request->pSocket->sendFullySelect(m_pServerSocket, (UINT8*)buff, request->uiDataLength + headerLen, PERFORMANCE_SERVER_TIMEOUT);
 	
 	len = request->uiDataLength;
+	sendbuff = buff;
 
 	while(m_pSocket != NULL && !m_pSocket->isClosed())
 	{
 		ret = oSG.select(PERFORMANCE_SERVER_TIMEOUT);
 		if(ret == 1)
 		{
-			ret=request->pSocket->send(buff,len);
-			//ret=::send(request->pSocket->m_Socket, (char*)buff, len, MSG_NOSIGNAL);
+			ret = request->pSocket->send(buff, len);
 			if(ret == len)
 				break;
 			else if(GET_NET_ERROR == ERR_INTERN_WOULDBLOCK)
 			{
 				continue;
 			}					
-			else if(ret<0)
+			else if(ret < 0)
 			{
 				#ifdef _DEBUG
-					CAMsg::printMsg(LOG_DEBUG,"CAPerformanceServer: send returned %i\n",ret);
+					CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: send returned %i\n", ret);
 				#endif
 				break;
 			}
 			
-			len-=ret;
-			buff+=ret;
+			len -= ret;
+			sendbuff += ret;
 		}
 	}
 	
@@ -295,6 +296,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	
 	header = NULL;
 	buff = NULL;
+	sendbuff = NULL;
 	
 	return ret;
 }
