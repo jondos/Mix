@@ -260,7 +260,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	//ret = request->pSocket->sendFullyTimeOut((UINT8*)buff, request->uiDataLength + headerLen, PERFORMANCE_SERVER_TIMEOUT, PERFORMANCE_SERVER_TIMEOUT);
 	//ret = request->pSocket->sendFullySelect(m_pServerSocket, (UINT8*)buff, request->uiDataLength + headerLen, PERFORMANCE_SERVER_TIMEOUT);
 	
-	len = request->uiDataLength;
+	len = request->uiDataLength + headerLen;
 	sendbuff = buff;
 
 	while(m_pSocket != NULL && !m_pSocket->isClosed())
