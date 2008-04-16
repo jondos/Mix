@@ -281,7 +281,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 			else if(ret < 0)
 			{
 				#ifdef _DEBUG
-					CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: send returned %i\n", ret);
+					CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: send returned %i - GET_NET_ERROR: %i\n", ret, GET_NET_ERROR);
 				#endif
 				break;
 			}
