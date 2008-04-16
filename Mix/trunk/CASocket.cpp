@@ -621,8 +621,8 @@ SINT32 CASocket::sendFullySelect(const UINT8* buff,UINT32 len)
 				ret = CASingleSocketGroup::select_once(*this, true, 5000);
 				if(ret == 1)
 				{
-					//ret=send(buff,len);
-					ret=::send(m_Socket,(char*)buff,len,MSG_NOSIGNAL);
+					ret=send(buff,len);
+					//ret=::send(m_Socket,(char*)buff,len,MSG_NOSIGNAL);
 					if((UINT32)ret==len)
 						return E_SUCCESS;
 					else if(GET_NET_ERROR == ERR_INTERN_WOULDBLOCK)

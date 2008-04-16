@@ -250,7 +250,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	CABase64::encode(randBytes, randBytesLen, buff + headerLen, &request->uiDataLength);
 	*/
 
-	ret = request->pSocket->sendFully((UINT8*)buff, request->uiDataLength + headerLen);
+	ret = request->pSocket->sendFullySelect((UINT8*)buff, request->uiDataLength + headerLen);
 	
 	CAMsg::printMsg(LOG_INFO,
 			"CAPerformanceServer: sent %d bytes of dummy data to %s\n", request->uiDataLength, request->pstrInfoServiceId);
