@@ -238,7 +238,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	
 	memset(buff + headerLen, 65, request->uiDataLength);
 	buff[request->uiDataLength + headerLen] = '\0';
-	oSG.add(*request->pSocket);
+	oSG.add(*(request->pSocket));
 	
 	/*
 	 * DOES NOT WORK!!
@@ -281,7 +281,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 				#endif
 				break;
 			}
-						
+			
 			len-=ret;
 			buff+=ret;
 		}
