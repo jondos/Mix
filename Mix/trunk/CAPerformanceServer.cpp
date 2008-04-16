@@ -250,8 +250,9 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	CABase64::encode(randBytes, randBytesLen, buff + headerLen, &request->uiDataLength);
 	*/
 
-	ret = request->pSocket->sendFullySelect((UINT8*)buff, request->uiDataLength + headerLen);
-	
+	//ret = request->pSocket->sendFullyTimeOut((UINT8*)buff, request->uiDataLength + headerLen, PERFORMANCE_SERVER_TIMEOUT, PERFORMANCE_SERVER_TIMEOUT);
+	ret = request->pSocket->sendFullySelect((UINT8*)buff, request->uiDataLength + headerLen, PERFORMANCE_SERVER_TIMEOUT);
+		
 	CAMsg::printMsg(LOG_INFO,
 			"CAPerformanceServer: sent %d bytes of dummy data to %s\n", request->uiDataLength, request->pstrInfoServiceId);
 	
@@ -267,6 +268,7 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 {
 	char* line = new char[256];
+	memset(line, 0, sizeof(char)*256);
 	char* method = NULL;
 	char* url = NULL;
 	CASocket* pClient;
@@ -280,7 +282,7 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 	
 	pClient = request->pSocket;
 	pClient->setNonBlocking(true);
-	pClient->recieveLine((UINT8*)line, 255, PERFORMANCE_SERVER_TIMEOUT);
+	pClient->receiveLine((UINT8*)line, 255, PERFORMANCE_SERVER_TIMEOUT);
 	
 	method = strtok (line," ");
 	if(method == NULL || strncmp(method, "POST", 3) != 0)
@@ -308,7 +310,7 @@ SINT32 CAPerformanceServer::handleRequest(perfrequest_t* request)
 	
 	do
 	{
-		pClient->recieveLine((UINT8*)line, 255, PERFORMANCE_SERVER_TIMEOUT);
+		pClient->receiveLine((UINT8*)line, 255, PERFORMANCE_SERVER_TIMEOUT);
 		if(strnicmp(line, "Content-Length: ", 16) == 0)
 		{
 			len = (UINT32) atol(line + 16);

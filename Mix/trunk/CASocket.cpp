@@ -611,14 +611,24 @@ SINT32 CASocket::receiveFullyT(UINT8* buff,UINT32 len,UINT32 msTimeOut)
 			}
 	}
 
-SINT32 CASocket::sendFullySelect(const UINT8* buff,UINT32 len)
+/** Will send all bytes using a select() call to check if the socket is writable.
+ * 
+ *	@param buff byte array, where the received bytes would be stored 
+ *	@param len	on input holds the number of bytes which should be read,
+ *	@param msSelectTimeOut the select timout in milli seconds
+ */
+SINT32 CASocket::sendFullySelect(const UINT8* buff,UINT32 len,UINT32 msSelectTimeOut)
 	{
 	  if(len==0)
 			return E_SUCCESS; //nothing to send
 		SINT32 ret;
+		CASingleSocketGroup oSG(false);
+		oSG.add(*this);
+		oSG.setPoolForWrite(true);
 		for(;;)
 			{
-				ret = CASingleSocketGroup::select_once(*this, true, 5000);
+				//ret = CASingleSocketGroup::select_once(*this, true, msSelectTimeOut);
+			ret = oSG.select(msSelectTimeOut);
 				if(ret == 1)
 				{
 					ret=send(buff,len);
@@ -645,7 +655,7 @@ SINT32 CASocket::sendFullySelect(const UINT8* buff,UINT32 len)
 			//could never be here....
 	}
 
-SINT32 CASocket::recieveLine(UINT8* line, UINT32 maxLen, UINT32 msTimeOut)
+SINT32 CASocket::receiveLine(UINT8* line, UINT32 maxLen, UINT32 msTimeOut)
 {
 	UINT32 i = 0;
 	UINT8 byte = 0;
@@ -672,10 +682,14 @@ SINT32 CASocket::recieveLine(UINT8* line, UINT32 maxLen, UINT32 msTimeOut)
 			}
 		}
 		else if(ret == E_TIMEDOUT)
+		{
 			return E_TIMEDOUT;
+		}
 		getcurrentTimeMillis(currentTime);
 		if(!isLesser64(currentTime,endTime))
+		{
 			return E_TIMEDOUT;
+		}
 		msTimeOut=diff64(endTime,currentTime);
 	}
 	while(byte != '\n' && i<maxLen && ret > 0);
