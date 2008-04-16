@@ -611,50 +611,6 @@ SINT32 CASocket::receiveFullyT(UINT8* buff,UINT32 len,UINT32 msTimeOut)
 			}
 	}
 
-/** Will send all bytes using a select() call to check if the socket is writable.
- * 
- *	@param buff byte array, where the received bytes would be stored 
- *	@param len	on input holds the number of bytes which should be read,
- *	@param msSelectTimeOut the select timout in milli seconds
- */
-SINT32 CASocket::sendFullySelect(const UINT8* buff,UINT32 len,UINT32 msSelectTimeOut)
-	{
-	  if(len==0)
-			return E_SUCCESS; //nothing to send
-		SINT32 ret;
-		CASingleSocketGroup oSG(false);
-		oSG.add(*this);
-		oSG.setPoolForWrite(true);
-		for(;;)
-			{
-				//ret = CASingleSocketGroup::select_once(*this, true, msSelectTimeOut);
-			ret = oSG.select(msSelectTimeOut);
-				if(ret == 1)
-				{
-					ret=send(buff,len);
-					//ret=::send(m_Socket,(char*)buff,len,MSG_NOSIGNAL);
-					if((UINT32)ret==len)
-						return E_SUCCESS;
-					else if(GET_NET_ERROR == ERR_INTERN_WOULDBLOCK)
-					{
-						continue;
-					}					
-				else if(ret<0)
-					{
-						#ifdef _DEBUG
-							CAMsg::printMsg(LOG_DEBUG,"CASocket::sendFullySelect() - send returned %i\n",ret);
-						#endif
-						return E_UNKNOWN;
-					}
-					
-				len-=ret;
-				buff+=ret;
-				}
-
-			}
-			//could never be here....
-	}
-
 SINT32 CASocket::receiveLine(UINT8* line, UINT32 maxLen, UINT32 msTimeOut)
 {
 	UINT32 i = 0;

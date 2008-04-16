@@ -32,6 +32,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "CACmdLnOptions.hpp"
 #include "CASocketAddrINet.hpp"
+#include "CASingleSocketGroup.hpp"
 #include "CABase64.hpp"
 
 /**
@@ -209,11 +210,13 @@ SINT32 CAPerformanceServer::initSocket()
 SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 {
 	SINT32 ret = E_UNKNOWN;
+	SINT32 len;
 	SINT32 headerLen;
 	UINT8* header;
 	UINT8* buff;
-	
-	if(request->uiDataLength > MAX_DUMMY_DATA_LENGTH)
+	CASingleSocketGroup oSG(true);
+		
+	if(request->uiDataLength > MAX_DUMMY_DATA_LENGTH || request->uiDataLength == 0)
 	{
 #ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG,
@@ -234,6 +237,8 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	
 	memset(buff + headerLen, 65, request->uiDataLength);
 	
+	oSG.add(*request->pSocket);
+	
 	/*
 	 * DOES NOT WORK!!
 	 * MAY (AND PROBABLY WILL) CRASH THE MIX WITH SPECIFIC packet lengths
@@ -251,8 +256,36 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	*/
 
 	//ret = request->pSocket->sendFullyTimeOut((UINT8*)buff, request->uiDataLength + headerLen, PERFORMANCE_SERVER_TIMEOUT, PERFORMANCE_SERVER_TIMEOUT);
-	ret = request->pSocket->sendFullySelect((UINT8*)buff, request->uiDataLength + headerLen, PERFORMANCE_SERVER_TIMEOUT);
-		
+	//ret = request->pSocket->sendFullySelect(m_pServerSocket, (UINT8*)buff, request->uiDataLength + headerLen, PERFORMANCE_SERVER_TIMEOUT);
+	
+	len = request->uiDataLength;
+
+	while(m_pSocket != NULL && !m_pSocket->isClosed())
+	{
+		ret = oSG.select(PERFORMANCE_SERVER_TIMEOUT);
+		if(ret == 1)
+		{
+			ret=request->pSocket->send(buff,len);
+			//ret=::send(request->pSocket->m_Socket, (char*)buff, len, MSG_NOSIGNAL);
+			if(ret == len)
+				break;
+			else if(GET_NET_ERROR == ERR_INTERN_WOULDBLOCK)
+			{
+				continue;
+			}					
+			else if(ret<0)
+			{
+				#ifdef _DEBUG
+					CAMsg::printMsg(LOG_DEBUG,"CAPerformanceServer: send returned %i\n",ret);
+				#endif
+				break;
+			}
+						
+			len-=ret;
+			buff+=ret;
+		}
+	}
+	
 	CAMsg::printMsg(LOG_INFO,
 			"CAPerformanceServer: sent %d bytes of dummy data to %s\n", request->uiDataLength, request->pstrInfoServiceId);
 	
