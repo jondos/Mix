@@ -233,10 +233,11 @@ SINT32 CAPerformanceServer::sendDummyData(perfrequest_t* request)
 	header = (UINT8*) createHTTPResponseHeader(200, request->uiDataLength);
 	headerLen = strlen((char*)header);
 	buff = new UINT8[request->uiDataLength + headerLen + 1];
+	memset(buff, 0, sizeof(UINT8)*request->uiDataLength + headerLen + 1);
 	strncpy((char*)buff, (char*)header, headerLen);
 	
 	memset(buff + headerLen, 65, request->uiDataLength);
-	
+	buff[request->uiDataLength + headerLen] = '\0';
 	oSG.add(*request->pSocket);
 	
 	/*
