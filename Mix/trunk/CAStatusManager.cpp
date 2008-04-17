@@ -141,8 +141,6 @@ CAStatusManager::CAStatusManager()
 	if( (ret == E_SUCCESS) || (ret == EADDRINUSE) )
 	{
 		m_bTryListen = (ret == EADDRINUSE);
-		CAMsg::printMsg(LOG_ERR, 
-							"Socket is %s\n", (m_pStatusSocket->isClosed() ? "closed" : "not closed"));
 		m_pMonitoringThread = new CAThread((UINT8*)"Monitoring Thread");
 		m_pMonitoringThread->setMainLoop(serveMonitoringRequests);
 		m_pMonitoringThread->start(this);
@@ -230,7 +228,6 @@ CAStatusManager::~CAStatusManager()
 SINT32 CAStatusManager::initSocket()
 {
 	SINT32 ret = E_UNKNOWN;
-	//CASocketAddrINet listenAddr;
 	int errnum = 0;
 	
 	if(m_pStatusSocket == NULL)
@@ -321,7 +318,7 @@ SINT32 CAStatusManager::initSocket()
 					 GET_NET_ERROR_STR(errnum));
 			if( errnum == EADDRINUSE )
 			{
-				CAMsg::printMsg(LOG_DEBUG, "We should try later to listen\n");
+				CAMsg::printMsg(LOG_INFO, "retry socket listening later\n");
 				return errnum;
 				//it's safer to avoid reuseaddr in this case
 			}
@@ -494,17 +491,20 @@ THREAD_RETURN serveMonitoringRequests(void* param)
 							THREAD_RETURN_ERROR;
 				}
 				statusManager->m_bTryListen = (ret != E_SUCCESS);
+#ifdef DEBUG
 				if(statusManager->m_bTryListen)
 				{
+					
 						CAMsg::printMsg(LOG_DEBUG, 
 							"Monitoring Thread: wait again for listen: %s\n",
 							GET_NET_ERROR_STR(GET_NET_ERROR));
-				}
+				}				
 				else
 				{
 					CAMsg::printMsg(LOG_DEBUG, 
 								"Monitoring Thread: socket listening again\n");
 				}
+#endif				
 				continue;
 			}
 			if(statusManager->m_pStatusSocket->isClosed())
