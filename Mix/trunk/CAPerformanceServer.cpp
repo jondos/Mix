@@ -80,8 +80,9 @@ CAPerformanceServer::CAPerformanceServer()
 		m_pAcceptThread = new CAThread((UINT8*)"Performance Server Thread");
 		m_pAcceptThread->setMainLoop(acceptRequests);
 		m_pAcceptThread->start(this);
-		
-		m_pRequestHandler = new CAThreadPool(5, 2, true);
+// is MAX_PENDING_PERF_REQUESTS of 2 enough ?
+#define MAX_PENDING_PERF_REQUESTS 2
+		m_pRequestHandler = new CAThreadPool(5, MAX_PENDING_PERF_REQUESTS, true);
 	}
 	else
 	{
@@ -518,7 +519,30 @@ THREAD_RETURN acceptRequests(void* param)
 				CAMsg::printMsg(LOG_DEBUG, "CAPerformanceServer: accepting connection from %s\n", t->ip);
 #endif
 				
-				pServer->m_pRequestHandler->addRequest(handleRequest, t);
+				if(pServer->m_pRequestHandler->addRequest(handleRequest, t) != E_SUCCESS)
+				{
+					CAMsg::printMsg(LOG_ERR, "CAPerformanceServer: too many pending requests. discarding request from %s\n", t->ip);
+					if(t->pSocket != NULL)
+					{
+						t->pSocket->close();
+						delete t->pSocket;
+						t->pSocket = NULL;
+					}
+					
+					if(request->ip != NULL)
+					{
+						delete[]t->ip;
+						t->ip = NULL;
+					}
+					
+					if(request->pstrInfoServiceId != NULL)
+					{
+						delete[] t->pstrInfoServiceId;
+						t->pstrInfoServiceId = NULL;
+					}
+					delete t;
+					t = NULL;
+				}
 			}
 		}
 	}
