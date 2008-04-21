@@ -89,9 +89,6 @@ SINT32 CALastMix::initOnce()
 
 SINT32 CALastMix::init()
 	{
-#ifdef PERFORMANCE_SERVER
-		CAPerformanceServer::init();
-#endif
 		m_pRSA=new CAASymCipher();	
 		if(m_pRSA->generateKeyPair(1024)!=E_SUCCESS)
 			{
@@ -740,9 +737,6 @@ SINT32 CALastMix::setTargets()
 
 SINT32 CALastMix::clean()
 {
-#ifdef PERFORMANCE_SERVER
-		CAPerformanceServer::cleanup();
-#endif
 		m_bRestart=true;
 		MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
 		m_bRunLog=false;
