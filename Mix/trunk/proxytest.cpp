@@ -151,11 +151,23 @@ void init()
 		#endif
 		initRandom();
 		pglobalOptions=new CACmdLnOptions();
-	}
+#ifdef PERFORMANCE_SERVER
+		if(pglobalOptions->isLastMix()) 
+		{
+			CAPerformanceServer::init();
+		}
+#endif		
+}
 
 /**do necessary cleanups of libraries etc.*/
 void cleanup()
 	{
+#ifdef PERFORMANCE_SERVER
+		if(pglobalOptions->isLastMix()) 
+		{
+			CAPerformanceServer::cleanup();
+		}
+#endif		
 //		delete pRTT;
 #ifndef ONLY_LOCAL_PROXY
 		if(pMix!=NULL)
