@@ -46,9 +46,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAPool.hpp"
 #include "xml/DOM_Output.hpp"
 #include "CAStatusManager.hpp"
-#ifdef PERFORMANCE_SERVER
-	#include "CAPerformanceServer.hpp"
-#endif
 extern CACmdLnOptions* pglobalOptions;
 
 /*#ifdef LOG_CHANNEL
