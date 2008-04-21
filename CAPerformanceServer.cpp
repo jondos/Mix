@@ -93,13 +93,14 @@ CAPerformanceServer::CAPerformanceServer()
 
 CAPerformanceServer::~CAPerformanceServer()
 {
+	if(m_pSocket != NULL)
+	{
+		CAMsg::printMsg(LOG_INFO, "CAPerformanceServer: closing server socket\n");
+		m_pSocket->close();
+	}
+	
 	if(m_pAcceptThread != NULL)
 	{
-		if(m_pSocket != NULL)
-		{
-			m_pSocket->close();
-		}
-		
 		delete m_pAcceptThread;
 		m_pAcceptThread = NULL;
 	}
