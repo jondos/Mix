@@ -152,13 +152,7 @@ void init()
 			err=WSAStartup(0x0202,&wsadata);
 		#endif
 		initRandom();
-		pglobalOptions=new CACmdLnOptions();
-#ifdef PERFORMANCE_SERVER
-		if(pglobalOptions->isLastMix()) 
-		{
-			CAPerformanceServer::init();
-		}
-#endif		
+		pglobalOptions=new CACmdLnOptions();	
 }
 
 /**do necessary cleanups of libraries etc.*/
@@ -672,6 +666,12 @@ RESTART_MIX:
 #ifdef SERVER_MONITORING
 		CAStatusManager::init();
 #endif
+#ifdef PERFORMANCE_SERVER
+		if(pglobalOptions->isLastMix()) 
+		{
+			CAPerformanceServer::init();
+		}
+#endif			
 #ifndef WIN32
 		maxFiles=pglobalOptions->getMaxOpenFiles();
 		
