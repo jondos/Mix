@@ -95,7 +95,7 @@ CAPerformanceServer::~CAPerformanceServer()
 {
 	if(m_pSocket != NULL)
 	{
-		CAMsg::printMsg(LOG_INFO, "CAPerformanceServer: closing server socket... ");
+		CAMsg::printMsg(LOG_INFO, "CAPerformanceServer: trying to close server socket... \n");
 		if(m_pSocket->close() == E_SUCCESS)
 		{
 			CAMsg::printMsg(LOG_INFO, "done\n");
