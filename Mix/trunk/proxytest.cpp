@@ -41,7 +41,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifdef _DEBUG //For FreeBSD memory checking functionality
 	const char* _malloc_options="AX";
 #endif
-
+#ifdef PERFORMANCE_SERVER
+	#include "CAPerformanceServer.hpp"
+#endif
 #ifndef ONLY_LOCAL_PROXY
 	#include "xml/DOM_Output.hpp"
 	#include "CAMix.hpp"
