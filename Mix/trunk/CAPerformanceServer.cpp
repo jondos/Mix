@@ -212,7 +212,7 @@ SINT32 CAPerformanceServer::initSocket()
 	if(ret != E_SUCCESS)
 	{
 		CAMsg::printMsg(LOG_ERR,
-				"CAPerformanceServer: could not listen on %s:%d (%d) \n", host, port, GET_NET_ERROR);
+				"CAPerformanceServer: could not listen on %s:%d (%s) \n", host, port, GET_NET_ERROR_STR);
 		return ret;
 	}
 
