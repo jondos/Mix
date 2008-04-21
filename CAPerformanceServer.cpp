@@ -529,13 +529,13 @@ THREAD_RETURN acceptRequests(void* param)
 						t->pSocket = NULL;
 					}
 					
-					if(request->ip != NULL)
+					if(t->ip != NULL)
 					{
 						delete[]t->ip;
 						t->ip = NULL;
 					}
 					
-					if(request->pstrInfoServiceId != NULL)
+					if(t->pstrInfoServiceId != NULL)
 					{
 						delete[] t->pstrInfoServiceId;
 						t->pstrInfoServiceId = NULL;
