@@ -88,6 +88,12 @@ CAPerformanceServer::CAPerformanceServer()
 	{
 		CAMsg::printMsg(LOG_ERR, 
 				"CAPerformanceServer: error occured while creating server socket\n");
+		
+		if(m_pSocket != NULL)
+		{
+			m_pSocket->close();
+			m_pSocket = NULL;
+		}
 	}
 }
 
@@ -206,7 +212,7 @@ SINT32 CAPerformanceServer::initSocket()
 	if(ret != E_SUCCESS)
 	{
 		CAMsg::printMsg(LOG_ERR,
-				"CAPerformanceServer: could not listen on %s:%d\n", host, port);
+				"CAPerformanceServer: could not listen on %s:%d (%d) \n", host, port);
 		return ret;
 	}
 
