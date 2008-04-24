@@ -2675,9 +2675,11 @@ SINT32 CAAccountingInstance::settlementTransaction()
 		}
 	}
 	
+	SettleEntry *first = entry;
+	UINT64 myWaitNr = 0;
 	if (entry)
 	{
-		/*if(ms_pInstance->m_nextSettleNr == ms_pInstance->m_settleWaitNr)
+		if(ms_pInstance->m_nextSettleNr == ms_pInstance->m_settleWaitNr)
 		{
 			//no one is waiting, we use this occasion to rest the wait numbers
 			ms_pInstance->m_nextSettleNr = 0;
@@ -2697,11 +2699,11 @@ SINT32 CAAccountingInstance::settlementTransaction()
 				ms_pInstance->m_pSettlementMutex->wait();
 			}
 			dbInterface = CAAccountingDBInterface::getConnection();
-		}*/
+		}
 		
 		while (entry )
 		{			
-			ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
+			/*ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
 			AccountLoginHashEntry* loginEntry = 
 							(AccountLoginHashEntry*) (ms_pInstance->m_currentAccountsHashtable->getValue(&(entry->accountNumber)));
 			if (loginEntry)
@@ -2714,7 +2716,8 @@ SINT32 CAAccountingInstance::settlementTransaction()
 					loginEntry->confirmedBytes = entry->confirmedBytes;
 				}											
 			}
-			else if( (entry->authFlags & (AUTH_INVALID_ACCOUNT | AUTH_UNKNOWN)) 
+			else */ 
+			if( (entry->authFlags & (AUTH_INVALID_ACCOUNT | AUTH_UNKNOWN)) 
 					&& (dbInterface!=NULL) )
 			{
 				dbInterface->storePrepaidAmount(
@@ -2743,13 +2746,13 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			nextEntry = entry->nextEntry;
 			entry = nextEntry;									
 		}
-		ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
+		//ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
 	}
 	CAAccountingDBInterface::releaseConnection(dbInterface);
 	dbInterface = NULL;
 	ms_pInstance->m_pSettlementMutex->unlock();
 	
-	/*if(first)
+	if(first)
 	{
 #ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG, "Settlement thread with wait nr %Lu alters hashtable.\n", myWaitNr);
@@ -2787,7 +2790,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			ms_pInstance->m_pSettlementMutex->broadcast();
 		}
 		ms_pInstance->m_pSettlementMutex->unlock();
-	}*/
+	}
 	
 	/*if(dbInterface != NULL)
 	{
