@@ -812,7 +812,8 @@ SINT32 CAAccountingInstance::returnPrepareKickout(tAiAccountingInfo* pAccInfo, C
 		a_error->toXmlDocument(doc);			
 		delete a_error;
 		//pAccInfo->sessionPackets = 0; // allow some pakets to pass by to send the control message
-		pAccInfo->pControlChannel->sendXMLMessage(doc);		
+		pAccInfo->pControlChannel->sendXMLMessage(doc);
+		doc->release();
 	}
 	else
 	{
@@ -860,7 +861,12 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
 	
 	//FINISH_STACK("CAAccountingInstance::sendCCRequest");
 	
-	return pAccInfo->pControlChannel->sendXMLMessage(doc);
+	SINT32 ret = pAccInfo->pControlChannel->sendXMLMessage(doc);
+	CAMsg::printMsg(LOG_DEBUG, "Cleaning up CC doc 0x%x\n", doc);
+	doc->release();
+	doc = NULL;
+	return ret;
+	
 }
 
 
@@ -1541,6 +1547,7 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 
 	// send XML struct to Jap & set auth flags
 	pAccInfo->pControlChannel->sendXMLMessage(doc);
+	doc->release();
 	pAccInfo->authFlags |= AUTH_CHALLENGE_SENT | AUTH_GOT_ACCOUNTCERT | AUTH_TIMEOUT_STARTED;	
 	pAccInfo->challengeSentSeconds = time(NULL);
 	//CAMsg::printMsg("Last Account Certificate request seconds: for IP %u%u%u%u", (UINT8)pHashEntry->peerIP[0], (UINT8)pHashEntry->peerIP[1],(UINT8) pHashEntry->peerIP[2], (UINT8)pHashEntry->peerIP[3]);
@@ -2085,6 +2092,8 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 		print64(tmp,pCC->getTransferredBytes());
 		CAMsg::printMsg( LOG_ERR, "Transferredbytes in CC: %s\n", tmp);
 		*/
+		/*SINT32 dbRet = E_SUCCESS;
+		pAccInfo->authFlags &= ~AUTH_WAITING_FOR_FIRST_SETTLED_CC;*/
 		SINT32 dbRet = E_UNKNOWN;
 		CAAccountingDBInterface *dbInterface = CAAccountingDBInterface::getConnection();
 		if(dbInterface != NULL)
@@ -2389,6 +2398,8 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	UINT64 diffBytes = 0;
 	CAAccountingDBInterface *dbInterface = NULL;
 	
+	//if(1) return E_SUCCESS;
+	
 	/* This should never happen */
 	if(ms_pInstance == NULL)
 	{
@@ -2664,11 +2675,9 @@ SINT32 CAAccountingInstance::settlementTransaction()
 		}
 	}
 	
-	SettleEntry *first = entry;
-	UINT64 myWaitNr = 0;
 	if (entry)
 	{
-		if(ms_pInstance->m_nextSettleNr == ms_pInstance->m_settleWaitNr)
+		/*if(ms_pInstance->m_nextSettleNr == ms_pInstance->m_settleWaitNr)
 		{
 			//no one is waiting, we use this occasion to rest the wait numbers
 			ms_pInstance->m_nextSettleNr = 0;
@@ -2688,16 +2697,30 @@ SINT32 CAAccountingInstance::settlementTransaction()
 				ms_pInstance->m_pSettlementMutex->wait();
 			}
 			dbInterface = CAAccountingDBInterface::getConnection();
-		}
+		}*/
 		
-		while (entry && (dbInterface!=NULL))
+		while (entry )
 		{			
-			if (entry->authFlags & (AUTH_INVALID_ACCOUNT | AUTH_UNKNOWN))
+			ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
+			AccountLoginHashEntry* loginEntry = 
+							(AccountLoginHashEntry*) (ms_pInstance->m_currentAccountsHashtable->getValue(&(entry->accountNumber)));
+			if (loginEntry)
+			{				
+				// the user is currently logged in											
+				loginEntry->authFlags |= entry->authFlags;
+				loginEntry->authRemoveFlags |= entry->authRemoveFlags;
+				if (entry->confirmedBytes)
+				{
+					loginEntry->confirmedBytes = entry->confirmedBytes;
+				}											
+			}
+			else if( (entry->authFlags & (AUTH_INVALID_ACCOUNT | AUTH_UNKNOWN)) 
+					&& (dbInterface!=NULL) )
 			{
 				dbInterface->storePrepaidAmount(
 						entry->accountNumber, 0, ms_pInstance->m_currentCascade);
 			}
-			else if (entry->diffBytes)
+			else if( (entry->diffBytes) && (dbInterface!=NULL)  )
 			{
 				// user is currently not logged in; set correct prepaid bytes in DB
 				SINT32 prepaidBytes = 
@@ -2720,14 +2743,13 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			nextEntry = entry->nextEntry;
 			entry = nextEntry;									
 		}
+		ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
 	}
-	//dbInterface->terminateDBConnection();
-	/* Before unlocking give the DB Connection free */
 	CAAccountingDBInterface::releaseConnection(dbInterface);
 	dbInterface = NULL;
 	ms_pInstance->m_pSettlementMutex->unlock();
 	
-	if(first)
+	/*if(first)
 	{
 #ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG, "Settlement thread with wait nr %Lu alters hashtable.\n", myWaitNr);
@@ -2754,7 +2776,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 		}
 		ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
 		
-		/* In this case we get the next waiting thread to alter the table running */
+		// In this case we get the next waiting thread to alter the table running
 		ms_pInstance->m_pSettlementMutex->lock();
 		if(ms_pInstance->m_settleWaitNr != ms_pInstance->m_nextSettleNr)
 		{
@@ -2765,7 +2787,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			ms_pInstance->m_pSettlementMutex->broadcast();
 		}
 		ms_pInstance->m_pSettlementMutex->unlock();
-	}
+	}*/
 	
 	/*if(dbInterface != NULL)
 	{
