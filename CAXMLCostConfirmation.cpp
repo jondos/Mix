@@ -95,7 +95,12 @@ CAXMLCostConfirmation::~CAXMLCostConfirmation()
 			delete[] m_priceCerts;
 			m_priceCerts = NULL;
 		}
-		
+		if(m_domDocument != NULL)
+		{
+			CAMsg::printMsg(LOG_DEBUG, "cleaning up internal CC document 0x%x.\n",
+					m_domDocument);
+			m_domDocument->release();
+		}
 		m_domDocument=NULL;
 	}
 
