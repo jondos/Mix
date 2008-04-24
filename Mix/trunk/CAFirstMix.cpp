@@ -707,8 +707,12 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 		CAControlChannelDispatcher* pControlChannelDispatcher=pFirstMix->m_pMuxOutControlChannelDispatcher;
 		while(!pFirstMix->m_bRestart)
 			{
+				/*CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::Queue size: %u/%u\n", 
+						pQueue->getSize(),
+						MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE);*/
 				if(pQueue->getSize()>MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE)
 					{
+					CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::Queue is full!\n");
 						msSleep(200);
 						getcurrentTimeMillis(keepaliveLast);
 						continue;
@@ -870,9 +874,9 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							/* This should protect the mix from flooding attacks
 							 * No more than MAX_CONCURRENT_NEW_CONNECTIONS are allowed.
 							 */
-#ifdef _DEBUG
+//#ifdef _DEBUG
 							CAMsg::printMsg(LOG_DEBUG,"CAFirstMix Flooding protection: Too many concurrent new connections (Maximum:%d)! Rejecting user...\n", CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS);
-#endif
+//#endif
 							ret = E_UNKNOWN;
 						}
 #ifndef PAYMENT					
@@ -896,6 +900,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							d->pNewUser=pNewMuxSocket;
 							d->pMix=pFirstMix;
 							memcpy(d->peerIP,peerIP,4);
+							CAMsg::printMsg(LOG_DEBUG,"%d concurrent client connections.\n", pFirstMix->m_newConnections);
 							if(pthreadsLogin->addRequest(fm_loopDoUserLogin,d)!=E_SUCCESS)
 							{
 								CAMsg::printMsg(LOG_ERR,"Could not add an login request to the login thread pool!\n");
