@@ -435,7 +435,7 @@ SINT32 CAPerformanceServer::parseXMLRequest(perfrequest_t* request, UINT8* xml, 
 	
 	if(doc != NULL)
 	{
-		delete doc;
+		doc->release();
 		doc = NULL;
 	}
 	
