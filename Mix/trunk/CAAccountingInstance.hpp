@@ -106,6 +106,8 @@ public:
 		{
 			delete ms_pInstance;
 			ms_pInstance=NULL;
+			m_preparedCCRequest->release();
+			m_preparedCCRequest = NULL;
 			MONITORING_FIRE_PAY_EVENT(ev_pay_aiShutdown);
 			return E_SUCCESS;
 		}

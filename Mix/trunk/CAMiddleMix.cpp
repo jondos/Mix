@@ -44,6 +44,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "xml/DOM_Output.hpp"
 #include "CAStatusManager.hpp"
 
+#define MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE 10000000
+
 extern CACmdLnOptions* pglobalOptions;
 
 SINT32 CAMiddleMix::initOnce()
@@ -809,7 +811,9 @@ THREAD_RETURN mm_loopReadFromMixAfter(void* param)
 		oSocketGroup.add(*(pMix->m_pMuxOut));
 
 		CAQueue* pQueue=pMix->m_pQueueSendToMixBefore;
-
+		
+		int qsiz_stat = 0;
+		
 #ifdef USE_POOL		
 		CAPool* pPool=new CAPool(MIX_POOL_SIZE);
 #endif
@@ -891,6 +895,40 @@ THREAD_RETURN mm_loopReadFromMixAfter(void* param)
 										pMix->m_pMiddleMixChannelList->remove(channelIn);
 									}
 								pQueue->add(pMixPacket,sizeof(tQueueEntry));
+								//DEBUG
+								unsigned int qsiz = pQueue->getSize();
+								if(qsiz > MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE)
+								{
+									if((qsiz_stat >= 3) && (!(qsiz_stat % 100)) )
+									{
+										CAMsg::printMsg(LOG_CRIT,"middle mix queue size is overfull: %u\n", pQueue->getSize());
+										qsiz_stat = 4;
+									}
+								} 
+								else if(qsiz > (MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE*0.75))
+								{
+									if(qsiz_stat != 3)
+									{
+										CAMsg::printMsg(LOG_CRIT,"middle mix queue size is to 3/4 full: %u\n", pQueue->getSize());
+										qsiz_stat = 3;
+									}
+								}
+								else if(qsiz > (MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE*0.5))
+								{
+									if(qsiz_stat != 2)
+									{
+										CAMsg::printMsg(LOG_CRIT,"middle mix queue size is to 1/2 full: %u\n", pQueue->getSize());
+										qsiz_stat = 2;
+									}
+								}
+								else if(qsiz > (MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE*0.25))
+								{
+									if(qsiz_stat != 1)
+									{
+										CAMsg::printMsg(LOG_CRIT,"middle mix queue size is to 1/4 full: %u\n", pQueue->getSize());
+										qsiz_stat = 1;
+									}
+								}
 							}
 					}
 			}
