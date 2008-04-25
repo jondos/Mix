@@ -862,7 +862,6 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
 	//FINISH_STACK("CAAccountingInstance::sendCCRequest");
 	
 	SINT32 ret = pAccInfo->pControlChannel->sendXMLMessage(doc);
-	CAMsg::printMsg(LOG_DEBUG, "Cleaning up CC doc 0x%x\n", doc);
 	doc->release();
 	doc = NULL;
 	return ret;
@@ -1637,9 +1636,9 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	*/
 	
 	// check signature
-	pDsaSig = DSA_SIG_new();
+	//pDsaSig = DSA_SIG_new();
 	CASignature * sigTester = pAccInfo->pPublicKey;
-	sigTester->decodeRS( decodeBuffer, decodeBufferLen, pDsaSig );
+	//sigTester->decodeRS( decodeBuffer, decodeBufferLen, pDsaSig );
 	if ( sigTester->verifyDER( pAccInfo->pChallenge, 222, decodeBuffer, decodeBufferLen ) 
 		!= E_SUCCESS )
 	{
@@ -1871,6 +1870,8 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 		}
 		m_currentAccountsHashtable->getMutex()->unlock();
 		pAccInfo->mutex->unlock();
+		delete pCC;
+		pCC = NULL;
 		return status;
 	}	
 	m_currentAccountsHashtable->getMutex()->unlock();	
@@ -2701,7 +2702,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			dbInterface = CAAccountingDBInterface::getConnection();
 		}
 		
-		while (entry )
+		while (entry != NULL)
 		{			
 			/*ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
 			AccountLoginHashEntry* loginEntry = 
@@ -2752,14 +2753,14 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	dbInterface = NULL;
 	ms_pInstance->m_pSettlementMutex->unlock();
 	
-	if(first)
+	if(first != NULL)
 	{
 #ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG, "Settlement thread with wait nr %Lu alters hashtable.\n", myWaitNr);
 #endif
 		entry = first;
 		ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
-		while (entry)
+		while (entry != NULL)
 		{	
 			AccountLoginHashEntry* loginEntry = 
 							(AccountLoginHashEntry*) (ms_pInstance->m_currentAccountsHashtable->getValue(&(entry->accountNumber)));
