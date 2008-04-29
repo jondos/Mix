@@ -33,6 +33,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAMsg.hpp"
 #include "CACmdLnOptions.hpp"
 #include "CAFirstMixChannelList.hpp"
+#include "CAListenerInterface.hpp"
 #include "CAASymCipher.hpp"
 #include "CAInfoService.hpp"
 #include "CASocketAddrINet.hpp"
@@ -859,25 +860,54 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 						pNewMuxSocket=new CAMuxSocket;
 						ret=socketsIn[i].accept(*(CASocket*)pNewMuxSocket);
 						pFirstMix->m_newConnections++;							 
+						int master = ((CASocket*)pNewMuxSocket)->getPeerIP(peerIP);
+						
+						if(master == E_SUCCESS)
+						{
+							char* ip = new char[16];
+							strncpy(ip, inet_ntoa(*((in_addr*) &peerIP)), 15);
+							
+							UINT32 size;
+							CAListenerInterface** intf = pglobalOptions->getInfoServices(size);
+							
+							master = -1;
+													
+							for(UINT32 i = 0; i < size; i++)
+							{
+								if(strncmp(intf[i]->getHostname(), ip, 15) == 0)
+								{
+									CAMsg::printMsg(LOG_ERR,"FirstMix: You are allowed\n");
+									master = E_SUCCESS;
+									break;
+								}
+							}
+							
+							delete ip;
+						}
+												
 						if(ret!=E_SUCCESS)
 						{
 							// may return E_SOCKETCLOSED or E_SOCKET_LIMIT
 							CAMsg::printMsg(LOG_ERR,"Accept Error %u - direct Connection from Client!\n",GET_NET_ERROR);														
 						}
-						else if (pglobalOptions->getMaxNrOfUsers() > 0 && pFirstMix->getNrOfUsers() >= pglobalOptions->getMaxNrOfUsers())
+						else if( (pglobalOptions->getMaxNrOfUsers() > 0 && pFirstMix->getNrOfUsers() >= pglobalOptions->getMaxNrOfUsers())
+							 && (master != E_SUCCESS) )
 						{
 							CAMsg::printMsg(LOG_DEBUG,"CAFirstMix User control: Too many users (Maximum:%d)! Rejecting user...\n", pFirstMix->getNrOfUsers(), pglobalOptions->getMaxNrOfUsers());
 							ret = E_UNKNOWN;
 						}
-						else if (pFirstMix->m_newConnections > CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS)
+												
+						else if( (pFirstMix->m_newConnections >  CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS)
+							&& (master != E_SUCCESS) )
 						{
 							/* This should protect the mix from flooding attacks
 							 * No more than MAX_CONCURRENT_NEW_CONNECTIONS are allowed.
-							 */
-//#ifdef _DEBUG
+							 */						
+						//#ifdef _DEBUG				
 							CAMsg::printMsg(LOG_DEBUG,"CAFirstMix Flooding protection: Too many concurrent new connections (Maximum:%d)! Rejecting user...\n", CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS);
-//#endif
+						//#endif
 							ret = E_UNKNOWN;
+							
 						}
 #ifndef PAYMENT					
 						else if ((ret = ((CASocket*)pNewMuxSocket)->getPeerIP(peerIP)) != E_SUCCESS ||
