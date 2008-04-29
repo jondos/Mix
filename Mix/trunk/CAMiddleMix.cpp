@@ -733,7 +733,7 @@ THREAD_RETURN mm_loopReadFromMixBefore(void* param)
 										#ifdef REPLAY_DETECTION
 											// replace time(NULL) with the real timestamp ()
 											// packet-timestamp + m_u64ReferenceTime
-											UINT32 stamp=tmpRSABuff[13]<<16+tmpRSABuff[14]<<8+tmpRSABuff[15];
+											UINT32 stamp=(UINT32)(tmpRSABuff[13]<<16)+(UINT32)(tmpRSABuff[14]<<8)+(UINT32)(tmpRSABuff[15]);
 											if(pMix->m_pReplayDB->insert(tmpRSABuff,stamp+pMix->m_u64ReferenceTime)!=E_SUCCESS)
 //											if(pMix->m_pReplayDB->insert(tmpRSABuff,time(NULL))!=E_SUCCESS)
 												{
