@@ -291,7 +291,7 @@ SINT32 CALastMixA::loop()
 										else if(pMixPacket->flags==CHANNEL_RESUME)
 											{
 												#ifdef _DEBUG
-													CAMsg::printMsg(LOG_DEBUG,"Resumeing channel %u Socket: %u\n",pMixPacket->channel,(SOCKET)(*pChannelListEntry->pSocket));
+													CAMsg::printMsg(LOG_DEBUG,"Resuming channel %u Socket: %u\n",pMixPacket->channel,(SOCKET)(*pChannelListEntry->pSocket));
 												#endif
 	
 #ifdef HAVE_EPOLL
