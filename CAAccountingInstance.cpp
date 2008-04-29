@@ -2018,11 +2018,7 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 	{
 		certHash = pCC->getPriceCertHash(i);
 		certHashCC->put(certHash, certHash);
-		/*
-		if ((certHash = (UINT8*)certHashCC->getValue(certHash)) != NULL)
-		{
-			CAMsg::printMsg( LOG_INFO, "CC1: %s\n", certHash);
-		}*/
+		
 	}
 	for (UINT32 i = 0; i < m_allHashesLen; i++)
 	{
@@ -2035,7 +2031,7 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 		}
 		else
 		{
-			delete certHash;
+			delete[] certHash;
 		}
 	}
 	certHashCC->clear(HASH_EMPTY_NONE, HASH_EMPTY_DELETE);
