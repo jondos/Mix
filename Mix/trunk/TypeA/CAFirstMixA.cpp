@@ -196,6 +196,7 @@ SINT32 CAFirstMixA::loop()
 						if (authFlags > 0)
 						{
 							CAMsg::printMsg(LOG_ERR,"Client connection closed due to forced timeout! Payment auth flags: %u\n", authFlags);
+							if(1) break;
 						}
 						else
 //#endif						
@@ -289,7 +290,7 @@ SINT32 CAFirstMixA::loop()
 												{
 													// renew the timeout
 													pHashEntry->bRecoverTimeout = true;														
-													m_pChannelList->pushTimeoutEntry(pHashEntry);													
+													m_pChannelList->pushTimeoutEntry(pHashEntry);
 												}		
 												else if (CAAccountingInstance::HANDLE_PACKET_HOLD_CONNECTION == ret)
 												{
