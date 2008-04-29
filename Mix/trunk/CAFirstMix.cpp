@@ -864,8 +864,9 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 						
 						if(master == E_SUCCESS)
 						{
-							char* ip = new char[16];
-							strncpy(ip, inet_ntoa(*((in_addr*) &peerIP)), 15);
+							char* ip = new char[INET_ADDRSTRLEN];
+							//strncpy(ip, inet_ntoa(*((in_addr*) &peerIP)), 15);
+							inet_ntop(AF_INET, peerIP, ip, INET_ADDRSTRLEN);
 							
 							UINT32 size;
 							CAListenerInterface** intf = pglobalOptions->getInfoServices(size);
