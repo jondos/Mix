@@ -864,10 +864,6 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 						
 						if(master == E_SUCCESS)
 						{
-							char* ip = new char[INET_ADDRSTRLEN];
-							//strncpy(ip, inet_ntoa(*((in_addr*) &peerIP)), 15);
-							inet_ntop(AF_INET, peerIP, ip, INET_ADDRSTRLEN);
-							
 							UINT32 size;
 							CAListenerInterface** intf = pglobalOptions->getInfoServices(size);
 							
@@ -875,15 +871,26 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 													
 							for(UINT32 i = 0; i < size; i++)
 							{
-								if(strncmp(intf[i]->getHostname(), ip, 15) == 0)
+								if(intf[i]->getType() == HTTP_TCP || intf[i]->getType() == RAW_TCP)
 								{
-									CAMsg::printMsg(LOG_ERR,"FirstMix: You are allowed\n");
-									master = E_SUCCESS;
-									break;
+									CASocketAddrINet* addr = (CASocketAddrINet*) intf[i]->getAddr();
+									if(addr == NULL) continue;
+									
+									UINT8* remoteIP = new UINT8[4];
+									addr->getIP(remoteIP);
+								
+									if(memcmp(peerIP, remoteIP, 4) == 0)
+									{
+										CAMsg::printMsg(LOG_ERR,"FirstMix: You are allowed\n");
+										master = E_SUCCESS;
+										break;
+									}
+									
+									delete addr;
+									delete remoteIP;
 								}
+								
 							}
-							
-							delete ip;
 						}
 												
 						if(ret!=E_SUCCESS)
