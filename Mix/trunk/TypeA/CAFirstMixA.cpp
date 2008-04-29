@@ -381,10 +381,7 @@ SINT32 CAFirstMixA::loop()
 														#ifdef REPLAY_DETECTION
 														// replace time(NULL) with the real timestamp ()
 														// packet-timestamp + m_u64ReferenceTime
-															UINT32 stamp=0;
-															stamp=(rsaBuff[13]<<16)|(rsaBuff[14]<<8)|(rsaBuff[15]);
-															CAMsg::printMsg(LOG_DEBUG,"Timestamp: %Lu %Lu %Lu %u %u %u\n",stamp,stamp+m_u64ReferenceTime,time(NULL),rsaBuff[13],rsaBuff[14],rsaBuff[15]);
-															if(m_pReplayDB->insert(rsaBuff,stamp+m_u64ReferenceTime)!=E_SUCCESS)
+															if(m_pReplayDB->insert(rsaBuff,time(NULL))!=E_SUCCESS)
 															{
 																CAMsg::printMsg(LOG_INFO,"Replay: Duplicate packet ignored.\n");
 																continue;
