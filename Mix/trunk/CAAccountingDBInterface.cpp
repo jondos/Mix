@@ -233,8 +233,9 @@ SINT32 CAAccountingDBInterface::__getCostConfirmation(UINT64 accountNumber, UINT
 		PGresult* result;
 		UINT8 tmp[32];
 		print64(tmp,accountNumber);
-
-		query = new UINT8[strlen(queryF) + 32 + strlen((char*)cascadeId)];
+		int queryBufLen = (strlen(queryF) + 32 + strlen((char*)cascadeId));
+		query = new UINT8[queryBufLen];
+		memset(query, 0, (queryBufLen*sizeof(UINT8)));
 		sprintf( (char *)query, queryF, tmp, cascadeId);
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG, "CAAccountingDBInterface: executing query %s\n", query);
@@ -354,9 +355,9 @@ SINT32 CAAccountingDBInterface::__storeCostConfirmation( CAXMLCostConfirmation &
 		#ifndef HAVE_NATIVE_UINT64
 			#warning Native UINT64 type not available - CostConfirmation Database might be non-functional
 		#endif
-		const char* previousCCQuery = "SELECT COUNT(*) FROM COSTCONFIRMATIONS WHERE ACCOUNTNUMBER=%s AND CASCADE='%s'";
-		const char* query2F =         "INSERT INTO COSTCONFIRMATIONS(BYTES, XMLCC, SETTLED, ACCOUNTNUMBER, CASCADE) VALUES (%s, '%s', %d, %s, '%s')";
-	 	const char* query3F =         "UPDATE COSTCONFIRMATIONS SET BYTES=%s, XMLCC='%s', SETTLED=%d WHERE ACCOUNTNUMBER=%s AND CASCADE='%s'";
+		const char* previousCCQuery = "SELECT COUNT(*) FROM COSTCONFIRMATIONS WHERE ACCOUNTNUMBER='%s' AND CASCADE='%s'";
+		const char* query2F =         "INSERT INTO COSTCONFIRMATIONS(BYTES, XMLCC, SETTLED, ACCOUNTNUMBER, CASCADE) VALUES ('%s', '%s', '%d', '%s', '%s')";
+	 	const char* query3F =         "UPDATE COSTCONFIRMATIONS SET BYTES='%s', XMLCC='%s', SETTLED='%d' WHERE ACCOUNTNUMBER='%s' AND CASCADE='%s'";
 	 	const char* tempQuery;
 	
 		UINT8 * query;
@@ -391,10 +392,14 @@ SINT32 CAAccountingDBInterface::__storeCostConfirmation( CAXMLCostConfirmation &
 		// Test: is there already an entry with this accountno. for the same cascade?		
 		len = max(strlen(previousCCQuery), strlen(query2F));
 		len = max(len, strlen(query3F));
-		query = new UINT8[len + 32 + 32 + 1 + size + strlen((char*)ccCascade)];
+		
+		int queryBufLen = (len + 32 + 32 + 1 + size + strlen((char*)ccCascade));
+		query = new UINT8[queryBufLen];
+		memset(query, 0, (queryBufLen*sizeof(UINT8)) );
+		
 		print64(strAccountNumber,cc.getAccountNumber());
 		sprintf( (char*)query, previousCCQuery, strAccountNumber, ccCascade);
-	
+
 		// to receive result in binary format...
 		if (__checkCountAllQuery(query, count) != E_SUCCESS)
 		{
@@ -402,7 +407,6 @@ SINT32 CAAccountingDBInterface::__storeCostConfirmation( CAXMLCostConfirmation &
 			delete[] query;
 			return E_UNKNOWN;
 		}
-	
 		// put query together (either insert or update)
 		print64(tmp,cc.getTransferredBytes());		
 		if(count == 0)
@@ -413,11 +417,18 @@ SINT32 CAAccountingDBInterface::__storeCostConfirmation( CAXMLCostConfirmation &
 		{
 			tempQuery = query3F; // do update
 		}
+		memset(query, 0, (queryBufLen*sizeof(UINT8)) );
 		sprintf((char*)query, tempQuery, tmp, pStrCC, 0, strAccountNumber, ccCascade);
-	
+		/*char *escapedQuery = new char[10000];
+		memset(escapedQuery, 0, 10000);
+		PQescapeStringConn(m_dbConn, escapedQuery, (char *)pStrCC, 10000, NULL);
+		CAMsg::printMsg(LOG_ERR, "Escaped CC: %s\n", escapedQuery);
+		CAMsg::printMsg(LOG_ERR, "Wheras unescaped CC: %s\n", pStrCC);
+		delete[] escapedQuery;*/
 		// issue query..
-		pResult = monitored_PQexec(m_dbConn, (char*)query);
+		//CAMsg::printMsg(LOG_ERR, "query: %s\n", query);
 		
+		pResult = monitored_PQexec(m_dbConn, (char*)query);
 		delete[] pStrCC;
 		if(PQresultStatus(pResult) != PGRES_COMMAND_OK) // || PQntuples(pResult) != 1)
 		{
@@ -477,7 +488,10 @@ SINT32 CAAccountingDBInterface::__getUnsettledCostConfirmations(CAQueue& q, UINT
 		}
 		MONITORING_FIRE_PAY_EVENT(ev_pay_dbConnectionSuccess);
 
-		finalQuery = new UINT8[strlen(query)+strlen((char*)cascadeId)];
+		int queryBufLen = (strlen(query)+strlen((char*)cascadeId));
+		finalQuery = new UINT8[queryBufLen];
+		memset(finalQuery, 0, (queryBufLen*sizeof(UINT8)));
+		
 		sprintf( (char*)finalQuery, query, cascadeId);
 
 #ifdef DEBUG
@@ -543,7 +557,11 @@ SINT32 CAAccountingDBInterface::__markAsSettled(UINT64 accountNumber, UINT8* cas
 		UINT8 tmp[32], tmp2[32];
 		print64(tmp,accountNumber);
 		print64(tmp2,a_transferredBytes);
-		query = new UINT8[strlen(queryF) + 32 + 32 + strlen((char*)cascadeId)];
+		
+		int queryBufLen = (strlen(queryF) + 32 + 32 + strlen((char*)cascadeId));
+		query = new UINT8[queryBufLen];
+		memset(query, 0, (queryBufLen*sizeof(UINT8)));
+		
 		sprintf((char *)query, queryF, tmp, tmp2, cascadeId);
 		result = monitored_PQexec(m_dbConn, (char *)query);
 		
@@ -588,7 +606,10 @@ SINT32 CAAccountingDBInterface::__deleteCC(UINT64 accountNumber, UINT8* cascadeI
 	{						
 		MONITORING_FIRE_PAY_EVENT(ev_pay_dbConnectionSuccess);
 		
-		finalQuery = new UINT8[strlen(deleteQuery)+ 32 + strlen((char*)cascadeId)];
+		int queryBufLen = (strlen(deleteQuery)+ 32 + strlen((char*)cascadeId));
+		finalQuery = new UINT8[queryBufLen];
+		memset(finalQuery, 0, (queryBufLen*sizeof(UINT8)));
+		
 		sprintf((char *)finalQuery,deleteQuery,temp, cascadeId);
 		result = monitored_PQexec(m_dbConn, (char*)finalQuery);
 		
@@ -657,7 +678,11 @@ SINT32 CAAccountingDBInterface::__storePrepaidAmount(UINT64 accountNumber, SINT3
 	
 	len = max(strlen(selectQuery), strlen(insertQuery));
 	len = max(len, strlen(updateQuery));
-	finalQuery = new UINT8[len + 32 + 32 + strlen((char*)cascadeId)];
+	
+	int queryBufLen = (len + 32 + 32 + strlen((char*)cascadeId));
+	finalQuery = new UINT8[queryBufLen];
+	memset(finalQuery, 0, (queryBufLen*sizeof(UINT8)));
+	
 	sprintf( (char *)finalQuery, selectQuery, tmp, cascadeId);
 	
 	if (__checkCountAllQuery(finalQuery, count) != E_SUCCESS)
@@ -680,6 +705,8 @@ SINT32 CAAccountingDBInterface::__storePrepaidAmount(UINT64 accountNumber, SINT3
 	{
 		query = updateQuery;
 	}
+	
+	memset(finalQuery, 0, (queryBufLen*sizeof(UINT8)));
 	sprintf((char*)finalQuery, query, prepaidBytes, tmp, cascadeId);
 	result = monitored_PQexec(m_dbConn, (char *)finalQuery);
 	
@@ -739,8 +766,12 @@ SINT32 CAAccountingDBInterface::__getPrepaidAmount(UINT64 accountNumber, UINT8* 
 		}
 		MONITORING_FIRE_PAY_EVENT(ev_pay_dbConnectionSuccess);
 		
-		finalQuery = new UINT8[strlen(selectQuery) + 32 + strlen((char*)cascadeId)];
-		sprintf( (char *)finalQuery, selectQuery, accountNumberAsString, cascadeId);		
+		int queryBufLen = (strlen(selectQuery) + 32 + strlen((char*)cascadeId));
+		finalQuery = new UINT8[queryBufLen];
+		memset(finalQuery, 0, (queryBufLen*sizeof(UINT8)));
+		
+		sprintf( (char *)finalQuery, selectQuery, accountNumberAsString, cascadeId);
+		
 		result = monitored_PQexec(m_dbConn, (char *)finalQuery);
 		
 		if(PQresultStatus(result)!=PGRES_TUPLES_OK) 
@@ -767,8 +798,9 @@ SINT32 CAAccountingDBInterface::__getPrepaidAmount(UINT64 accountNumber, UINT8* 
 			const char* deleteQuery = "DELETE FROM PREPAIDAMOUNTS WHERE ACCOUNTNUMBER=%s AND CASCADE='%s' ";
 			PGresult* result2;
 			print64(accountNumberAsString,accountNumber);
-			sprintf( (char *)finalQuery, deleteQuery, accountNumberAsString, cascadeId);
+			memset(finalQuery, 0, (queryBufLen*sizeof(UINT8)));
 			
+			sprintf( (char *)finalQuery, deleteQuery, accountNumberAsString, cascadeId);
 			result2 = monitored_PQexec(m_dbConn, (char *)finalQuery);
 			
 			if (PQresultStatus(result2) != PGRES_COMMAND_OK)
@@ -821,7 +853,11 @@ SINT32 CAAccountingDBInterface::__storeAccountStatus(UINT64 accountNumber, UINT3
 	
 	len = max(strlen(previousStatusQuery), strlen(insertQuery));
 	len = max(len, strlen(updateQuery));
-	finalQuery = new UINT8[len + 32 + 32 + 32];
+	
+	int queryBufLen = (len + 32 + 32 + 32);
+	finalQuery = new UINT8[queryBufLen];
+	memset(finalQuery, 0, (queryBufLen*sizeof(UINT8)));
+	
 	sprintf( (char *)finalQuery, previousStatusQuery, tmp);
 	
 	if (__checkCountAllQuery(finalQuery, count) != E_SUCCESS)
@@ -839,7 +875,10 @@ SINT32 CAAccountingDBInterface::__storeAccountStatus(UINT64 accountNumber, UINT3
 	{
 		query = updateQuery;
 	}
+	
+	memset(finalQuery, 0, (queryBufLen*sizeof(UINT8)));
 	sprintf((char*)finalQuery, query, statuscode, expires, tmp);
+	
 	result = monitored_PQexec(m_dbConn, (char *)finalQuery);	
 
 	if (PQresultStatus(result) != PGRES_COMMAND_OK) // || PQntuples(result) != 1)
@@ -898,8 +937,12 @@ SINT32 CAAccountingDBInterface::__storeAccountStatus(UINT64 accountNumber, UINT3
 	
 		a_statusCode =  CAXMLErrorMessage::ERR_OK;
 		
-		finalQuery = new UINT8[strlen(selectQuery) + 32];
+		int queryBufLen = (strlen(selectQuery) + 32);
+		finalQuery = new UINT8[queryBufLen];
+		memset(finalQuery, 0, (queryBufLen*sizeof(UINT8)));
+		
 		sprintf( (char *)finalQuery, selectQuery, accountNumberAsString);		
+		
 		result = monitored_PQexec(m_dbConn, (char *)finalQuery);
 		
 		delete[] finalQuery;
@@ -961,6 +1004,7 @@ CAAccountingDBInterface *CAAccountingDBInterface::getConnection()
 		{
 			if(ms_pDBConnectionPool[(i%MAX_DB_CONNECTIONS)]->testAndSetOwner())
 			{
+				
 				returnedConnection = ms_pDBConnectionPool[(i%MAX_DB_CONNECTIONS)];
 				break;
 			}
