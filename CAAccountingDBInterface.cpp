@@ -60,9 +60,9 @@ CAAccountingDBInterface::CAAccountingDBInterface()
 #endif
 		if(initDBConnection() == E_SUCCESS)
 		{
+#ifdef PG_PROTO_VERSION_3 
 			m_protocolVersion = PQprotocolVersion(m_dbConn);
 			CAMsg::printMsg(LOG_INFO, "postgres server version: %d\n",PQserverVersion(m_dbConn));
-#ifdef PG_PROTO_VERSION_3 
 			if(m_protocolVersion == PG_PROTOCOL_VERSION_3)
 			{
 				PGresult * pResult = 
