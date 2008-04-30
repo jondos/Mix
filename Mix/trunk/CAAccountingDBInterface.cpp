@@ -54,6 +54,36 @@ CAAccountingDBInterface::CAAccountingDBInterface()
 		m_free = true;
 		/* to ensure atomic access to m_owner and m_free */
 		m_pConnectionMutex = new CAMutex();
+		m_protocolVersion = -1;
+#ifdef PG_PROTO_VERSION_3 		
+		m_pStoreCCStmt = PREPARED_STMT_NAME_STORE_CC;
+#endif
+		if(initDBConnection() == E_SUCCESS)
+		{
+			m_protocolVersion = PQprotocolVersion(m_dbConn);
+			CAMsg::printMsg(LOG_INFO, "postgres server version: %d\n",PQserverVersion(m_dbConn));
+#ifdef PG_PROTO_VERSION_3 
+			if(m_protocolVersion == PG_PROTOCOL_VERSION_3)
+			{
+				PGresult * pResult = 
+						PQprepare(m_dbConn,
+								m_pStoreCCStmt,
+								PREPARED_STMT_QUERY_STORE_CC,
+								PREPARED_STMT_PARAMS_STORE_CC,
+								NULL);
+				if(PQresultStatus(pResult) == PGRES_COMMAND_OK)
+				{
+					CAMsg::printMsg(LOG_INFO, "CAAccountingDBInterface: Statement successfully prepared!\n");
+				}
+				else
+				{
+					CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: Statement not prepared, cause: \n",
+							PQresultErrorMessage(pResult));
+				}
+				PQclear(pResult);
+			}
+#endif //PG_PROTO_VERSION_3
+		}
 	}
 
 
@@ -114,7 +144,7 @@ SINT32 CAAccountingDBInterface::initDBConnection()
 		char port[20];
 		sprintf(port, "%i", tcp_port);
 		m_dbConn = PQsetdbLogin(
-				(char*)host, port, "", "",
+				(char*)host, port, NULL, NULL,
 				(char*)dbName, (char*)userName, (char*)password
 			);
 		if(m_dbConn==NULL||PQstatus(m_dbConn) == CONNECTION_BAD) 
@@ -210,7 +240,7 @@ SINT32 CAAccountingDBInterface::getCostConfirmation(UINT64 accountNumber, UINT8*
  * @param accountNumber the account for which the cost confirmation is requested
  * @param pCC on return contains a pointer to the Cost confirmation (the caller is responsible for deleting this object),
  * NULL in case of an error 
- *
+ *G
  * @retval E_SUCCESS, if everything is OK
  * @retval E_NOT_CONNECTED, if the DB query could not be executed
  * @retval E_NOT_FOUND, if there was no XMLCC found
@@ -369,6 +399,8 @@ SINT32 CAAccountingDBInterface::__storeCostConfirmation( CAXMLCostConfirmation &
 		UINT8 strAccountNumber[32];
 		UINT8 tmp[32];
 		
+		CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstanceDBInterface: const addr: 0x%x\n",previousCCQuery);
+		
 		if(!checkConnectionStatus()) 
 		{
 			MONITORING_FIRE_PAY_EVENT(ev_pay_dbConnectionFailure);
@@ -376,6 +408,9 @@ SINT32 CAAccountingDBInterface::__storeCostConfirmation( CAXMLCostConfirmation &
 		}
 		MONITORING_FIRE_PAY_EVENT(ev_pay_dbConnectionSuccess);
 		
+		/*pStrCC = new UINT8[2];
+		pStrCC[0] = 'a';
+		pStrCC[1] = 0;*/
 		pStrCC = new UINT8[8192];
 		size=8192;
 		if(cc.toXMLString(pStrCC, &size)!=E_SUCCESS)
@@ -389,60 +424,104 @@ SINT32 CAAccountingDBInterface::__storeCostConfirmation( CAXMLCostConfirmation &
 		CAMsg::printMsg(LOG_DEBUG, "cc to store in  db:%s\n",pStrCC);	  		
 #endif  
 
-		// Test: is there already an entry with this accountno. for the same cascade?		
-		len = max(strlen(previousCCQuery), strlen(query2F));
-		len = max(len, strlen(query3F));
-		
-		int queryBufLen = (len + 32 + 32 + 1 + size + strlen((char*)ccCascade));
-		query = new UINT8[queryBufLen];
-		memset(query, 0, (queryBufLen*sizeof(UINT8)) );
-		
-		print64(strAccountNumber,cc.getAccountNumber());
-		sprintf( (char*)query, previousCCQuery, strAccountNumber, ccCascade);
+#ifdef PG_PROTO_VERSION_3 
+		/*
+		 * test with prepared statements:
+		 * improves performance when upating Postgres
+		 */
+		if(m_protocolVersion == PG_PROTOCOL_VERSION_3)
+		{
+			print64(strAccountNumber,cc.getAccountNumber());
+			print64(tmp,cc.getTransferredBytes());	
+			const char *params[PREPARED_STMT_PARAMS_STORE_CC] = {
+					(const char*)tmp, 
+					(const char*)pStrCC, "0", 
+					(const char*)strAccountNumber, 
+					(const char*)ccCascade
+			};
+			const int paramsLen[PREPARED_STMT_PARAMS_STORE_CC] = {
+					strlen(params[0]), 
+					strlen(params[1]), 
+					strlen(params[2]),
+					strlen(params[3]),
+					strlen(params[4]) 
+			};
 
-		// to receive result in binary format...
-		if (__checkCountAllQuery(query, count) != E_SUCCESS)
-		{
-			delete[] pStrCC;
-			delete[] query;
-			return E_UNKNOWN;
-		}
-		// put query together (either insert or update)
-		print64(tmp,cc.getTransferredBytes());		
-		if(count == 0)
-		{			
-			tempQuery = query2F; // do insert
-		}
-		else
-		{
-			tempQuery = query3F; // do update
-		}
-		memset(query, 0, (queryBufLen*sizeof(UINT8)) );
-		sprintf((char*)query, tempQuery, tmp, pStrCC, 0, strAccountNumber, ccCascade);
-		/*char *escapedQuery = new char[10000];
-		memset(escapedQuery, 0, 10000);
-		PQescapeStringConn(m_dbConn, escapedQuery, (char *)pStrCC, 10000, NULL);
-		CAMsg::printMsg(LOG_ERR, "Escaped CC: %s\n", escapedQuery);
-		CAMsg::printMsg(LOG_ERR, "Wheras unescaped CC: %s\n", pStrCC);
-		delete[] escapedQuery;*/
-		// issue query..
-		//CAMsg::printMsg(LOG_ERR, "query: %s\n", query);
-		
-		pResult = monitored_PQexec(m_dbConn, (char*)query);
-		delete[] pStrCC;
-		if(PQresultStatus(pResult) != PGRES_COMMAND_OK) // || PQntuples(pResult) != 1)
-		{
-			CAMsg::printMsg(LOG_ERR, "Could not store CC!\n");
-			//if (PQresultStatus(pResult) != PGRES_COMMAND_OK)
+			pResult = PQexecPrepared(m_dbConn,
+									m_pStoreCCStmt,
+			                         PREPARED_STMT_PARAMS_STORE_CC,
+			                         params,
+			                         paramsLen,
+			                         NULL,
+			                         RESULT_FORMAT_TEXT);
+			if(PQresultStatus(pResult) == PGRES_COMMAND_OK)
 			{
-				CAMsg::printMsg(LOG_ERR, 
-								"Database message '%s' while processing query '%s'\n", 
-								PQresultErrorMessage(pResult), query
-								);
+				CAMsg::printMsg(LOG_INFO, "CAAccountingDBInterface: Statement successfully processed!\n");
+				delete[] pStrCC;
+				PQclear(pResult);
+				return E_SUCCESS;
 			}
-			delete[] query;	
+			else
+			{
+				CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: Statement not processed, cause: \n",
+						PQresultErrorMessage(pResult));
+			}
+			delete[] pStrCC;
 			PQclear(pResult);
 			return E_UNKNOWN;
+		}
+		else
+#endif					
+		{
+			// Test: is there already an entry with this accountno. for the same cascade?		
+			len = max(strlen(previousCCQuery), strlen(query2F));
+			len = max(len, strlen(query3F));
+			
+			int queryBufLen = (len + 32 + 32 + 1 + size + strlen((char*)ccCascade));
+			query = new UINT8[queryBufLen];
+			memset(query, 0, (queryBufLen*sizeof(UINT8)) );
+			
+			print64(strAccountNumber,cc.getAccountNumber());
+			sprintf( (char*)query, previousCCQuery, strAccountNumber, ccCascade);
+	
+			// to receive result in binary format...
+			if (__checkCountAllQuery(query, count) != E_SUCCESS)
+			{
+				delete[] pStrCC;
+				delete[] query;
+				return E_UNKNOWN;
+			}
+			// put query together (either insert or update)
+			print64(tmp,cc.getTransferredBytes());		
+			if(count == 0)
+			{			
+				tempQuery = query2F; // do insert
+			}
+			else
+			{
+				tempQuery = query3F; // do update
+			}
+			memset(query, 0, (queryBufLen*sizeof(UINT8)) );
+			sprintf((char*)query, tempQuery, tmp, pStrCC, 0, strAccountNumber, ccCascade);
+			// issue query..
+			//CAMsg::printMsg(LOG_ERR, "query: %s\n", query);
+			
+			pResult = monitored_PQexec(m_dbConn, (char*)query);
+			delete[] pStrCC;
+			if(PQresultStatus(pResult) != PGRES_COMMAND_OK) // || PQntuples(pResult) != 1)
+			{
+				CAMsg::printMsg(LOG_ERR, "Could not store CC!\n");
+				//if (PQresultStatus(pResult) != PGRES_COMMAND_OK)
+				{
+					CAMsg::printMsg(LOG_ERR, 
+									"Database message '%s' while processing query '%s'\n", 
+									PQresultErrorMessage(pResult), query
+									);
+				}
+				delete[] query;	
+				PQclear(pResult);
+				return E_UNKNOWN;
+			}		
 		}
 		delete[] query;	
 		PQclear(pResult);		
@@ -1139,7 +1218,7 @@ bool CAAccountingDBInterface::testAndResetOwner()
 SINT32 CAAccountingDBInterface::init()
 {
 	UINT32 i;
-	SINT32 dbConnStatus;
+	bool dbConnStatus;
 	
 	ms_pConnectionAvailable = new CAConditionVariable();
 	
@@ -1156,9 +1235,9 @@ SINT32 CAAccountingDBInterface::init()
 						"Already initialized connections !?! Or someone forgot to do cleaunp?\n");
 			}
 			ms_pDBConnectionPool[i] = new CAAccountingDBInterface();
-			dbConnStatus = ms_pDBConnectionPool[i]->initDBConnection();
+			dbConnStatus = ms_pDBConnectionPool[i]->checkConnectionStatus();
 			
-			if(dbConnStatus != E_SUCCESS)
+			if(!dbConnStatus)
 			{
 				CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: DBConnection initialization: "
 						"could not connect to Database.\n");
