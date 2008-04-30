@@ -186,7 +186,9 @@ class CAAccountingDBInterface
 			 */
 			volatile bool m_free;
 			int m_protocolVersion;
+#ifdef PG_PROTO_VERSION_3 		
 			char *m_pStoreCCStmt;
+#endif
 			/* to ensure atomic access to m_owner and m_free */
 			CAMutex *m_pConnectionMutex;
 			
