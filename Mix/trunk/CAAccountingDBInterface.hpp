@@ -33,7 +33,14 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAXMLCostConfirmation.hpp"
 
 #define MAX_DB_CONNECTIONS 1
+#define PG_PROTOCOL_VERSION_3 3
 
+#define RESULT_FORMAT_TEXT 0
+
+#define PREPARED_STMT_NAME_STORE_CC "storeCCStatement"
+#define PREPARED_STMT_QUERY_STORE_CC \
+	"UPDATE COSTCONFIRMATIONS SET BYTES = $1::bigint, XMLCC = $2::varchar(2000), SETTLED = $3::integer WHERE ACCOUNTNUMBER = $4::bigint AND CASCADE = $5::varchar(200)"
+#define PREPARED_STMT_PARAMS_STORE_CC 5
 /**
   * @author Bastian Voigt
   *
@@ -178,6 +185,8 @@ class CAAccountingDBInterface
 			 * (There is no reliable value of m_owner to indicate this).
 			 */
 			volatile bool m_free;
+			int m_protocolVersion;
+			char *m_pStoreCCStmt;
 			/* to ensure atomic access to m_owner and m_free */
 			CAMutex *m_pConnectionMutex;
 			
