@@ -398,9 +398,7 @@ SINT32 CAAccountingDBInterface::__storeCostConfirmation( CAXMLCostConfirmation &
 		PGresult * pResult;
 		UINT8 strAccountNumber[32];
 		UINT8 tmp[32];
-		
-		CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstanceDBInterface: const addr: 0x%x\n",previousCCQuery);
-		
+				
 		if(!checkConnectionStatus()) 
 		{
 			MONITORING_FIRE_PAY_EVENT(ev_pay_dbConnectionFailure);
