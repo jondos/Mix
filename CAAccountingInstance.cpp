@@ -848,8 +848,8 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
 	makeCCRequest(pAccInfo->accountNumber, pAccInfo->bytesToConfirm, doc);				
 	//pAccInfo->authFlags |= AUTH_SENT_CC_REQUEST;
 #ifdef DEBUG	
-	CAMsg::printMsg(LOG_DEBUG, "CC request sent for %u bytes \n",pAccInfo->bytesToConfirm);
-	CAMsg::printMsg(LOG_DEBUG, "transferrred bytes: %u bytes \n",pAccInfo->transferredBytes);
+	CAMsg::printMsg(LOG_DEBUG, "CC request sent for %Lu bytes \n",pAccInfo->bytesToConfirm);
+	CAMsg::printMsg(LOG_DEBUG, "transferrred bytes: %Lu bytes \n",pAccInfo->transferredBytes);
 	CAMsg::printMsg(LOG_DEBUG, "prepaid Interval: %u \n",prepaidInterval);	
 
 	UINT32 debuglen = 3000;
@@ -1510,7 +1510,8 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 	//CAMsg::printMsg(LOG_DEBUG, "Almost finished handleAccountCertificate, preparing challenge\n");
 
 	// generate random challenge data and Base64 encode it
-	arbChallenge = ( UINT8* ) malloc( 222 );
+	//arbChallenge = ( UINT8* ) malloc( 222 );
+	arbChallenge = new UINT8[222];
 	getRandom( arbChallenge, 222 );
 	CABase64::encode( arbChallenge, 222, b64Challenge, &b64Len );
 	if ( pAccInfo->pChallenge != NULL )
@@ -1890,6 +1891,10 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Sending pcc to sign with %Lu transferred bytes\n", pCC->getTransferredBytes());
 #endif
 			// the typical case; the user had logged in before
+			/*@todo: we have to set the pAccInfo->bytesToConfirm to the difference of the 
+			 * prepaid interval and the users prepaid amount
+			 * so better use the sendCCRequest method.
+			 */
 			pAccInfo->pControlChannel->sendXMLMessage(pCC->getXMLDocument());
 			//delete pCC;
 		}
@@ -1901,6 +1906,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 				// Delete any previously stored prepaid amount; there should not be any! CC lost?
 				pAccInfo->transferredBytes += prepaidAmount;
 			}
+			/* @todo: how do we handle the users prepaid amount ? */
 			sendCCRequest(pAccInfo);
 		}
 	}
@@ -2059,8 +2065,10 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 	//AccInfo's confirmed bytes + the Config's PrepaidInterval - the number of bytes transferred between
 	//requesting and receiving the CC
 #ifdef DEBUG
-	CAMsg::printMsg( LOG_DEBUG, "received cost confirmation for  %Lu transferred bytes where confirmed bytes are %Lu, we need %Lu bytes to confirm\n", 
-			pCC->getTransferredBytes(), pAccInfo->confirmedBytes, pAccInfo->bytesToConfirm );
+	CAMsg::printMsg( LOG_DEBUG, "received cost confirmation for  %Lu transferred bytes where confirmed bytes are %Lu, we need %Lu bytes to confirm"
+			", mix already counted %Lu transferred bytes\n", 
+			pCC->getTransferredBytes(), pAccInfo->confirmedBytes, pAccInfo->bytesToConfirm,
+			pAccInfo->transferredBytes);
 #endif
 	
 	if (pCC->getTransferredBytes() < pAccInfo->confirmedBytes)
