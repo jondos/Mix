@@ -126,8 +126,8 @@ CAAccountingInstance::~CAAccountingInstance()
 		INIT_STACK;
 		BEGIN_STACK("~CAAccountingInstance");
 		
-		/* Why locks?
-		 * @todo: avoid calling this desctructor concurrently!
+		/*
+		 * avoid calling this desctructor concurrently!
 		 */
 		m_pMutex->lock(); 
 		
@@ -656,6 +656,9 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 								(pAccInfo->lastHardLimitSeconds + HARD_LIMIT_TIMEOUT - time(NULL)));
 #endif					
 				
+				/* @todo: warning: a strict prepaid interval may abort large downloads/uploads, 
+				 * where large amounts of data are handled by mixes.
+				 */ 
 				if (time(NULL) >= pAccInfo->lastHardLimitSeconds + HARD_LIMIT_TIMEOUT ||
 					(prepaidBytes < 0 && (UINT32)(prepaidBytes * (-1)) >= prepaidInterval))
 				{
@@ -847,7 +850,7 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
     pAccInfo->bytesToConfirm = (prepaidInterval) + pAccInfo->transferredBytes;
 	makeCCRequest(pAccInfo->accountNumber, pAccInfo->bytesToConfirm, doc);				
 	//pAccInfo->authFlags |= AUTH_SENT_CC_REQUEST;
-#ifdef DEBUG	
+//#ifdef DEBUG	
 	CAMsg::printMsg(LOG_DEBUG, "CC request sent for %Lu bytes \n",pAccInfo->bytesToConfirm);
 	CAMsg::printMsg(LOG_DEBUG, "transferrred bytes: %Lu bytes \n",pAccInfo->transferredBytes);
 	CAMsg::printMsg(LOG_DEBUG, "prepaid Interval: %u \n",prepaidInterval);	
@@ -857,7 +860,7 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
 	DOM_Output::dumpToMem(doc,debugout,&debuglen);
 	debugout[debuglen] = 0;			
 	CAMsg::printMsg(LOG_DEBUG, "the CC sent looks like this: %s \n",debugout);
-#endif			
+//#endif			
 	
 	//FINISH_STACK("CAAccountingInstance::sendCCRequest");
 	
@@ -1851,10 +1854,10 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 				pAccInfo->authFlags |= AUTH_ACCOUNT_EMPTY;
 			}
 		} 
-		else
+		/*else
 		{
 			//@todo:  perhaps forcing settlement
-		}
+		}*/
 		
 		delete expireDate;
 		expireDate = NULL;
@@ -1879,7 +1882,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	
 	/** @todo We need this trick so that the program does not freeze with active AI ThreadPool!!!! */
 	//pAccInfo->mutex->lock();
-	
+	CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Sending cc request\n");
 	if (bSendCCRequest)
 	{		
 		// fetch cost confirmation from last session if available, and send it
@@ -1887,14 +1890,17 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 		//m_dbInterface->getCostConfirmation(pAccInfo->accountNumber, m_currentCascade, &pCC);
 		if(pCC != NULL)
 		{			
-#ifdef DEBUG
+//#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Sending pcc to sign with %Lu transferred bytes\n", pCC->getTransferredBytes());
-#endif
+//#endif
 			// the typical case; the user had logged in before
-			/*@todo: we have to set the pAccInfo->bytesToConfirm to the difference of the 
-			 * prepaid interval and the users prepaid amount
-			 * so better use the sendCCRequest method.
+			/* there shouldn't be any counting synchronisation problems with the JAP
+			 * because the new login protocol dosn't permit JAPs 
+			 * to exchange data before login is finished.
 			 */
+			UINT32 prepaidIval = 0;
+			pglobalOptions->getPrepaidInterval(&prepaidIval);
+			pAccInfo->bytesToConfirm = (prepaidIval - prepaidAmount) + pCC->getTransferredBytes();
 			pAccInfo->pControlChannel->sendXMLMessage(pCC->getXMLDocument());
 			//delete pCC;
 		}
@@ -2006,7 +2012,7 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 	{
 		CAMsg::printMsg( LOG_INFO, "CostConfirmation has illegal number of price cert hashes!\n" );
 		CAXMLErrorMessage err(CAXMLErrorMessage::ERR_BAD_REQUEST, 
-			(UINT8*)"CostConfirmation has illegal number of price cert hashes");
+			(UINT8*)"CostConfirmation has illegaERR_WRONG_DATAl number of price cert hashes");
 		XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
 		err.toXmlDocument(errDoc);
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
@@ -2064,12 +2070,12 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 	//The CC's transferredBytes should be equivalent to 
 	//AccInfo's confirmed bytes + the Config's PrepaidInterval - the number of bytes transferred between
 	//requesting and receiving the CC
-#ifdef DEBUG
+//#ifdef DEBUG
 	CAMsg::printMsg( LOG_DEBUG, "received cost confirmation for  %Lu transferred bytes where confirmed bytes are %Lu, we need %Lu bytes to confirm"
 			", mix already counted %Lu transferred bytes\n", 
 			pCC->getTransferredBytes(), pAccInfo->confirmedBytes, pAccInfo->bytesToConfirm,
 			pAccInfo->transferredBytes);
-#endif
+//#endif
 	
 	if (pCC->getTransferredBytes() < pAccInfo->confirmedBytes)
 	{
@@ -2141,15 +2147,21 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 	}
 	else
 	{
-		UINT8 tmp[32], tmp2[32], tmp3[32];
+		/*UINT8 tmp[32], tmp2[32], tmp3[32];
 		print64(tmp, pCC->getTransferredBytes());
 		print64(tmp2, pCC->getAccountNumber());
-		print64(tmp3, pAccInfo->bytesToConfirm);
-		CAMsg::printMsg(LOG_ERR, "AccountingSettleThread: Requested CC value has NOT been confirmed by account nr %s! "
-								 "Received Bytes: %s/%s "
-								"Maybe client and Mix count differently?\n", tmp2, tmp, tmp3);
-		
-		m_pSettleThread->settle();
+		print64(tmp3, pAccInfo->bytesToConfirm);*/
+		CAMsg::printMsg(LOG_ERR, "AccountingSettleThread: Requested CC value has NOT been confirmed by account nr %Lu! "
+								 "Received Bytes: %Lu/%Lu "
+								"Client should not be allowed to login.\n", 
+								pCC->getAccountNumber(),
+								pCC->getTransferredBytes(),  
+								pAccInfo->bytesToConfirm);
+		delete pCC;
+		pAccInfo->mutex->unlock();
+		pAccInfo->authFlags |= AUTH_FAKE;
+		return CAXMLErrorMessage::ERR_WRONG_DATA;
+		//m_pSettleThread->settle();
 		
 	}
 	
