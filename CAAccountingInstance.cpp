@@ -656,11 +656,12 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 								(pAccInfo->lastHardLimitSeconds + HARD_LIMIT_TIMEOUT - time(NULL)));
 #endif					
 				
-				/* @todo: warning: a strict prepaid interval may abort large downloads/uploads, 
-				 * where large amounts of data are handled by mixes.
+				/* @todo: we don't use prepaid interval hard limit because it may abort 
+				 * large downloads/uploads, where large amounts of data are handled by mixes
+				 * in a short time.
 				 */ 
-				if (time(NULL) >= pAccInfo->lastHardLimitSeconds + HARD_LIMIT_TIMEOUT ||
-					(prepaidBytes < 0 && (UINT32)(prepaidBytes * (-1)) >= prepaidInterval))
+				if (time(NULL) >= pAccInfo->lastHardLimitSeconds + HARD_LIMIT_TIMEOUT 
+						/*|| (prepaidBytes < 0 && (UINT32)(prepaidBytes * (-1)) >= prepaidInterval*/ ))
 				{
 //#ifdef DEBUG		
 					char* strReason;
@@ -668,10 +669,10 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 					{
 						strReason = "timeout";
 					}
-					else
+					/*else
 					{
 						strReason = "negative prepaid interval exceeded";
-					}
+					}*/
 					CAMsg::printMsg( LOG_INFO, "Accounting instance: User refused "		
 									"to send cost confirmation (HARDLIMIT EXCEEDED, %s). "
 									"PrepaidBytes were: %d\n", strReason, prepaidBytes);
