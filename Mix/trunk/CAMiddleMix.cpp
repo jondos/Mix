@@ -668,6 +668,14 @@ THREAD_RETURN mm_loopReadFromMixBefore(void* param)
 
 		while(pMix->m_bRun)
 			{
+				if(pQueue->getSize()>MAX_READ_FROM_PREV_MIX_QUEUE_SIZE)
+				{
+#ifdef DEBUG
+					CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::Queue prev is full!\n");
+#endif				
+					msSleep(200);
+					continue;
+				}
 				#ifndef USE_POOL			
 					ret=oSocketGroup.select(1000);
 				#else
@@ -812,13 +820,19 @@ THREAD_RETURN mm_loopReadFromMixAfter(void* param)
 
 		CAQueue* pQueue=pMix->m_pQueueSendToMixBefore;
 		
-		int qsiz_stat = 0;
-		
 #ifdef USE_POOL		
 		CAPool* pPool=new CAPool(MIX_POOL_SIZE);
 #endif
 		while(pMix->m_bRun)
 			{
+				if(pQueue->getSize()>MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE)
+				{
+#ifdef DEBUG				
+					CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::Queue next is full!\n");
+#endif
+					msSleep(200);
+					continue;
+				}
 				#ifndef USE_POOL
 					ret=oSocketGroup.select(1000);
 				#else
@@ -895,40 +909,6 @@ THREAD_RETURN mm_loopReadFromMixAfter(void* param)
 										pMix->m_pMiddleMixChannelList->remove(channelIn);
 									}
 								pQueue->add(pMixPacket,sizeof(tQueueEntry));
-								//DEBUG
-								unsigned int qsiz = pQueue->getSize();
-								if(qsiz > MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE)
-								{
-									if((qsiz_stat >= 3) && (!(qsiz_stat % 100)) )
-									{
-										CAMsg::printMsg(LOG_CRIT,"middle mix queue size is overfull: %u\n", pQueue->getSize());
-										qsiz_stat = 4;
-									}
-								} 
-								else if(qsiz > (MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE*0.75))
-								{
-									if(qsiz_stat != 3)
-									{
-										CAMsg::printMsg(LOG_CRIT,"middle mix queue size is to 3/4 full: %u\n", pQueue->getSize());
-										qsiz_stat = 3;
-									}
-								}
-								else if(qsiz > (MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE*0.5))
-								{
-									if(qsiz_stat != 2)
-									{
-										CAMsg::printMsg(LOG_CRIT,"middle mix queue size is to 1/2 full: %u\n", pQueue->getSize());
-										qsiz_stat = 2;
-									}
-								}
-								else if(qsiz > (MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE*0.25))
-								{
-									if(qsiz_stat != 1)
-									{
-										CAMsg::printMsg(LOG_CRIT,"middle mix queue size is to 1/4 full: %u\n", pQueue->getSize());
-										qsiz_stat = 1;
-									}
-								}
 							}
 					}
 			}

@@ -686,7 +686,6 @@ THREAD_RETURN fm_loopSendToMix(void* param)
 /* How to end this thread:
 	0. set bRestart=true
 */
-#define MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE 10000000 //How many bytes could be in the incoming queue ??
 THREAD_RETURN fm_loopReadFromMix(void* pParam)
 	{
 		INIT_STACK;
@@ -713,7 +712,9 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 						MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE);*/
 				if(pQueue->getSize()>MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE)
 					{
-					CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::Queue is full!\n");
+#ifdef DEBUG
+						CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::Queue is full!\n");
+#endif
 						msSleep(200);
 						getcurrentTimeMillis(keepaliveLast);
 						continue;
@@ -1689,6 +1690,7 @@ SINT32 CAFirstMix::clean()
 	CAAccountingInstance::clean();
 	CAAccountingDBInterface::cleanup();
 #endif
+	
 		if(m_psocketgroupUsersRead!=NULL)
 			delete m_psocketgroupUsersRead;
 		m_psocketgroupUsersRead=NULL;
