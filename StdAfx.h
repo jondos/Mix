@@ -144,6 +144,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define FLOW_CONTROL_SENDME_HARD_LIMIT 95 //last mix stops sending after this unack packets
 #define FLOW_CONTROL_SENDME_SOFT_LIMIT 80 //last mix sends request for 'SENDME' after this unack packets
 
+#define MAX_READ_FROM_PREV_MIX_QUEUE_SIZE 10000000
+#define MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE 10000000 //How many bytes could be in the incoming queue ??
+#define MAX_MIXIN_SEND_QUEUE_SIZE 10000000
 
 #define DEFAULT_INFOSERVICE "141.76.45.37"
 

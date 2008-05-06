@@ -1254,17 +1254,12 @@ SINT32 CAAccountingDBInterface::init()
 SINT32 CAAccountingDBInterface::cleanup()
 {
 	UINT32 i;
-	SINT32 dbConnStatus, ret = E_SUCCESS;
+	SINT32 dbConnStatus = E_SUCCESS, ret = E_SUCCESS;
 	if(ms_pDBConnectionPool != NULL)
 	{
 		for(i=0; i < MAX_DB_CONNECTIONS; i++)
 		{
-			if(ms_pDBConnectionPool[i] == NULL)
-			{
-				CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: DBConnection cleanup: Already cleaned up !?! "
-						"Or someone forgot to initialize?\n");
-			}
-			else
+			if(ms_pDBConnectionPool[i] != NULL)
 			{
 				dbConnStatus = ms_pDBConnectionPool[i]->terminateDBConnection();
 				delete ms_pDBConnectionPool[i];

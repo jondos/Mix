@@ -851,7 +851,7 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
     pAccInfo->bytesToConfirm = (prepaidInterval) + pAccInfo->transferredBytes;
 	makeCCRequest(pAccInfo->accountNumber, pAccInfo->bytesToConfirm, doc);				
 	//pAccInfo->authFlags |= AUTH_SENT_CC_REQUEST;
-//#ifdef DEBUG	
+#ifdef DEBUG	
 	CAMsg::printMsg(LOG_DEBUG, "CC request sent for %Lu bytes \n",pAccInfo->bytesToConfirm);
 	CAMsg::printMsg(LOG_DEBUG, "transferrred bytes: %Lu bytes \n",pAccInfo->transferredBytes);
 	CAMsg::printMsg(LOG_DEBUG, "prepaid Interval: %u \n",prepaidInterval);	
@@ -861,7 +861,7 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
 	DOM_Output::dumpToMem(doc,debugout,&debuglen);
 	debugout[debuglen] = 0;			
 	CAMsg::printMsg(LOG_DEBUG, "the CC sent looks like this: %s \n",debugout);
-//#endif			
+#endif			
 	
 	//FINISH_STACK("CAAccountingInstance::sendCCRequest");
 	
@@ -869,7 +869,6 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
 	doc->release();
 	doc = NULL;
 	return ret;
-	
 }
 
 
@@ -1883,7 +1882,6 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	
 	/** @todo We need this trick so that the program does not freeze with active AI ThreadPool!!!! */
 	//pAccInfo->mutex->lock();
-	CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Sending cc request\n");
 	if (bSendCCRequest)
 	{		
 		// fetch cost confirmation from last session if available, and send it
@@ -1891,9 +1889,9 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 		//m_dbInterface->getCostConfirmation(pAccInfo->accountNumber, m_currentCascade, &pCC);
 		if(pCC != NULL)
 		{			
-//#ifdef DEBUG
+#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Sending pcc to sign with %Lu transferred bytes\n", pCC->getTransferredBytes());
-//#endif
+#endif
 			// the typical case; the user had logged in before
 			/* there shouldn't be any counting synchronisation problems with the JAP
 			 * because the new login protocol dosn't permit JAPs 
@@ -2071,12 +2069,12 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 	//The CC's transferredBytes should be equivalent to 
 	//AccInfo's confirmed bytes + the Config's PrepaidInterval - the number of bytes transferred between
 	//requesting and receiving the CC
-//#ifdef DEBUG
+#ifdef DEBUG
 	CAMsg::printMsg( LOG_DEBUG, "received cost confirmation for  %Lu transferred bytes where confirmed bytes are %Lu, we need %Lu bytes to confirm"
 			", mix already counted %Lu transferred bytes\n", 
 			pCC->getTransferredBytes(), pAccInfo->confirmedBytes, pAccInfo->bytesToConfirm,
 			pAccInfo->transferredBytes);
-//#endif
+#endif
 	
 	if (pCC->getTransferredBytes() < pAccInfo->confirmedBytes)
 	{

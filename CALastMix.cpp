@@ -532,7 +532,7 @@ THREAD_RETURN lm_loopSendToMix(void* param)
 		THREAD_RETURN_SUCCESS;
 	}
 
-#define MAX_READ_FROM_PREV_MIX_QUEUE_SIZE	10000000
+
 
 /* How to end this thread:
  * 1. set m_brestart=true
@@ -552,49 +552,18 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 		UINT64 keepaliveNow,keepaliveLast;
 		UINT32 u32KeepAliveRecvInterval=pLastMix->m_u32KeepAliveRecvInterval;
 		getcurrentTimeMillis(keepaliveLast);
-		unsigned int qsiz_stat = 0;
+		
 		while(!pLastMix->m_bRestart)
 			{
 				if(pQueue->getSize()>MAX_READ_FROM_PREV_MIX_QUEUE_SIZE)
 					{
+#ifdef DEBUG						
+						CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::Queue is full!\n");
+#endif
 						msSleep(200);
 						getcurrentTimeMillis(keepaliveLast);
 						continue;
 					}
-				
-				unsigned int qsiz = pQueue->getSize();
-				if(qsiz > MAX_READ_FROM_PREV_MIX_QUEUE_SIZE)
-				{
-					if(qsiz_stat != 4)
-					{
-						CAMsg::printMsg(LOG_CRIT,"middle mix queue size is overfull: %u\n", pQueue->getSize());
-						qsiz_stat = 4;
-					}
-				} 
-				else if(qsiz > (MAX_READ_FROM_PREV_MIX_QUEUE_SIZE*0.75))
-				{
-					if(qsiz_stat != 3)
-					{
-						CAMsg::printMsg(LOG_CRIT,"middle mix queue size is to 3/4 full: %u\n", pQueue->getSize());
-						qsiz_stat = 3;
-					}
-				}
-				else if(qsiz > (MAX_READ_FROM_PREV_MIX_QUEUE_SIZE*0.5))
-				{
-					if(qsiz_stat != 2)
-					{
-						CAMsg::printMsg(LOG_CRIT,"middle mix queue size is to 1/2 full: %u\n", pQueue->getSize());
-						qsiz_stat = 2;
-					}
-				}
-				else if(qsiz > (MAX_READ_FROM_PREV_MIX_QUEUE_SIZE*0.25))
-				{
-					if(qsiz_stat != 1)
-					{
-						CAMsg::printMsg(LOG_CRIT,"middle mix queue size is to 1/4 full: %u\n", pQueue->getSize());
-						qsiz_stat = 1;
-					}
-				}
 				
 				//check if the connection is broken because we did not received a Keep_alive-Message
 				getcurrentTimeMillis(keepaliveNow);

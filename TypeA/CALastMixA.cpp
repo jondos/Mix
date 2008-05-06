@@ -455,7 +455,7 @@ SINT32 CALastMixA::loop()
 //End Step 2
 
 //Step 3 Reading from Cache....
-#define MAX_MIXIN_SEND_QUEUE_SIZE 1000000
+
 				countRead=psocketgroupCacheRead->select(0);
 #ifdef DELAY_CHANNELS_LATENCY
 				UINT64 current_time_millis;
