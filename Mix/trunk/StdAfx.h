@@ -33,7 +33,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #if !defined(AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_)
 #define AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_
 
-#define MIX_VERSION "00.07.26"
+#define MIX_VERSION "00.07.27"
 
 #include "doxygen.h"
 
@@ -47,6 +47,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define LOG_TRAFFIC_PER_USER //Log detail for traffic per user
 //#define LOG_CHANNEL //Log detail for traffic per cahnnel
 //#define LOG_PACKET_TIMES //computes statistics about the processing time each packet needs
+//#define LOG_DIALOG
 //#define COMPRESSED_LOGS
 //#define DO_TRACE
 //#define PSEUDO_LOG
@@ -64,6 +65,18 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define PRINT_THREAD_STACK_TRACE //Usefull for debugging output of stack trace if mix dies...
 #if !defined(PRINT_THREAD_STACK_TRACE) && defined (DEBUG)&& ! defined(ONLY_LOCAL_PROXY)
 	#define PRINT_THREAD_STACK_TRACE
+#endif
+
+#if defined(LOG_DIALOG)
+	#ifndef LOG_CHANNEL
+		#define LOG_CHANNEL
+	#endif
+	#ifndef COUNTRY_STATS
+		#define COUNTRY_STATS
+	#endif
+#endif
+#if (defined(LOG_CHANNEL)) && !defined(LOG_TRAFFIC_PER_USER)
+	#define LOG_TRAFFIC_PER_USER
 #endif
 
 #ifdef COUNTRY_STATS
@@ -158,10 +171,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define FM_PACKET_STATS_LOG_INTERVALL 1 //Intervall in Minutes for loggin packet stats for the first Mix
 #define LM_PACKET_STATS_LOG_INTERVALL 1 //Intervall in Minutes for loggin packet stats for the last Mix
-/*#if defined(LOG_CHANNEL) &&!defined(LOG_PACKET_TIMES)
-	#define LOG_PACKET_TIMES
-#endif
-*/
+
+
 //#define MIX_CASCADE_PROTOCOL_VERSION_0_9 9  //with new payment protocol
 #define MIX_CASCADE_PROTOCOL_VERSION_0_8 8  //with replay detection + control channels + first mix symmetric
 #define MIX_CASCADE_PROTOCOL_VERSION_0_7 7  //with replay detection + control channels (obsolete)
@@ -171,9 +182,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define MIX_CASCADE_PROTOCOL_VERSION_0_3 3 //with reply detection [deprecated - not in use anymore!]
 #define MIX_CASCADE_PROTOCOL_VERSION_0_2 2 //old normal protocol
 
-#if (defined(LOG_CHANNEL)) && !defined(LOG_TRAFFIC_PER_USER)
-	#define LOG_TRAFFIC_PER_USER
-#endif
 #ifdef REPLAY_DETECTION
 	#define MIX_CASCADE_PROTOCOL_VERSION "0.81"
 //#elif defined(PAYMENT)
@@ -481,7 +489,15 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 //For MySQL
 #if defined(COUNTRY_STATS)
-    #include <mysql/mysql.h>
+    #ifdef HAVE_CONFIG_H
+	#ifdef HAVE_MYSQL_MYSQL_H
+	    #include <mysql/mysql.h>
+	#else
+	    #include <mysql.h>
+	#endif
+    #else //HAVE_CONFIG_H
+	#include <mysql/mysql.h>
+    #endif
 #endif
 
 //For Payment
