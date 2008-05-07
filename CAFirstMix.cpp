@@ -211,7 +211,16 @@ SINT32 CAFirstMix::init()
     }
 		m_pIPList=new CAIPList();
 #ifdef COUNTRY_STATS
-		initCountryStats();
+		char* db_host;
+		char* db_user;
+		char* db_passwd;
+		pglobalOptions->getCountryStatsDBConnectionLoginData(&db_host,&db_user,&db_passwd);
+		SINT32 retcountrydb=initCountryStats(db_host,db_user,db_passwd);
+		delete[] db_host;
+		delete[] db_user;
+		delete[] db_passwd;
+		if(retcountrydb!=E_SUCCESS)
+			return E_UNKNOWN;
 #endif		
 		m_pQueueSendToMix=new CAQueue(sizeof(tQueueEntry));
 		m_pQueueReadFromMix=new CAQueue(sizeof(tQueueEntry));
@@ -569,6 +578,7 @@ SINT32 CAFirstMix::processKeyExchange()
     return E_SUCCESS;
 }
 
+
 SINT32 CAFirstMix::setMixParameters(const tMixParameters& params)
 	{
 #ifdef REPLAY_DETECTION
@@ -587,6 +597,7 @@ SINT32 CAFirstMix::setMixParameters(const tMixParameters& params)
 #endif
 		return E_SUCCESS;
 	}
+
 
 /**How to end this thread:
 0. set bRestart=true;
@@ -707,9 +718,6 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 		CAControlChannelDispatcher* pControlChannelDispatcher=pFirstMix->m_pMuxOutControlChannelDispatcher;
 		while(!pFirstMix->m_bRestart)
 			{
-				/*CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::Queue size: %u/%u\n", 
-						pQueue->getSize(),
-						MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE);*/
 				if(pQueue->getSize()>MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE)
 					{
 #ifdef DEBUG
@@ -911,12 +919,11 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 						{
 							/* This should protect the mix from flooding attacks
 							 * No more than MAX_CONCURRENT_NEW_CONNECTIONS are allowed.
-							 */						
-						//#ifdef _DEBUG				
+							 */
+#ifdef _DEBUG
 							CAMsg::printMsg(LOG_DEBUG,"CAFirstMix Flooding protection: Too many concurrent new connections (Maximum:%d)! Rejecting user...\n", CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS);
-						//#endif
+#endif
 							ret = E_UNKNOWN;
-							
 						}
 #ifndef PAYMENT					
 						else if ((ret = ((CASocket*)pNewMuxSocket)->getPeerIP(peerIP)) != E_SUCCESS ||
@@ -939,7 +946,9 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							d->pNewUser=pNewMuxSocket;
 							d->pMix=pFirstMix;
 							memcpy(d->peerIP,peerIP,4);
+#ifdef DEBUG
 							CAMsg::printMsg(LOG_DEBUG,"%d concurrent client connections.\n", pFirstMix->m_newConnections);
+#endif
 							if(pthreadsLogin->addRequest(fm_loopDoUserLogin,d)!=E_SUCCESS)
 							{
 								CAMsg::printMsg(LOG_ERR,"Could not add an login request to the login thread pool!\n");
@@ -1148,6 +1157,14 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 
 		DOMElement *elemSig=NULL;
 
+#ifdef LOG_DIALOG
+		DOMElement* elemDialog=NULL;
+		getDOMChildByName(elemRoot,"Dialog",elemDialog,false);
+		UINT8 strDialog[255];
+		memset(strDialog,0,255);
+		UINT32 dialogLen=255;
+		getDOMElementValue(elemDialog,strDialog,&dialogLen);
+#endif
 #ifdef REPLAY_DETECTION
 		//checking if Replay-Detection is enabled
 		DOMElement *elemReplay=NULL;
@@ -1230,7 +1247,11 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		CAQueue* tmpQueue=new CAQueue(sizeof(tQueueEntry));
 		
 		SAVE_STACK("CAFirstMix::doUserLogin", "Adding user to connection list...");
+#ifndef LOG_DIALOG
 		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue);
+#else
+		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue,strDialog);
+#endif
 		if(pHashEntry==NULL)// adding user connection to mix->JAP channel list (stefan: sollte das nicht connection list sein? --> es handelt sich um eine Datenstruktu fr Connections/Channels ).
 		{
 			doc->release();
@@ -1402,8 +1423,11 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		m_psocketgroupUsersWrite->add(*pNewUser);
 #endif
 		doc->release();
+#ifndef LOG_DIALOG
 		CAMsg::printMsg(LOG_DEBUG,"User login: finished\n");
-
+#else
+		CAMsg::printMsg(LOG_DEBUG,"User login: finished -- connection-ID: %Lu -- country-id: %u -- dialog: %s\n",pHashEntry->id,pHashEntry->countryID,pHashEntry->strDialog);
+#endif
 		return E_SUCCESS;
 	}
 //NEVER EVER DELETE THIS!
@@ -1690,7 +1714,6 @@ SINT32 CAFirstMix::clean()
 	CAAccountingInstance::clean();
 	CAAccountingDBInterface::cleanup();
 #endif
-	
 		if(m_psocketgroupUsersRead!=NULL)
 			delete m_psocketgroupUsersRead;
 		m_psocketgroupUsersRead=NULL;
@@ -1777,18 +1800,20 @@ SINT32 CAFirstMix::sendReplayTimestampRequestsToAllMixes()
 
 #ifdef COUNTRY_STATS
 #define COUNTRY_STATS_DB "CountryStats"
-#define NR_OF_COUNTRIES 250
+#define NR_OF_COUNTRIES 254
 
-SINT32 CAFirstMix::initCountryStats()
+SINT32 CAFirstMix::initCountryStats(char* db_host,char* db_user,char* db_passwd)
 	{
 		m_CountryStats=NULL;
 		m_mysqlCon=mysql_init(NULL);
+		my_bool thetrue=1;
+		mysql_options(m_mysqlCon,MYSQL_OPT_RECONNECT,&thetrue);
 		MYSQL* tmp=NULL;
-		tmp=mysql_real_connect(m_mysqlCon,NULL,"root",NULL,COUNTRY_STATS_DB,0,NULL,0);
+		tmp=mysql_real_connect(m_mysqlCon,db_host,db_user,db_passwd,COUNTRY_STATS_DB,0,NULL,0);
 		if(tmp==NULL)
 			{
-				CAMsg::printMsg(LOG_DEBUG,"Could not connet to CountryStats DB!\n");
-				my_thread_end();
+				CAMsg::printMsg(LOG_DEBUG,"Could not connect to CountryStats DB!\n");
+				mysql_thread_end();
 				mysql_close(m_mysqlCon);
 				m_mysqlCon=NULL;
 				return E_UNKNOWN;
@@ -1805,10 +1830,10 @@ SINT32 CAFirstMix::initCountryStats()
 		}
 		m_CountryStats=new UINT32[NR_OF_COUNTRIES+1];
 		memset((void*)m_CountryStats,0,sizeof(UINT32)*(NR_OF_COUNTRIES+1));
-		m_PacketsPerCountryIN=new UINT32[NR_OF_COUNTRIES+1];
-		memset((void*)m_PacketsPerCountryIN,0,sizeof(UINT32)*(NR_OF_COUNTRIES+1));
-		m_PacketsPerCountryOUT=new UINT32[NR_OF_COUNTRIES+1];
-		memset((void*)m_PacketsPerCountryOUT,0,sizeof(UINT32)*(NR_OF_COUNTRIES+1));
+		m_PacketsPerCountryIN=new tUINT32withLock[NR_OF_COUNTRIES+1];
+		//memset((void*)m_PacketsPerCountryIN,0,sizeof(UINT32)*(NR_OF_COUNTRIES+1));
+		m_PacketsPerCountryOUT=new tUINT32withLock[NR_OF_COUNTRIES+1];
+		//memset((void*)m_PacketsPerCountryOUT,0,sizeof(UINT32)*(NR_OF_COUNTRIES+1));
 		m_threadLogLoop=new CAThread((UINT8*)"Country Logger Thread");
 		m_threadLogLoop->setMainLoop(iplist_loopDoLogCountries);
 		m_bRunLogCountries=true;
@@ -1827,7 +1852,7 @@ SINT32 CAFirstMix::deleteCountryStats()
 			}
 		if(m_mysqlCon!=NULL)
 			{
-				my_thread_end();
+				mysql_thread_end();
 				mysql_close(m_mysqlCon);
 				m_mysqlCon=NULL;
 			}
@@ -1907,12 +1932,12 @@ RET:
 THREAD_RETURN iplist_loopDoLogCountries(void* param)
 	{
 		CAMsg::printMsg(LOG_DEBUG,"Starting iplist_loopDoLogCountries\n");														
-		CAFirstMix* pIPList=(CAFirstMix*)param;
+		CAFirstMix* pFirstMix=(CAFirstMix*)param;
 		UINT32 s=0;
 		UINT8 buff[255];
 		pglobalOptions->getCascadeName(buff,255);
 		mysql_thread_init();
-		while(pIPList->m_bRunLogCountries)
+		while(pFirstMix->m_bRunLogCountries)
 			{
 				if(s==LOG_COUNTRIES_INTERVALL)
 					{
@@ -1921,22 +1946,21 @@ THREAD_RETURN iplist_loopDoLogCountries(void* param)
 						strftime((char*)aktDate,255,"%Y%m%d%H%M%S",gmtime(&aktTime));
 						char query[1024];
 						sprintf(query,"INSERT into `stats_%s` (date,id,count,packets_in,packets_out) VALUES (\"%s\",\"%%u\",\"%%u\",\"%%u\",\"%%u\")",buff,aktDate);
-						pIPList->m_pmutexUser->lock();
+						pFirstMix->m_pmutexUser->lock();
 						for(UINT32 i=0;i<NR_OF_COUNTRIES+1;i++)
 							{
-								if(pIPList->m_CountryStats[i]>0)
+								if(pFirstMix->m_CountryStats[i]>0)
 									{
 										char aktQuery[1024];
-										sprintf(aktQuery,query,i,pIPList->m_CountryStats[i],pIPList->m_PacketsPerCountryIN[i],pIPList->m_PacketsPerCountryOUT[i]);
-										pIPList->m_PacketsPerCountryIN[i]=pIPList->m_PacketsPerCountryOUT[i]=0;
-										SINT32 ret=mysql_query(pIPList->m_mysqlCon,aktQuery);
+										sprintf(aktQuery,query,i,pFirstMix->m_CountryStats[i],pFirstMix->m_PacketsPerCountryIN[i].getAndzero(),pFirstMix->m_PacketsPerCountryOUT[i].getAndzero());
+										SINT32 ret=mysql_query(pFirstMix->m_mysqlCon,aktQuery);
 										if(ret!=0)
 										{
 											CAMsg::printMsg(LOG_INFO,"CountryStats DB - failed to update CountryStats DB with new values - error %i\n",ret);
 										}
 									}
 							}
-						pIPList->m_pmutexUser->unlock();
+						pFirstMix->m_pmutexUser->unlock();
 						s=0;
 					}
 				sSleep(10);
