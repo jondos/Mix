@@ -86,13 +86,10 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 	
 	#ifdef LOG_TRAFFIC_PER_USER
 		UINT64 current_time;
-		UINT32 diff_time;
 		getcurrentTimeMillis(current_time);
-		diff_time=diff64(current_time,pHashEntry->timeCreated);
-		m_pIPList->removeIP(pHashEntry->peerIP,diff_time,pHashEntry->trafficIn,pHashEntry->trafficOut);
-	#else
-		m_pIPList->removeIP(pHashEntry->peerIP);
+		CAMsg::printMsg(LOG_DEBUG,"Removing Connection wiht ID: %Lu -- login time [ms] %Lu -- logout time [ms] %Lu -- Traffic was: IN: %u  --  OUT: %u\n",pHashEntry->id,pHashEntry->timeCreated,current_time,pHashEntry->trafficIn,pHashEntry->trafficOut);
 	#endif
+	m_pIPList->removeIP(pHashEntry->peerIP);
 	
 	m_psocketgroupUsersRead->remove(*(CASocket*)pHashEntry->pMuxSocket);
 	m_psocketgroupUsersWrite->remove(*(CASocket*)pHashEntry->pMuxSocket);
@@ -268,7 +265,7 @@ SINT32 CAFirstMixA::loop()
 													pHashEntry->trafficIn++;
 												#endif
 												#ifdef COUNTRY_STATS
-													m_PacketsPerCountryIN[pHashEntry->countryID]++;
+													m_PacketsPerCountryIN[pHashEntry->countryID].inc();
 												#endif	
 												//New control channel code...!
 												if(pMixPacket->channel>0&&pMixPacket->channel<256)
@@ -290,7 +287,7 @@ SINT32 CAFirstMixA::loop()
 												{
 													// renew the timeout
 													pHashEntry->bRecoverTimeout = true;														
-													m_pChannelList->pushTimeoutEntry(pHashEntry);
+													m_pChannelList->pushTimeoutEntry(pHashEntry);													
 												}		
 												else if (CAAccountingInstance::HANDLE_PACKET_HOLD_CONNECTION == ret)
 												{
@@ -318,6 +315,12 @@ SINT32 CAFirstMixA::loop()
 													#ifdef LOG_PACKET_TIMES
 														setZero64(pQueueEntry->timestamp_proccessing_start);
 													#endif
+													#ifdef LOG_TRAFFIC_PER_USER
+														pHashEntry->trafficOut++;
+													#endif
+													#ifdef COUNTRY_STATS
+														m_PacketsPerCountryOUT[pHashEntry->countryID].inc();
+													#endif	
 													pHashEntry->pQueueSend->add(pMixPacket,sizeof(tQueueEntry));
 													#ifdef HAVE_EPOLL
 														m_psocketgroupUsersWrite->add(*pMuxSocket,pHashEntry); 
@@ -459,7 +462,8 @@ NEXT_USER:
 								if(pEntry!=NULL)
 									{
 										pMixPacket->channel=pEntry->channelIn;
-										getRandom(pMixPacket->data,DATA_SIZE);
+										pEntry->pCipher->crypt2(pMixPacket->data,pMixPacket->data,DATA_SIZE);
+										//getRandom(pMixPacket->data,DATA_SIZE);
 										#ifdef LOG_PACKET_TIMES
 											getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 										#endif
@@ -468,10 +472,10 @@ NEXT_USER:
 											pEntry->pHead->trafficOut++;
 										#endif
 										#ifdef COUNTRY_STATS
-											m_PacketsPerCountryOUT[pEntry->pHead->countryID]++;
+											m_PacketsPerCountryOUT[pEntry->pHead->countryID].inc();
 										#endif	
 										#ifdef LOG_CHANNEL	
-											//pEntry->packetsOutToUser++;
+											pEntry->packetsOutToUser++;
 											getcurrentTimeMicros(current_time);
 											diff_time=diff64(current_time,pEntry->timeCreated);
 											CAMsg::printMsg(LOG_DEBUG,"2:%u,%Lu,%Lu,%u,%u,%u\n",
@@ -519,9 +523,9 @@ NEXT_USER:
 											pEntry->pHead->trafficOut++;
 										#endif
 										#ifdef COUNTRY_STATS
-											m_PacketsPerCountryOUT[pEntry->pHead->countryID]++;
+											m_PacketsPerCountryOUT[pEntry->pHead->countryID].inc();
 										#endif	
-										#ifdef LOG_CGANNEL	
+										#ifdef LOG_CHANNEL	
 											pEntry->packetsOutToUser++;
 										#endif
 										#ifdef HAVE_EPOLL
