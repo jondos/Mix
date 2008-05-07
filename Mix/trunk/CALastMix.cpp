@@ -46,18 +46,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAPool.hpp"
 #include "xml/DOM_Output.hpp"
 #include "CAStatusManager.hpp"
+
 extern CACmdLnOptions* pglobalOptions;
 
-/*#ifdef LOG_CHANNEL
-	#define MACRO_DO_LOG_CHANNEL\
-		getcurrentTimeMillis(current_millis);\
-		diff_time=diff64(current_millis,pChannelListEntry->timeCreated);\
-		CAMsg::printMsg(LOG_DEBUG,"Channel %u closed - Start %Lu - End %Lu - Time [ms] - %u, Upload - %u, Download - %u, DataPacketsFromUser %u, DataPacketsToUser %u\n",\
-			pChannelListEntry->channelIn,pChannelListEntry->timeCreated,\
-			current_millis,diff_time,pChannelListEntry->trafficInFromUser,pChannelListEntry->trafficOutToUser,\
-			pChannelListEntry->packetsDataInFromUser,pChannelListEntry->packetsDataOutToUser); 
-#endif
-*/
 /*******************************************************************************/
 // ----------START NEW VERSION -----------------------
 //---------------------------------------------------------
@@ -533,7 +524,6 @@ THREAD_RETURN lm_loopSendToMix(void* param)
 	}
 
 
-
 /* How to end this thread:
  * 1. set m_brestart=true
  */  	
@@ -552,7 +542,6 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 		UINT64 keepaliveNow,keepaliveLast;
 		UINT32 u32KeepAliveRecvInterval=pLastMix->m_u32KeepAliveRecvInterval;
 		getcurrentTimeMillis(keepaliveLast);
-		
 		while(!pLastMix->m_bRestart)
 			{
 				if(pQueue->getSize()>MAX_READ_FROM_PREV_MIX_QUEUE_SIZE)
@@ -564,7 +553,6 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 						getcurrentTimeMillis(keepaliveLast);
 						continue;
 					}
-				
 				//check if the connection is broken because we did not received a Keep_alive-Message
 				getcurrentTimeMillis(keepaliveNow);
 				UINT32 keepaliveDiff=diff64(keepaliveNow,keepaliveLast);
