@@ -179,7 +179,7 @@ SINT32 CALastMixA::loop()
 															delete newCipher;
 													}
 												else
-														{ //connection to proxy successfull
+														{ //connection to proxy successful
 															UINT16 payLen=ntohs(pMixPacket->payload.len);
 															#ifdef _DEBUG
 																UINT8 c=pMixPacket->payload.data[30];
