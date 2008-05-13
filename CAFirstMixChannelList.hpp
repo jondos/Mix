@@ -126,9 +126,9 @@ struct t_firstmixchannellist
 
 #ifdef LOG_CHANNEL
 			UINT32				packetsInFromUser;
-			UINT32				packetsOutToUser;
 			UINT64				timeCreated;	
 #endif
+			UINT32				packetsOutToUser; /* a hack to solve the SSL problem */
 		private:
 			struct
 				{
