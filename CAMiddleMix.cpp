@@ -44,8 +44,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "xml/DOM_Output.hpp"
 #include "CAStatusManager.hpp"
 
-#define MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE 10000000
-
 extern CACmdLnOptions* pglobalOptions;
 
 SINT32 CAMiddleMix::initOnce()

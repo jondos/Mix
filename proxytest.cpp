@@ -152,7 +152,7 @@ void init()
 			err=WSAStartup(0x0202,&wsadata);
 		#endif
 		initRandom();
-		pglobalOptions=new CACmdLnOptions();	
+		pglobalOptions=new CACmdLnOptions();
 }
 
 /**do necessary cleanups of libraries etc.*/
