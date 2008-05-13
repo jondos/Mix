@@ -660,7 +660,8 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 				 * large downloads/uploads, where large amounts of data are handled by mixes
 				 * in a short time.
 				 */ 
-				if (time(NULL) >= pAccInfo->lastHardLimitSeconds + HARD_LIMIT_TIMEOUT 
+				if (time(NULL) >= pAccInfo->lastHardLimitSeconds + HARD_LIMIT_TIMEOUT &&
+				    prepaidBytes <= 0
 						/*|| (prepaidBytes < 0 && (UINT32)(prepaidBytes * (-1)) >= prepaidInterval )*/ )
 				{
 //#ifdef DEBUG		
@@ -1513,7 +1514,6 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 	//CAMsg::printMsg(LOG_DEBUG, "Almost finished handleAccountCertificate, preparing challenge\n");
 
 	// generate random challenge data and Base64 encode it
-	//arbChallenge = ( UINT8* ) malloc( 222 );
 	arbChallenge = new UINT8[222];
 	getRandom( arbChallenge, 222 );
 	CABase64::encode( arbChallenge, 222, b64Challenge, &b64Len );
@@ -1894,7 +1894,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 #endif
 			// the typical case; the user had logged in before
 			/* there shouldn't be any counting synchronisation problems with the JAP
-			 * because the new login protocol dosn't permit JAPs 
+			 * because the new login protocol doesn't permit JAPs 
 			 * to exchange data before login is finished.
 			 */
 			UINT32 prepaidIval = 0;
@@ -1911,7 +1911,6 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 				// Delete any previously stored prepaid amount; there should not be any! CC lost?
 				pAccInfo->transferredBytes += prepaidAmount;
 			}
-			/* @todo: how do we handle the users prepaid amount ? */
 			sendCCRequest(pAccInfo);
 		}
 	}
@@ -2011,7 +2010,7 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 	{
 		CAMsg::printMsg( LOG_INFO, "CostConfirmation has illegal number of price cert hashes!\n" );
 		CAXMLErrorMessage err(CAXMLErrorMessage::ERR_BAD_REQUEST, 
-			(UINT8*)"CostConfirmation has illegaERR_WRONG_DATAl number of price cert hashes");
+			(UINT8*)"CostConfirmation has illegal number of price cert hashes");
 		XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
 		err.toXmlDocument(errDoc);
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
@@ -2029,7 +2028,11 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 	{
 		certHash = pCC->getPriceCertHash(i);
 		certHashCC->put(certHash, certHash);
-		
+		/*
+		if ((certHash = (UINT8*)certHashCC->getValue(certHash)) != NULL)
+		{
+			CAMsg::printMsg( LOG_INFO, "CC1: %s\n", certHash);
+		}*/
 	}
 	for (UINT32 i = 0; i < m_allHashesLen; i++)
 	{
@@ -2102,8 +2105,6 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 		print64(tmp,pCC->getTransferredBytes());
 		CAMsg::printMsg( LOG_ERR, "Transferredbytes in CC: %s\n", tmp);
 		*/
-		/*SINT32 dbRet = E_SUCCESS;
-		pAccInfo->authFlags &= ~AUTH_WAITING_FOR_FIRST_SETTLED_CC;*/
 		SINT32 dbRet = E_UNKNOWN;
 		CAAccountingDBInterface *dbInterface = CAAccountingDBInterface::getConnection();
 		if(dbInterface != NULL)
@@ -2414,8 +2415,6 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	UINT64 diffBytes = 0;
 	CAAccountingDBInterface *dbInterface = NULL;
 	
-	//if(1) return E_SUCCESS;
-	
 	/* This should never happen */
 	if(ms_pInstance == NULL)
 	{
@@ -2717,29 +2716,14 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			dbInterface = CAAccountingDBInterface::getConnection();
 		}
 		
-		while (entry != NULL)
+		while (entry != NULL && dbInterface != NULL)
 		{			
-			/*ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
-			AccountLoginHashEntry* loginEntry = 
-							(AccountLoginHashEntry*) (ms_pInstance->m_currentAccountsHashtable->getValue(&(entry->accountNumber)));
-			if (loginEntry)
-			{				
-				// the user is currently logged in											
-				loginEntry->authFlags |= entry->authFlags;
-				loginEntry->authRemoveFlags |= entry->authRemoveFlags;
-				if (entry->confirmedBytes)
-				{
-					loginEntry->confirmedBytes = entry->confirmedBytes;
-				}											
-			}
-			else */ 
-			if( (entry->authFlags & (AUTH_INVALID_ACCOUNT | AUTH_UNKNOWN)) 
-					&& (dbInterface!=NULL) )
+			if (entry->authFlags & (AUTH_INVALID_ACCOUNT | AUTH_UNKNOWN))
 			{
 				dbInterface->storePrepaidAmount(
 						entry->accountNumber, 0, ms_pInstance->m_currentCascade);
 			}
-			else if( (entry->diffBytes) && (dbInterface!=NULL)  )
+			else if (entry->diffBytes)
 			{
 				// user is currently not logged in; set correct prepaid bytes in DB
 				SINT32 prepaidBytes = 
@@ -2762,7 +2746,6 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			nextEntry = entry->nextEntry;
 			entry = nextEntry;									
 		}
-		//ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
 	}
 	CAAccountingDBInterface::releaseConnection(dbInterface);
 	dbInterface = NULL;

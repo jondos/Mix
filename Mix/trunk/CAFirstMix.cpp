@@ -913,8 +913,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							CAMsg::printMsg(LOG_DEBUG,"CAFirstMix User control: Too many users (Maximum:%d)! Rejecting user...\n", pFirstMix->getNrOfUsers(), pglobalOptions->getMaxNrOfUsers());
 							ret = E_UNKNOWN;
 						}
-												
-						else if( (pFirstMix->m_newConnections >  CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS)
+						else if ((pFirstMix->m_newConnections > CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS)
 							&& (master != E_SUCCESS) )
 						{
 							/* This should protect the mix from flooding attacks
@@ -1802,12 +1801,27 @@ SINT32 CAFirstMix::sendReplayTimestampRequestsToAllMixes()
 #define COUNTRY_STATS_DB "CountryStats"
 #define NR_OF_COUNTRIES 254
 
+/** Escape a string so tha it could be used as table anme. This is: exchange the chars '.' ; '/' ; '\' ; ':' with '_'
+*/
+void mysqlEscapeTableName(UINT8* str)
+	{
+		UINT32 i=0;
+		while(str[i]!=0)
+			{
+				if(str[i]=='.'||str[i]==':'||str[i]=='/'||str[i]=='\\')
+					str[i]='_';
+				i++;
+			}
+	}
+
 SINT32 CAFirstMix::initCountryStats(char* db_host,char* db_user,char* db_passwd)
 	{
 		m_CountryStats=NULL;
 		m_mysqlCon=mysql_init(NULL);
+#ifdef HAVE_MYSQL_OPT_RECONNECT
 		my_bool thetrue=1;
 		mysql_options(m_mysqlCon,MYSQL_OPT_RECONNECT,&thetrue);
+#endif
 		MYSQL* tmp=NULL;
 		tmp=mysql_real_connect(m_mysqlCon,db_host,db_user,db_passwd,COUNTRY_STATS_DB,0,NULL,0);
 		if(tmp==NULL)
@@ -1822,6 +1836,7 @@ SINT32 CAFirstMix::initCountryStats(char* db_host,char* db_user,char* db_passwd)
 		char query[1024];
 		UINT8 buff[255];
 		pglobalOptions->getCascadeName(buff,255);
+		mysqlEscapeTableName(buff);
 		sprintf(query,"CREATE TABLE IF NOT EXISTS `stats_%s` (date timestamp,id int,count int,packets_in int,packets_out int)",buff);
 		SINT32 ret=mysql_query(m_mysqlCon,query);
 		if(ret!=0)
@@ -1936,6 +1951,7 @@ THREAD_RETURN iplist_loopDoLogCountries(void* param)
 		UINT32 s=0;
 		UINT8 buff[255];
 		pglobalOptions->getCascadeName(buff,255);
+		mysqlEscapeTableName(buff);
 		mysql_thread_init();
 		while(pFirstMix->m_bRunLogCountries)
 			{

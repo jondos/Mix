@@ -195,7 +195,6 @@ SINT32 CAFirstMixA::loop()
 						if (authFlags > 0)
 						{
 							CAMsg::printMsg(LOG_ERR,"Client connection closed due to forced timeout! Payment auth flags: %u\n", authFlags);
-							if(1) break;
 						}
 						else
 //#endif						

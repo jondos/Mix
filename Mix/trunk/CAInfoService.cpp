@@ -1108,7 +1108,7 @@ SINT32 CAInfoService::getPaymentInstance(const UINT8* a_pstrPIID,CAXMLBI** a_pXM
 
 
 /** Gets a payment instance from the InfoService.
-	@param a_pstrPIID id of the payment instacne for which the information is requested
+	@param a_pstrPIID id of the payment instance for which the information is requested
 	@param a_pXMLBI a pointer to a pointer which on a successful return will point to a newly created CAXMLBI object
 	@param a_socketAddress adress of the InfoService from which the information is to be requested
 	@retval E_SUCCESS if succesful
