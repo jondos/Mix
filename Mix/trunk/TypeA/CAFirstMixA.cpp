@@ -39,6 +39,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #endif
 extern CACmdLnOptions* pglobalOptions;
 
+#define SSL_HACK
+
 void CAFirstMixA::shutDown()
 {
 	m_bIsShuttingDown = true;
@@ -216,7 +218,7 @@ SINT32 CAFirstMixA::loop()
 // Checking for data from users
 // Now in a separate Thread (see loopReadFromUsers())
 //Only proccess user data, if queue to next mix is not to long!!
-#define MAX_NEXT_MIX_QUEUE_SIZE 50000000 //50 MByte
+
 				if(m_pQueueSendToMix->getSize()<MAX_NEXT_MIX_QUEUE_SIZE)
 					{
 						countRead=m_psocketgroupUsersRead->select(/*false,*/0);				// how many JAP<->mix connections have received data from their coresponding JAP
@@ -349,6 +351,7 @@ SINT32 CAFirstMixA::loop()
 																												diff_time);
 														#endif
 														delete pEntry->pCipher;              // forget the symetric key of this connection
+														pEntry->pCipher = NULL;
 														m_pChannelList->removeChannel(pMuxSocket,pEntry->channelIn);
 													}
 													#ifdef _DEBUG
@@ -372,6 +375,7 @@ SINT32 CAFirstMixA::loop()
 														#ifdef LOG_PACKET_TIMES
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 														#endif
+							
 														m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));
 														incMixedPackets();
 														#ifdef LOG_CHANNEL
@@ -461,7 +465,10 @@ NEXT_USER:
 								fmChannelList* pEntry=m_pChannelList->get(pMixPacket->channel);
 								if(pEntry!=NULL)
 									{
-										pMixPacket->channel=pEntry->channelIn;
+										#ifndef SSL_HACK	
+										pMixPacket->channel=pEntry->channelIn; /* a hack to solve the SSL problem */
+										#endif
+										
 										pEntry->pCipher->crypt2(pMixPacket->data,pMixPacket->data,DATA_SIZE);
 										//getRandom(pMixPacket->data,DATA_SIZE);
 										#ifdef LOG_PACKET_TIMES
@@ -474,6 +481,9 @@ NEXT_USER:
 										#ifdef COUNTRY_STATS
 											m_PacketsPerCountryOUT[pEntry->pHead->countryID].inc();
 										#endif	
+										#ifdef SSL_HACK
+											pEntry->packetsOutToUser += sizeof(tQueueEntry); /* a hack to solve the SSL problem */
+										#endif
 										#ifdef LOG_CHANNEL	
 											pEntry->packetsOutToUser++;
 											getcurrentTimeMicros(current_time);
@@ -488,10 +498,19 @@ NEXT_USER:
 										#else
 											m_psocketgroupUsersWrite->add(*pEntry->pHead->pMuxSocket); 
 										#endif
-										delete pEntry->pCipher;
+										
 	
-										m_pChannelList->removeChannel(pEntry->pHead->pMuxSocket,pEntry->channelIn);
+										#ifndef SSL_HACK	
+											delete pEntry->pCipher;              // forget the symetric key of this connection
+											m_pChannelList->removeChannel(pEntry->pMuxSocket,pEntry->channelIn);
+										/* a hack to solve the SSL problem */
+										#endif
 									}
+									else
+									{
+										CAMsg::printMsg(LOG_DEBUG, "CAFirstMixA: close channel -> client but channel does not exist.\n");
+									}
+									
 							}
 						else
 							{//flag !=close
@@ -499,6 +518,7 @@ NEXT_USER:
 //									CAMsg::printMsg(LOG_DEBUG,"Sending Data to Browser!\n");
 								#endif
 								fmChannelList* pEntry=m_pChannelList->get(pMixPacket->channel);
+										
 								if(pEntry!=NULL)
 									{
 										#ifdef LOG_CRIME
@@ -512,7 +532,11 @@ NEXT_USER:
 													continue;
 												}
 										#endif
-										pMixPacket->channel=pEntry->channelIn;
+										
+										#ifndef SSL_HACK	
+										pMixPacket->channel=pEntry->channelIn; /* a hack to solve the SSL problem */
+										#endif
+										
 										pEntry->pCipher->crypt2(pMixPacket->data,pMixPacket->data,DATA_SIZE);
 										
 										#ifdef LOG_PACKET_TIMES
@@ -525,9 +549,11 @@ NEXT_USER:
 										#ifdef COUNTRY_STATS
 											m_PacketsPerCountryOUT[pEntry->pHead->countryID].inc();
 										#endif	
-										#ifdef LOG_CHANNEL	
-											pEntry->packetsOutToUser++;
+										//#ifdef LOG_CHANNEL	
+										#ifdef SSL_HACK	
+											pEntry->packetsOutToUser += sizeof(tQueueEntry); /* a hack to solve the SSL problem */
 										#endif
+										//#endif
 										#ifdef HAVE_EPOLL
 											m_psocketgroupUsersWrite->add(*pEntry->pHead->pMuxSocket,pEntry->pHead); 
 										#else
@@ -538,8 +564,14 @@ NEXT_USER:
 //										UINT32 uQueueSize=pEntry->pHead->pQueueSend->getSize();
 //										if(uQueueSize>200000)
 //											CAMsg::printMsg(LOG_INFO,"User Send Queue size is now %u\n",uQueueSize);
-										if(pEntry->pHead->pQueueSend->getSize() > MAX_USER_SEND_QUEUE &&
-												!pEntry->bIsSuspended)
+										if(	
+											#ifndef SSL_HACK
+											pEntry->pHead->pQueueSend->getSize() > MAX_USER_SEND_QUEUE 
+											#else
+											pEntry->packetsOutToUser > MAX_DATA_PER_CHANNEL /* a hack to solve the SSL problem */
+											#endif 
+											&& !pEntry->bIsSuspended)
+												
 											{
 												pMixPacket->channel=pEntry->channelOut;
 												pMixPacket->flags=CHANNEL_SUSPEND;
@@ -550,7 +582,6 @@ NEXT_USER:
 													setZero64(pQueueEntry->timestamp_proccessing_start);
 												#endif
 												m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));
-												
 												pEntry->bIsSuspended=true;
 												pEntry->pHead->cSuspend++;
 											}
@@ -593,13 +624,36 @@ NEXT_USER:
 								if(pfmHashEntry->delayBucket>0)
 								{
 #endif
+									
 								if(pfmHashEntry->pQueueSend->getSize()>0)
 								{
-								bAktiv=true;
-								UINT32 len=sizeof(tQueueEntry);
-								if(pfmHashEntry->uAlreadySendPacketSize==-1)
+									//CAMsg::printMsg(LOG_CRIT,"turning!!\n");
+									bAktiv=true;
+									UINT32 len=sizeof(tQueueEntry);
+									if(pfmHashEntry->uAlreadySendPacketSize==-1)
 									{
 										pfmHashEntry->pQueueSend->get((UINT8*)&pfmHashEntry->oQueueEntry,&len); 
+										
+										/* Hack for SSL BUG */
+#ifdef SSL_HACK
+										fmChannelList* cListEntry=m_pChannelList->get(pfmHashEntry->oQueueEntry.packet.channel);
+										if(cListEntry != NULL)
+										{
+											pfmHashEntry->oQueueEntry.packet.channel = cListEntry->channelIn;
+											cListEntry->packetsOutToUser -= len;
+#ifdef DEBUG
+											CAMsg::printMsg(LOG_DEBUG, "CAFirstMixA: channels of current packet, in: %u, out: %u, count: %u, flags: 0x%x\n", 
+													cListEntry->channelIn, cListEntry->channelOut, cListEntry->packetsOutToUser,
+													pfmHashEntry->oQueueEntry.packet.flags);
+#endif
+											if(pfmHashEntry->oQueueEntry.packet.flags == CHANNEL_CLOSE)
+											{
+												delete cListEntry->pCipher;
+												m_pChannelList->removeChannel(pfmHashEntry->pMuxSocket, cListEntry->channelIn); 
+											}
+										}
+#endif //SSL_HACK
+										/* end hack */
 										#ifdef PAYMENT
 											//do not count control channel packets!
 											if(pfmHashEntry->oQueueEntry.packet.channel>0&&pfmHashEntry->oQueueEntry.packet.channel<256)
@@ -609,7 +663,8 @@ NEXT_USER:
 										#endif
 										pfmHashEntry->pMuxSocket->prepareForSend(&(pfmHashEntry->oQueueEntry.packet));
 										pfmHashEntry->uAlreadySendPacketSize=0;
-										}
+									}
+									
 								len=MIXPACKET_SIZE-pfmHashEntry->uAlreadySendPacketSize;
 								ret=((CASocket*)pfmHashEntry->pMuxSocket)->send(((UINT8*)&(pfmHashEntry->oQueueEntry))+pfmHashEntry->uAlreadySendPacketSize,len);
 								if(ret>0)
@@ -658,6 +713,7 @@ goto NEXT_USER_WRITING;
 										if( pfmHashEntry->cSuspend > 0 &&
 												pfmHashEntry->pQueueSend->getSize() < USER_SEND_BUFFER_RESUME)
 											{
+												
 												fmChannelListEntry* pEntry;
 												pEntry=m_pChannelList->getFirstChannelForSocket(pfmHashEntry->pMuxSocket);
 												while(pEntry!=NULL)
@@ -673,7 +729,6 @@ goto NEXT_USER_WRITING;
 														#ifdef _DEBUG
 															CAMsg::printMsg(LOG_INFO,"Sending resume for channel: %u\n",pMixPacket->channel);
 														#endif												
-
 														m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));
 														pEntry->bIsSuspended=false;	
 													}
@@ -683,7 +738,11 @@ goto NEXT_USER_WRITING;
 												pfmHashEntry->cSuspend=0;
 											}
 									}
+								
 								}
+								
+									
+								
 #ifdef DELAY_USERS
 								}
 #endif
@@ -691,6 +750,7 @@ goto NEXT_USER_WRITING;
 #ifdef HAVE_EPOLL
 NEXT_USER_WRITING:
 						pfmHashEntry=(fmHashTableEntry*)m_psocketgroupUsersWrite->getNextSignaledSocketData();
+						
 #else
 							}//if is socket signaled					
 NEXT_USER_WRITING:							
