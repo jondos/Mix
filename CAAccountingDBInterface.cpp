@@ -240,7 +240,7 @@ SINT32 CAAccountingDBInterface::getCostConfirmation(UINT64 accountNumber, UINT8*
  * @param accountNumber the account for which the cost confirmation is requested
  * @param pCC on return contains a pointer to the Cost confirmation (the caller is responsible for deleting this object),
  * NULL in case of an error 
- *G
+ *
  * @retval E_SUCCESS, if everything is OK
  * @retval E_NOT_CONNECTED, if the DB query could not be executed
  * @retval E_NOT_FOUND, if there was no XMLCC found
@@ -1081,7 +1081,6 @@ CAAccountingDBInterface *CAAccountingDBInterface::getConnection()
 		{
 			if(ms_pDBConnectionPool[(i%MAX_DB_CONNECTIONS)]->testAndSetOwner())
 			{
-				
 				returnedConnection = ms_pDBConnectionPool[(i%MAX_DB_CONNECTIONS)];
 				break;
 			}
