@@ -39,8 +39,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #endif
 extern CACmdLnOptions* pglobalOptions;
 
-#define SSL_HACK
-
 void CAFirstMixA::shutDown()
 {
 	m_bIsShuttingDown = true;
@@ -464,8 +462,13 @@ NEXT_USER:
 								fmChannelList* pEntry=m_pChannelList->get(pMixPacket->channel);
 								if(pEntry!=NULL)
 									{
+										/* a hack to solve the SSL problem:
+										 * set channel of downstream packet to in channel after they are dequeued
+										 * from pEntry->pQueueSend so we can retrieve the channel entry to decrement 
+										 * the per channel count of enqueued downstream bytes. 
+										 */
 										#ifndef SSL_HACK	
-										pMixPacket->channel=pEntry->channelIn; /* a hack to solve the SSL problem */
+										pMixPacket->channel=pEntry->channelIn; 
 										#endif
 										
 										pEntry->pCipher->crypt2(pMixPacket->data,pMixPacket->data,DATA_SIZE);
@@ -481,7 +484,10 @@ NEXT_USER:
 											m_PacketsPerCountryOUT[pEntry->pHead->countryID].inc();
 										#endif	
 										#ifdef SSL_HACK
-											pEntry->packetsOutToUser += sizeof(tQueueEntry); /* a hack to solve the SSL problem */
+											/* a hack to solve the SSL problem:
+											 * per channel count of enqueued downstream bytes
+											 */
+											pEntry->downStreamBytes += sizeof(tQueueEntry); 
 										#endif
 										#ifdef LOG_CHANNEL	
 											pEntry->packetsOutToUser++;
@@ -501,8 +507,11 @@ NEXT_USER:
 	
 										#ifndef SSL_HACK	
 											delete pEntry->pCipher;              // forget the symetric key of this connection
-											m_pChannelList->removeChannel(pEntry->pMuxSocket,pEntry->channelIn);
-										/* a hack to solve the SSL problem */
+											m_pChannelList->removeChannel(pEntry->pHead->pMuxSocket, pEntry->channelIn);
+										/* a hack to solve the SSL problem: 
+										 * remove channel after the close packet is enqueued
+										 * from pEntry->pQueueSend
+										 */
 										#endif
 									}
 									else
@@ -532,8 +541,11 @@ NEXT_USER:
 												}
 										#endif
 										
+										/* a hack to solve the SSL problem: 
+										 * same as CHANNEL_CLOSE packets
+										 */
 										#ifndef SSL_HACK	
-										pMixPacket->channel=pEntry->channelIn; /* a hack to solve the SSL problem */
+										pMixPacket->channel=pEntry->channelIn;
 										#endif
 										
 										pEntry->pCipher->crypt2(pMixPacket->data,pMixPacket->data,DATA_SIZE);
@@ -548,11 +560,16 @@ NEXT_USER:
 										#ifdef COUNTRY_STATS
 											m_PacketsPerCountryOUT[pEntry->pHead->countryID].inc();
 										#endif	
-										//#ifdef LOG_CHANNEL	
-										#ifdef SSL_HACK	
-											pEntry->packetsOutToUser += sizeof(tQueueEntry); /* a hack to solve the SSL problem */
+										#ifdef LOG_CHANNEL
+											pEntry->packetsOutToUser++;
 										#endif
-										//#endif
+										#ifdef SSL_HACK	
+											/* a hack to solve the SSL problem:
+											 * per channel count of downstream packets in bytes 
+											 */
+											pEntry->downStreamBytes += sizeof(tQueueEntry); 
+										#endif
+										
 										#ifdef HAVE_EPOLL
 											m_psocketgroupUsersWrite->add(*pEntry->pHead->pMuxSocket,pEntry->pHead); 
 										#else
@@ -567,7 +584,10 @@ NEXT_USER:
 											#ifndef SSL_HACK
 											pEntry->pHead->pQueueSend->getSize() > MAX_USER_SEND_QUEUE 
 											#else
-											pEntry->packetsOutToUser > MAX_DATA_PER_CHANNEL /* a hack to solve the SSL problem */
+											/* a hack to solve the SSL problem:
+											 * only suspend channels with > MAX_DATA_PER_CHANNEL bytes
+											 */
+											pEntry->downStreamBytes > MAX_DATA_PER_CHANNEL 
 											#endif 
 											&& !pEntry->bIsSuspended)
 												
@@ -639,10 +659,10 @@ NEXT_USER:
 										if(cListEntry != NULL)
 										{
 											pfmHashEntry->oQueueEntry.packet.channel = cListEntry->channelIn;
-											cListEntry->packetsOutToUser -= len;
+											cListEntry->downStreamBytes -= len;
 #ifdef DEBUG
 											CAMsg::printMsg(LOG_DEBUG, "CAFirstMixA: channels of current packet, in: %u, out: %u, count: %u, flags: 0x%x\n", 
-													cListEntry->channelIn, cListEntry->channelOut, cListEntry->packetsOutToUser,
+													cListEntry->channelIn, cListEntry->channelOut, cListEntry->downStreamBytes,
 													pfmHashEntry->oQueueEntry.packet.flags);
 #endif
 											if(pfmHashEntry->oQueueEntry.packet.flags == CHANNEL_CLOSE)
