@@ -240,8 +240,13 @@ SINT32 CAFirstMixChannelList::addChannel(CAMuxSocket* pMuxSocket,HCHANNEL channe
 
 #ifdef LOG_CHANNEL
 		pNewEntry->packetsInFromUser=0;
-#endif
 		pNewEntry->packetsOutToUser=0;
+#endif
+#ifdef SSL_HACK
+		pNewEntry->downStreamBytes = 0;
+#endif
+		
+		
 		
 		//add to the channel list for the given connection
 		if(pEntry==NULL) //First Entry to the channel list

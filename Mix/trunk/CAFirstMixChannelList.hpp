@@ -44,6 +44,8 @@ class CAAccountingControlChannel;
 
 #endif
 
+#define SSL_HACK
+
 struct t_fmhashtableentry
 	{
 		public:
@@ -126,9 +128,12 @@ struct t_firstmixchannellist
 
 #ifdef LOG_CHANNEL
 			UINT32				packetsInFromUser;
-			UINT64				timeCreated;	
+			UINT64				timeCreated;
+			UINT32				packetsOutToUser;
 #endif
-			UINT32				packetsOutToUser; /* a hack to solve the SSL problem */
+#ifdef SSL_HACK
+			UINT32				downStreamBytes; /* a hack to solve the SSL problem */
+#endif
 		private:
 			struct
 				{
