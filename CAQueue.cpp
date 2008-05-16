@@ -124,7 +124,9 @@ SINT32 CAQueue::add(const void* buff,UINT32 size)
 			}
 		m_nQueueSize+=size;
 		m_pcsQueue->unlock();
+		m_pconvarSize->lock();
 		m_pconvarSize->signal();
+		m_pconvarSize->unlock();
 		return E_SUCCESS;
 	}
 
