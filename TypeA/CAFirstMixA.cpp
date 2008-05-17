@@ -38,7 +38,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include "../CASocketGroupEpoll.hpp"
 #endif
 extern CACmdLnOptions* pglobalOptions;
-/* Claunup order: 
+/* Cleanup order: 
 		 * 1. stop threads.
 		 * 2. close connections
 		 * 3. close sockets
