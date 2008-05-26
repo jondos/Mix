@@ -387,6 +387,9 @@ SINT32 CAFirstMix::processKeyExchange()
     XERCES_CPP_NAMESPACE::DOMDocument* docXmlKeyInfo=createDOMDocument();
     DOMElement* elemRootKey=createDOMElement(docXmlKeyInfo,"MixCascade");
     setDOMElementAttribute(elemRootKey,"version",(UINT8*)"0.2"); //set the Version of the XML to 0.2
+#ifdef LOG_DIALOG
+    setDOMElementAttribute(elemRootKey,"study",(UINT8*)"true");
+#endif    
     docXmlKeyInfo->appendChild(elemRootKey);
     DOMElement* elemMixProtocolVersion=createDOMElement(docXmlKeyInfo,"MixProtocolVersion");
     setDOMElementValue(elemMixProtocolVersion,(UINT8*)MIX_CASCADE_PROTOCOL_VERSION);
@@ -869,36 +872,35 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 						pNewMuxSocket=new CAMuxSocket;
 						ret=socketsIn[i].accept(*(CASocket*)pNewMuxSocket);
 						pFirstMix->m_newConnections++;							 
-						int master = ((CASocket*)pNewMuxSocket)->getPeerIP(peerIP);
+						SINT32 master = ((CASocket*)pNewMuxSocket)->getPeerIP(peerIP);
 						
 						if(master == E_SUCCESS)
 						{
-							UINT32 size;
+							UINT32 size=0;
+							UINT8 remoteIP[4];
+
 							CAListenerInterface** intf = pglobalOptions->getInfoServices(size);
 							
-							master = -1;
+							master = E_UNKNOWN;
 													
 							for(UINT32 i = 0; i < size; i++)
 							{
 								if(intf[i]->getType() == HTTP_TCP || intf[i]->getType() == RAW_TCP)
 								{
 									CASocketAddrINet* addr = (CASocketAddrINet*) intf[i]->getAddr();
-									if(addr == NULL) continue;
+									if(addr == NULL)
+										continue;
 									
-									UINT8* remoteIP = new UINT8[4];
 									addr->getIP(remoteIP);
+									delete addr;
 								
 									if(memcmp(peerIP, remoteIP, 4) == 0)
 									{
 										CAMsg::printMsg(LOG_ERR,"FirstMix: You are allowed\n");
 										master = E_SUCCESS;
 										break;
-									}
-									
-									delete addr;
-									delete remoteIP;
-								}
-								
+									}									
+								}								
 							}
 						}
 												
@@ -1005,7 +1007,9 @@ THREAD_RETURN fm_loopDoUserLogin(void* param)
 	{
 		INIT_STACK;
 		BEGIN_STACK("CAFirstMix::fm_loopDoUserLogin");
-		
+#ifdef COUNTRY_STATS
+		my_thread_init();
+#endif
 
 		t_UserLoginData* d=(t_UserLoginData*)param;
 		d->pMix->doUserLogin(d->pNewUser,d->peerIP);
@@ -1014,6 +1018,9 @@ THREAD_RETURN fm_loopDoUserLogin(void* param)
 		d->pMix->m_newConnections--;
 		delete d;
 		
+#ifdef COUNTRY_STATS
+		my_thread_end();
+#endif
 		FINISH_STACK("CAFirstMix::fm_loopDoUserLogin");
 		
 		THREAD_RETURN_SUCCESS;
@@ -1765,13 +1772,14 @@ RET:
 
 THREAD_RETURN iplist_loopDoLogCountries(void* param)
 	{
+		mysql_thread_init();
 		CAMsg::printMsg(LOG_DEBUG,"Starting iplist_loopDoLogCountries\n");														
 		CAFirstMix* pFirstMix=(CAFirstMix*)param;
 		UINT32 s=0;
 		UINT8 buff[255];
+		memset(buff,0,255);
 		pglobalOptions->getCascadeName(buff,255);
 		mysqlEscapeTableName(buff);
-		mysql_thread_init();
 		while(pFirstMix->m_bRunLogCountries)
 			{
 				if(s==LOG_COUNTRIES_INTERVALL)
@@ -1801,8 +1809,8 @@ THREAD_RETURN iplist_loopDoLogCountries(void* param)
 				sSleep(10);
 				s++;
 			}
-		mysql_thread_end();
 		CAMsg::printMsg(LOG_DEBUG,"Exiting iplist_loopDoLogCountries\n");														
+		mysql_thread_end();
 		THREAD_RETURN_SUCCESS;	
 	}
 #endif
