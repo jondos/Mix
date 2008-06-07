@@ -29,9 +29,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifndef ONLY_LOCAL_PROXY
 #include "CAMixWithReplayDB.hpp"
 
-// REPLAY_BASE defines the timebase of the replay-DBs e.g. if it is set to 1 the the base is 1 second
-#define REPLAY_BASE 1
-
 CAMixWithReplayDB::CAMixWithReplayDB()
 	{
 		m_pReplayDB=NULL;
