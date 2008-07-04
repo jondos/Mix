@@ -215,7 +215,7 @@ CAStatusManager::~CAStatusManager()
 		delete m_pListenAddr;
 		m_pListenAddr = NULL;
 	}
-	/*if(m_pPreparedStatusMessage != NULL)
+	if(m_pPreparedStatusMessage != NULL)
 	{
 		CAMsg::printMsg(LOG_INFO, 
 						"CAStatusManager: before XML release.\n");
@@ -223,7 +223,7 @@ CAStatusManager::~CAStatusManager()
 		m_pPreparedStatusMessage = NULL;
 		CAMsg::printMsg(LOG_INFO, 
 						"CAStatusManager: after XML release.\n");
-	}*/
+	}
 }
 SINT32 CAStatusManager::initSocket()
 {

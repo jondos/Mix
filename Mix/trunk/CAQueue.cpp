@@ -116,7 +116,6 @@ SINT32 CAQueue::add(const void* buff,UINT32 size)
 				m_lastElem->next=new QUEUE;
 				m_lastElem=m_lastElem->next;
 				m_lastElem->pBuff=new UINT8[size];
-					
 				m_lastElem->next=NULL;
 				m_lastElem->size=size;
 				m_lastElem->index=0;

@@ -256,7 +256,7 @@ SINT32 CALastMixA::loop()
 											}
 									}
 								else
-									{//channellsit entry !=NULL
+									{//channellist entry !=NULL
 										if(pMixPacket->flags==CHANNEL_CLOSE)
 											{
 												psocketgroupCacheRead->remove(*(pChannelListEntry->pSocket));
