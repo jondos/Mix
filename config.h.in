@@ -22,9 +22,6 @@
    */
 #undef HAVE_FIONREAD
 
-/* Define to 1 if you have the `fstat64' function. */
-#undef HAVE_FSTAT64
-
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
@@ -42,15 +39,6 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
-
-/* Define to 1 if you have the <mysql.h> header file. */
-#undef HAVE_MYSQL_H
-
-/* Define to 1 if you have the <mysql/mysql.h> header file. */
-#undef HAVE_MYSQL_MYSQL_H
-
-/* Define if you mysql client library supports the MYSQL_RECONNECT option */
-#undef HAVE_MYSQL_OPT_RECONNECT
 
 /* Define if you have OpenSSL (which is needed!) */
 #undef HAVE_OPENSSL

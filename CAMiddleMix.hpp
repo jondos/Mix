@@ -49,7 +49,6 @@ class CAMiddleMix:public
 					m_pMiddleMixChannelList=NULL;
 					m_pMuxOut=NULL;m_pMuxIn=NULL;m_pRSA=NULL;m_pSignature=NULL;
 					m_pInfoService=NULL;
-					m_pQueueSendToMixBefore=m_pQueueSendToMixAfter=NULL;
 #ifdef DYNAMIC_MIX
 					m_bBreakNeeded = false;
 #endif
@@ -59,11 +58,6 @@ class CAMiddleMix:public
 				{
 					return CAMix::MIDDLE_MIX;
 				}
-		friend THREAD_RETURN mm_loopSendToMixBefore(void*);
-		friend THREAD_RETURN mm_loopSendToMixAfter(void*);
-		friend THREAD_RETURN mm_loopReadFromMixBefore(void*);
-		friend THREAD_RETURN mm_loopReadFromMixAfter(void*);
-		friend THREAD_RETURN mm_loopDownStream(void *);
 
 		private:
 			SINT32 loop();
@@ -80,7 +74,7 @@ class CAMiddleMix:public
     * @param d ignored
     * @retval E_SUCCESS in any case
     */
-    virtual SINT32 initMixCascadeInfo(DOMElement* & d)
+    virtual SINT32 initMixCascadeInfo(DOM_Element& d)
     {
         return E_SUCCESS;
     }
@@ -91,20 +85,13 @@ private:
 			CAMuxSocket* m_pMuxIn;
 			CAMuxSocket* m_pMuxOut;
 			CAASymCipher* m_pRSA;
-
 			//CASignature* m_pSignature;
 			volatile bool m_bRun;
 			CAMiddleMixChannelList* m_pMiddleMixChannelList;
 			//CAInfoService* m_pInfoService;
-//			friend THREAD_RETURN mm_loopDownStream(void *p);
-protected:
-			CAQueue* m_pQueueSendToMixBefore;
-			CAQueue* m_pQueueSendToMixAfter;
-
-			UINT32 m_u32KeepAliveRecvInterval2;
-			UINT32 m_u32KeepAliveSendInterval2;
-
+			friend THREAD_RETURN mm_loopDownStream(void *p);
 #ifdef DYNAMIC_MIX
+protected:
 			void stopCascade()
 			{
 				m_bRun = false;

@@ -32,24 +32,16 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "../CAFirstMix.hpp"
 
 class CAFirstMixA:public CAFirstMix
-{		
+	{		
 		public:
 	
 		virtual void shutDown();
-		virtual ~CAFirstMixA()
-		{
-			//clean();
-			delete m_pmutexUser;
-			delete m_pmutexMixedPackets;
-			delete m_pmutexLoginThreads;
-		}
-		virtual SINT32 clean();
 
 		protected:
 			SINT32 loop();	
 			SINT32 closeConnection(fmHashTableEntry* pHashEntry);	
 			
-};
+	};
 
 #endif
 #endif //ONLY_LOCAL_PROXY

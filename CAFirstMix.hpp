@@ -49,13 +49,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include "CASocketGroupEpoll.hpp"
 #endif
 
-#ifdef REPLAY_DETECTION
-	#include "CAMixWithReplayDB.hpp"
-#endif
-#ifdef COUNTRY_STATS
-	#include "CAMutex.hpp"
-#endif
-
 class CAInfoService;
 
 THREAD_RETURN fm_loopSendToMix(void*);
@@ -65,46 +58,10 @@ THREAD_RETURN fm_loopReadFromUsers(void*);
 THREAD_RETURN fm_loopDoUserLogin(void* param);
 THREAD_RETURN	fm_loopLog(void*);
 
-#ifdef COUNTRY_STATS
-THREAD_RETURN iplist_loopDoLogCountries(void* param);
-class tUINT32withLock
-	{
-	private:
-		volatile UINT32 value;
-		CAMutex lock;
-	public:
-		tUINT32withLock()
-			{
-				value=0;
-			}
-		void inc()
-			{
-				lock.lock();
-				value++;
-				lock.unlock();
-			}
-
-		int getAndzero()
-			{
-				UINT32 tmp;
-				lock.lock();
-				tmp=value;
-				value=0;
-				lock.unlock();
-				return tmp;
-			}
-	};
-#endif
-
-class CAFirstMix:public 
-#ifdef REPLAY_DETECTION
-	CAMixWithReplayDB
-#else
-	CAMix
-#endif
+class CAFirstMix:public CAMix
 {
 public:
-    CAFirstMix()
+    CAFirstMix() : CAMix()
 				{
 					m_pmutexUser=new CAMutex();
 					m_pmutexMixedPackets=new CAMutex();
@@ -133,8 +90,7 @@ public:
 					m_pLogPacketStats=NULL;
 #endif
 #ifdef COUNTRY_STATS
-					m_PacketsPerCountryIN=m_PacketsPerCountryOUT=NULL;
-					m_CountryStats=NULL;
+					m_PacketsPerCountryIN=m_PacketsPerCountryOUT=m_CountryStats=NULL;
 					m_mysqlCon=NULL;
 					m_threadLogLoop=NULL;
 #endif
@@ -144,9 +100,12 @@ public:
 #endif
 				}
 
-    	virtual ~CAFirstMix()
+    virtual ~CAFirstMix()
 			{
-				
+				clean();
+				delete m_pmutexUser;
+				delete m_pmutexMixedPackets;
+				delete m_pmutexLoginThreads;
 			}
 
 		tMixType getType() const
@@ -163,6 +122,7 @@ protected:
 			virtual SINT32 loop()=0;
 			bool isShuttingDown();
 			SINT32 init();
+			SINT32 clean();
 			SINT32 initOnce();
 #ifdef DYNAMIC_MIX
 			void stopCascade()
@@ -174,7 +134,7 @@ protected:
     virtual SINT32 processKeyExchange();
     
 		/** Initialises the MixParameters info for each mix form the \<Mixes\> element received from the second mix.*/
-    SINT32 initMixParameters(DOMElement* elemMixes);
+    SINT32 initMixParameters(DOM_Element& elemMixes);
     
     
 public:
@@ -223,10 +183,6 @@ public:
 			*/
 		SINT32 setMixParameters(const tMixParameters& params);
 
-#ifdef REPLAY_DETECTION
-		UINT64 m_u64LastTimestampReceived;
-#endif
-
 protected:
 #ifndef COUNTRY_STATS
 			SINT32 incUsers()
@@ -266,10 +222,10 @@ protected:
 					return E_SUCCESS;
 				}
 
-			/*bool getRestart() const
+			bool getRestart() const
 				{
 					return m_bRestart;
-				}*/
+				}
 			SINT32 doUserLogin(CAMuxSocket* pNewUSer,UINT8 perrIP[4]);
 			
 #ifdef DELAY_USERS
@@ -311,7 +267,7 @@ protected:
 			UINT8* m_xmlKeyInfoBuff;
 			UINT16 m_xmlKeyInfoSize;
 
-			XERCES_CPP_NAMESPACE::DOMDocument* m_docMixCascadeInfo;
+			DOM_Document m_docMixCascadeInfo;
 			UINT64 m_nMixedPackets;
 			CAASymCipher* m_pRSA;
     // moved to CAMix
@@ -327,14 +283,14 @@ protected:
 
 #ifdef COUNTRY_STATS
 		private:
-			SINT32 initCountryStats(char* db_host,char* db_user,char*db_passwd);			
+			SINT32 initCountryStats();
+			SINT32 deleteCountryStats();
 			SINT32 updateCountryStats(const UINT8 ip[4],UINT32 a_countryID,bool bRemove);
 			volatile bool m_bRunLogCountries;
 			volatile UINT32* m_CountryStats;
 		protected:	
-		    SINT32 deleteCountryStats();
-			tUINT32withLock* m_PacketsPerCountryIN;
-			tUINT32withLock* m_PacketsPerCountryOUT;
+			volatile UINT32* m_PacketsPerCountryIN;
+			volatile UINT32* m_PacketsPerCountryOUT;
 		private:	
 			CAThread* m_threadLogLoop;
 			MYSQL* m_mysqlCon;

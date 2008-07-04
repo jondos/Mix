@@ -55,13 +55,6 @@ CAAccountingControlChannel::~CAAccountingControlChannel()
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG, "~CAAccountingControlChannel destructor\n");
 		#endif
-			if(m_MsgBuff != NULL)
-			{
-				CAMsg::printMsg(LOG_DEBUG, "~CAAccountingControlChannel destructor, "
-						"deleting fields from superclass\n");
-				delete[] m_MsgBuff;
-				m_MsgBuff = NULL;
-			}
 		CAAccountingInstance::cleanupTableEntry(m_pHashEntry);
 	}
 
@@ -70,11 +63,8 @@ CAAccountingControlChannel::~CAAccountingControlChannel()
 * processMessage - receives an XML msg and appends it to the AI message queue where it
 * will be processed asynchronously
 */
-SINT32 CAAccountingControlChannel::processXMLMessage(const  XERCES_CPP_NAMESPACE::DOMDocument* a_doc)
+SINT32 CAAccountingControlChannel::processXMLMessage(const DOM_Document &a_doc)
 	{
-		#ifdef DEBUG
-			CAMsg::printMsg(LOG_DEBUG, "Invoking processJapMessage\n");
-		#endif
 		return CAAccountingInstance::processJapMessage( m_pHashEntry,a_doc );
 	}
 #endif

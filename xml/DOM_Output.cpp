@@ -54,7 +54,7 @@ const XMLCh  DOM_Output::m_XML[41] =
 };	
 
 
-/*XMLFormatter& operator<< (XMLFormatter& strm, const DOMString& s)
+XMLFormatter& operator<< (XMLFormatter& strm, const DOMString& s)
 	{
     unsigned int lent = s.length();
 
@@ -68,7 +68,6 @@ const XMLCh  DOM_Output::m_XML[41] =
     delete [] buf;
     return strm;
 	}
-*/
 
 /** Dumps a Node of an XML Document.
 	* @param toWrite Node which will be dumped
@@ -77,30 +76,38 @@ const XMLCh  DOM_Output::m_XML[41] =
 	* @retval E_SUCCESS if successful
 	* @retval E_UNKNOWN otherwise
 */
-SINT32 DOM_Output::dumpNode(const DOMNode* toWrite,bool bCanonical)
+SINT32 DOM_Output::dumpNode(const DOM_Node& toWrite,bool bCanonical)
 	{
     if(toWrite==0)
 			return E_UNKNOWN;
 		// Get the name and value out for convenience
-    const XMLCh*   pNodeName = toWrite->getNodeName();
+    DOMString   nodeName = toWrite.getNodeName();
 
-    switch (toWrite->getNodeType())
+    switch (toWrite.getNodeType())
 			{
-        case DOMNode::TEXT_NODE:
+        case DOM_Node::TEXT_NODE:
 					{
-						const XMLCh*   pNodeValue = toWrite->getNodeValue();
+						DOMString   nodeValue = toWrite.getNodeValue();
+						unsigned long lent = nodeValue.length();
             if(!bCanonical)
 							{
-							m_pFormatter->formatBuf(pNodeValue,XMLString::stringLen(pNodeValue),XMLFormatter::CharEscapes);
+								m_pFormatter->formatBuf(nodeValue.rawBuffer(),
+                                  lent, XMLFormatter::CharEscapes);
 							}
 						else //strip whitespaces...
 							{
-								XMLCh* pText=XMLString::replicate(pNodeValue);
-								XMLString::trim(pText);
-								char* tmpStr=XMLString::transcode(pText);
-								m_pFormatter->formatBuf(pText,XMLString::stringLen(pText),XMLFormatter::CharEscapes);
-								XMLString::release(&pText);
-								XMLString::release(&tmpStr);
+								XMLCh* text=new XMLCh[lent+1];
+								memcpy(text,nodeValue.rawBuffer(),lent*sizeof(XMLCh));
+								text[lent]=chNull;
+								XMLString::trim(text);
+								lent=XMLString::stringLen(text);
+								if(lent>0)
+									{
+										m_pFormatter->formatBuf(text,
+																			lent, XMLFormatter::CharEscapes);
+										
+									}
+								delete[] text;
 							}
             break;
         }
@@ -118,59 +125,59 @@ SINT32 DOM_Output::dumpNode(const DOMNode* toWrite,bool bCanonical)
         }
 */
 
-       case DOMNode::DOCUMENT_NODE :
+       case DOM_Node::DOCUMENT_NODE :
 					*m_pFormatter<<XMLFormatter::NoEscapes<<m_XML;
-       case DOMNode::DOCUMENT_FRAGMENT_NODE :
+       case DOM_Node::DOCUMENT_FRAGMENT_NODE :
         {
 
-            DOMNode* pChild = toWrite->getFirstChild();
-            while( pChild != NULL)
+            DOM_Node child = toWrite.getFirstChild();
+            while( child != 0)
             {
-                dumpNode(pChild,bCanonical);
+                dumpNode(child,bCanonical);
                 // add linefeed in requested output encoding
                 if(!bCanonical)
 									*m_pFormatter << chLF;
-                pChild = pChild->getNextSibling();
+                child = child.getNextSibling();
             }
             break;
         }
 
   
-        case DOMNode::ELEMENT_NODE :
+        case DOM_Node::ELEMENT_NODE :
         {
             // The name has to be representable without any escapes
             *m_pFormatter  << XMLFormatter::NoEscapes
-                         << chOpenAngle << pNodeName;
+                         << chOpenAngle << nodeName;
 
             // Output the element start tag.
 
             // Output any attributes on this element in lexicograhpical order
-            DOMNamedNodeMap* pAttributes = toWrite->getAttributes();
-            UINT32 attrCount = pAttributes->getLength();
-						const XMLCh** attr_names=NULL;
-						UINT32* sort_indices=NULL;
+            DOM_NamedNodeMap attributes = toWrite.getAttributes();
+            int attrCount = attributes.getLength();
+						char**attr_names=NULL;
+						int* sort_indices=NULL;
 						if(attrCount>0)
 							{
-								attr_names=new const XMLCh*[attrCount];
-								sort_indices=new UINT32[attrCount];
-								for(UINT32 i=0;i<attrCount;i++)
+								attr_names=new char*[attrCount];
+								sort_indices=new int[attrCount];
+								for(int i=0;i<attrCount;i++)
 									{
-										DOMNode*  pAttribute = pAttributes->item(i);
-										attr_names[i]=pAttribute->getNodeName();
+										DOM_Node  attribute = attributes.item(i);
+										attr_names[i]=attribute.getNodeName().transcode();
 										sort_indices[i]=i;
 									}
 								//now sort them
 								if(attrCount>1)
 									{
-										for(UINT32 i=0;i<attrCount;i++)
+										for(int i=0;i<attrCount;i++)
 											{
-												const XMLCh *akt=attr_names[sort_indices[i]];
-												for(UINT32 j=i+1;j<attrCount;j++)
+												char *akt=attr_names[sort_indices[i]];
+												for(int j=i+1;j<attrCount;j++)
 													{
-														const XMLCh* tmp=attr_names[sort_indices[j]];
-														if(XMLString::compareString(akt,tmp)>0)
+														char* tmp=attr_names[sort_indices[j]];
+														if(strcmp(akt,tmp)>0)
 															{
-																UINT32 t=sort_indices[i];
+																int t=sort_indices[i];
 																sort_indices[i]=sort_indices[j];
 																sort_indices[j]=t;
 																akt=tmp;
@@ -180,10 +187,10 @@ SINT32 DOM_Output::dumpNode(const DOMNode* toWrite,bool bCanonical)
 									}
 							}
 
-						for (UINT32 i = 0; i < attrCount; i++)
+						for (int i = 0; i < attrCount; i++)
             {
-								//delete[] attr_names[i];
-                DOMNode*  pAttribute = pAttributes->item(sort_indices[i]);
+								delete[] attr_names[i];
+                DOM_Node  attribute = attributes.item(sort_indices[i]);
 	
                 //
                 //  Again the name has to be completely representable. But the
@@ -191,10 +198,10 @@ SINT32 DOM_Output::dumpNode(const DOMNode* toWrite,bool bCanonical)
                 //  escaping.
                 //
                 *m_pFormatter  << XMLFormatter::NoEscapes
-                             << chSpace << pAttribute->getNodeName()
+                             << chSpace << attribute.getNodeName()
                              << chEqual << chDoubleQuote
                              << XMLFormatter::AttrEscapes
-                             << pAttribute->getNodeValue()
+                             << attribute.getNodeValue()
                              << XMLFormatter::NoEscapes
                              << chDoubleQuote;
             }
@@ -207,15 +214,22 @@ SINT32 DOM_Output::dumpNode(const DOMNode* toWrite,bool bCanonical)
             //  Test for the presence of children, which includes both
             //  text content and nested elements.
             //
-            DOMNode* pChild = toWrite->getFirstChild();
-            while( pChild != NULL)
+            DOM_Node child = toWrite.getFirstChild();
+            if (child != 0)
             {
-                dumpNode(pChild,bCanonical);
-                pChild = pChild->getNextSibling();
-            }
 
+                while( child != 0)
+                {
+                    dumpNode(child,bCanonical);
+                    child = child.getNextSibling();
+                }
+
+                //
+                // Done with children.  Output the end tag.
+                //
+						}
             *m_pFormatter << XMLFormatter::NoEscapes << gEndElement
-                        << pNodeName << chCloseAngle;
+                        << nodeName << chCloseAngle;
             break;
         }
 

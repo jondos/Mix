@@ -31,13 +31,10 @@ CAThreadPool::CAThreadPool(	UINT32 num_worker_threads,
 		m_pcondNotEmpty=new CAConditionVariable();
 		m_pcondNotFull=new CAConditionVariable();
 
-		char thread_str[24];
-		
 		/* create threads */
 		for (i = 0; i != num_worker_threads; i++) 
 			{
-				snprintf(thread_str, 16, "Pool Thread %3d", i);
-				m_parThreads[i]=new CAThread((UINT8*)thread_str);
+				m_parThreads[i]=new CAThread();
 				m_parThreads[i]->setMainLoop(worker_thread_main_loop);
 				m_parThreads[i]->start(this);
 			}
@@ -128,7 +125,6 @@ SINT32 CAThreadPool::destroy(bool bWaitForFinish)
 		for(UINT32 i=0; i < m_NumThreads; i++) 
 			{
 				m_parThreads[i]->join();
-				delete m_parThreads[i];
 			}
 		// Now free pool structures 
 		delete[] m_parThreads;

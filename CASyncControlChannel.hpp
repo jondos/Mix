@@ -49,17 +49,17 @@ class CASyncControlChannel : public CAAbstractControlChannel
 				}
 
 		/**Override this method to receive a XML Message.
-			* Note: The DOMDocument reference is valid only within this call, i.e. will be delete afterwards form the caller!
+			* Note: The DOM_Document reference is valid onyl within this call!
 			* If you need to store it for later processing, make a copy of
-			* the DOMDocument using docMsg->cloneNode(true)
+			* the DOM_Document using docMsg.cloneNode(true)
 			*/
-		virtual SINT32 processXMLMessage(const XERCES_CPP_NAMESPACE::DOMDocument* docMsg)=0;
+		virtual SINT32 processXMLMessage(const DOM_Document& docMsg)=0;
 
 	protected:
 		SINT32 proccessMessage(const UINT8* msg, UINT32 msglen)
 			{
 				#ifdef DEBUG
-					CAMsg::printMsg(LOG_DEBUG,"CASyncControlChannel::proccessMessage - msglen=%u\n",msglen);
+					CAMsg::printMsg(LOG_DEBUG,"CASnycControlChannel::proccessMessage - msglen=%u\n",msglen);
 				#endif
 				if(m_MsgBytesLeft==0)//start of new XML Msg
 					{
@@ -67,7 +67,7 @@ class CASyncControlChannel : public CAAbstractControlChannel
 							return E_UNKNOWN;
 						m_MsgBytesLeft=(msg[0]<<8)|msg[1];
 						#ifdef DEBUG
-							CAMsg::printMsg(LOG_DEBUG,"CASyncControlChannel::proccessMessage - start of a new msg of len=%u\n",m_MsgBytesLeft);
+							CAMsg::printMsg(LOG_DEBUG,"CASnycControlChannel::proccessMessage - start of a new msg of len=%u\n",m_MsgBytesLeft);
 						#endif
 						msglen-=2;
 						m_aktIndex=msglen;
@@ -95,26 +95,23 @@ class CASyncControlChannel : public CAAbstractControlChannel
 					if(m_aktIndex<0xFFFF)
 						{
 							m_MsgBuff[m_aktIndex]=0;
-							CAMsg::printMsg(LOG_DEBUG,"CASyncControlChannel::proccessMessageComplete() - msg=%s\n",m_MsgBuff);
+							CAMsg::printMsg(LOG_DEBUG,"CASnycControlChannel::proccessMessageComplete() - msg=%s\n",m_MsgBuff);
 						}
 					else
-						CAMsg::printMsg(LOG_DEBUG,"CASyncControlChannel::proccessMessageComplete() \n");
+						CAMsg::printMsg(LOG_DEBUG,"CASnycControlChannel::proccessMessageComplete() \n");
 				#endif
-				
-				XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(m_MsgBuff,m_aktIndex);
+				MemBufInputSource oInput(m_MsgBuff,m_aktIndex,"synchannel");
+				DOMParser oParser;
+				oParser.parse(oInput);
 				m_aktIndex=0;
 				m_MsgBytesLeft=0;
+				DOM_Document doc=oParser.getDocument();
 				if(doc==NULL)
-				{
-					CAMsg::printMsg(LOG_DEBUG,"CASyncControlChannel:: received XML document could not be parsed\n");
 					return E_UNKNOWN;
-				}
 				#ifdef DEBUG
-					CAMsg::printMsg(LOG_DEBUG,"CASyncControlChannel::proccessMessageComplete() call processXMLMessage()\n");
+					CAMsg::printMsg(LOG_DEBUG,"CASnycControlChannel::proccessMessageComplete() call processXMLMessage()\n");
 				#endif
-				SINT32 ret=processXMLMessage(doc);
-				doc->release();
-				return ret;
+				return processXMLMessage(doc);
 			}
 
 		///buffer for assembling the parts of the message

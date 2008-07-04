@@ -30,27 +30,26 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAAbstractXMLEncodable.hpp"
 #include "xml/DOM_Output.hpp"
 
-SINT32 CAAbstractXMLEncodable::toXmlDocument(XERCES_CPP_NAMESPACE::DOMDocument* & pDoc)
+SINT32 CAAbstractXMLEncodable::toXmlDocument(DOM_Document &doc)
 	{
-		DOMElement* pElemRoot=NULL;
-		pDoc = createDOMDocument();
-		toXmlElement(pDoc, pElemRoot);
-		pDoc->appendChild(pElemRoot);
+		DOM_Element elemRoot;
+		doc = DOM_Document::createDocument();
+		toXmlElement(doc, elemRoot);
+		doc.appendChild(elemRoot);
 		return E_SUCCESS;
 	}
 
-UINT8* CAAbstractXMLEncodable::toXmlString(UINT32* pSize)
+UINT8* CAAbstractXMLEncodable::toXmlString(UINT32 &size)
 	{
-		XERCES_CPP_NAMESPACE::DOMDocument* pDoc=NULL;
-		toXmlDocument(pDoc);
-		UINT8* tmp = DOM_Output::dumpToMem(pDoc, pSize);
+		DOM_Document doc;
+		UINT8 *tmp, *tmp2;
+		toXmlDocument(doc);
+		tmp = DOM_Output::dumpToMem(doc, &size);
 		// put null at the end...
-		UINT8* tmp2 = new UINT8[*pSize+1];
-		memcpy(tmp2, tmp, *pSize);
-		tmp2[*pSize]=0;
+		tmp2 = new UINT8[size+1];
+		memcpy(tmp2, tmp, size);
+		tmp2[size]='\0';
 		delete[] tmp;
-		pDoc->release();
-		//delete pDoc;
 		return tmp2;
 	}
 #endif //ONLY_LOCAL_PROXY

@@ -28,7 +28,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "StdAfx.h"
 #ifndef ONLY_LOCAL_PROXY
 #include "CACertStore.hpp"
-#include "CAUtil.hpp"
 
 CACertStore::CACertStore()
 	{
@@ -96,21 +95,24 @@ SINT32 CACertStore::encode(UINT8* buff,UINT32* bufflen,UINT32 type)
 /**Creates a XML DocumentFragment which represenst all the Certifcates in this 
 	* CertStore
 	*
-	*	@param docFrag on ouput holds the created DOMElement
+	*	@param docFrag on ouput holds the created DOM_DocumentFragment
 	* @param doc owner document of the new DOM_DocumentFragment
 	* @retval E_SUCCESS if successful
 	* @retval E_UNKNOWN otherwise
 	*/
-SINT32 CACertStore::encode(DOMElement* & elemRoot,XERCES_CPP_NAMESPACE::DOMDocument* doc)
+SINT32 CACertStore::encode(DOM_DocumentFragment& docFrag,DOM_Document& doc)
 	{
-		elemRoot=createDOMElement(doc,"X509Data");
+		docFrag=doc.createDocumentFragment();
+		DOM_Element elemX509Data=doc.createElement("X509Data");
+		docFrag.appendChild(elemX509Data);
 		LP_CERTSTORE_ENTRY tmp;
 		tmp=m_pCertList;
 		while(tmp!=NULL)
 			{
-				DOMElement* tmpElem=NULL;
-				tmp->pCert->encode(tmpElem,doc);
-				elemRoot->appendChild(tmpElem);
+				DOM_DocumentFragment tmpFrag;
+				tmp->pCert->encode(tmpFrag,doc);
+				elemX509Data.appendChild(tmpFrag);
+				tmpFrag=0;
 				tmp=tmp->next;
 			}
 		return E_SUCCESS;

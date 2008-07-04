@@ -96,7 +96,7 @@ class CAXMLErrorMessage : public CAAbstractXMLEncodable
 		
 			~CAXMLErrorMessage();
 			
-			SINT32 toXmlElement( XERCES_CPP_NAMESPACE::DOMDocument* a_doc, DOMElement* &elemRoot);
+			SINT32 toXmlElement(DOM_Document &a_doc, DOM_Element &elemRoot);
 			UINT32 getErrorCode() 
 				{
 					return m_iErrorCode;
@@ -106,22 +106,16 @@ class CAXMLErrorMessage : public CAAbstractXMLEncodable
 				{
 					return m_strErrMsg;
 				}
-			
-			char* getExpTimeString()
-				{
-					return m_strExpires;
-				}
-			
+
 			void* getMessageObject()
 			{
 				return m_messageObject;
 			}
 
 		private: 
-			SINT32 setValues(DOMElement* elemRoot);
+			SINT32 setValues(DOM_Element &elemRoot);
 			UINT32 m_iErrorCode;
-			char *m_strExpires;
-			UINT8 *m_strErrMsg;
+			UINT8 * m_strErrMsg;
 			void* m_messageObject;
 	};
 

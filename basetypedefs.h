@@ -32,7 +32,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifdef _WIN32
 	#define HAVE_NATIVE_UINT64
 		//UINT64 already defined by Windows!
-		typedef _int64 SINT64;
 		typedef signed long SINT32;
 		typedef unsigned short UINT16;
 		typedef signed short SINT16;
@@ -67,12 +66,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 			#if SIZEOF___UINT64_T == 8 && !defined HAVE_UINT64
 				#define HAVE_UINT64
 				typedef unsigned long long UINT64;
-				typedef signed long long SINT64;
 			#endif
 			#if SIZEOF_UNSIGNED_LONG_LONG == 8 && !defined HAVE_UINT64
 				#define HAVE_UINT64
 				typedef unsigned long long UINT64;
-				typedef signed long long SINT64;
 			#endif
 			#ifdef HAVE_UINT64
 							#define HAVE_NATIVE_UINT64
@@ -82,7 +79,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 			#include <linux/types.h>
 			#define HAVE_NATIVE_UINT64
 			typedef unsigned long long UINT64;
-			typedef signed long long SINT64;
 			typedef __u32 UINT32;
 			typedef __s32 SINT32;
 			typedef __u16 UINT16;
@@ -92,7 +88,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 		#elif defined(__sgi)
 			#define HAVE_NATIVE_UINT64
 			typedef __uint64_t UINT64;	
-			typedef __int64_t SINT64;	
 			typedef __uint32_t UINT32;
 			typedef __int32_t SINT32;
 			typedef unsigned short UINT16;
@@ -109,7 +104,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 		#elif defined __APPLE_CC__ 	
 			#define HAVE_NATIVE_UINT64
 			typedef unsigned long long UINT64;
-			typedef signed long long SINT64;
 			typedef unsigned int UINT32;
 			typedef signed int SINT32;
 			typedef unsigned short UINT16;
@@ -122,7 +116,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 			#ifdef __GNUC__ //TODO check if for all GNUC long long is 64 bit!!
 				#define HAVE_NATIVE_UINT64
 				typedef unsigned long long UINT64;
-				typedef signed long long SINT64;
 			#endif
 			typedef unsigned int UINT32;
 			typedef signed int SINT32;
@@ -140,12 +133,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 			UINT32 high;
 			UINT32 low;
 		} UINT64;	 
-
-	typedef struct __SINT64__t_
-		{
-			SINT32 high;
-			UINT32 low;
-		} SINT64;	 
 #endif
 
 typedef unsigned int UINT;

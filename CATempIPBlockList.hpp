@@ -29,8 +29,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifndef CATEMPIPBLOCKLIST_HPP
 #define CATEMPIPBLOCKLIST_HPP
 
-#ifndef ONLY_LOCAL_PROXY
-
 #include "CAThread.hpp"
 #include "CAMutex.hpp"
 
@@ -107,5 +105,4 @@ class CATempIPBlockList
 		CAMutex * m_pMutex;
 };
 
-#endif //ONLY_LOCAL_PROXY
 #endif

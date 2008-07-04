@@ -30,11 +30,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define _CA_MIX_WITH_REPLAY_DB_
 #ifndef ONLY_LOCAL_PROXY
 #include "CADatabase.hpp"
-#include "CAReplayCtrlChannelMsgProc.hpp"
 #include "CAMix.hpp"
-
-// REPLAY_BASE defines the timebase of the replay-DBs e.g. if it is set to 1 the the base is 1 second
-#define REPLAY_BASE 1
 
 /** This class (interface) adds the functionality used by last and middle mixes to detecte replays*/
 class CAMixWithReplayDB:public CAMix
@@ -45,12 +41,9 @@ class CAMixWithReplayDB:public CAMix
 				{
 					return m_pReplayDB;
 				}
-
-			UINT64 m_u64ReferenceTime;
-
+		
 		protected:
 			CADatabase*						m_pReplayDB;
-			CAReplayCtrlChannelMsgProc*				m_pReplayMsgProc;
 	};
 #endif //_CA_MIX_WITH_REPLAY_DB_
 #endif //ONLY_LOCAL_PROXY

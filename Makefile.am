@@ -48,7 +48,6 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CAMutex.cpp\
 		    CAMuxSocket.cpp \
 		    CAPriceInfo.cpp \
-		    CAPerformanceServer.cpp \
 		    CAPool.cpp\
 		    CAQueue.cpp \
 		    CAReplayControlChannel.cpp\
@@ -62,14 +61,12 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CASocketGroup.cpp \
 		    CASocketGroupEpoll.cpp\
 		    CASocketList.cpp \
-		    CAStatusManager.cpp \
 		    CATLSClientSocket.cpp\
 		    CASymCipher.cpp \
 		    CASyncControlChannel.cpp\
 		    CATempIPBlockList.cpp\
 		    CAThread.cpp \
 		    CAThreadPool.cpp\
-		    CAThreadList.cpp \
 		    CAUtil.cpp \
 		    CAXMLBI.cpp \
 		    CAXMLCostConfirmation.cpp\
@@ -118,7 +115,6 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CAMsg.hpp \
 		    CAMutex.hpp\
 		    CAMuxSocket.hpp \
-		    CAPerformanceServer.hpp \
 		    CAPriceInfo.hpp \
 		    CAPool.hpp\
 		    CAQueue.hpp \
@@ -134,7 +130,6 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CASocketGroup.hpp \
 		    CASocketGroupEpoll.hpp\
 		    CASocketList.hpp \
-		    CAStatusManager.hpp \
 		    CATLSClientSocket.hpp\
 		    CAClientSocket.hpp\
 		    CASymCipher.hpp \
@@ -142,7 +137,6 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CATempIPBlockList.hpp\
 		    CAThread.hpp \
 		    CAThreadPool.hpp\
-		    CAThreadList.hpp \
 		    CAUtil.hpp \
 		    CAXMLBI.hpp \
 		    CAXMLCostConfirmation.hpp\

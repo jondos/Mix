@@ -27,12 +27,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 */
 #ifndef __CATHREAD__
 #define __CATHREAD__
-
-#ifndef ONLY_LOCAL_PROXY
-
 #include "CAMsg.hpp"
-
-class CAThreadList;
 
 #ifdef PRINT_THREAD_STACK_TRACE
 	#define INIT_STACK CAThread::METHOD_STACK* _stack
@@ -164,7 +159,33 @@ class CAThread
 				* @retval E_SUCCESS if successful
 				* @retval E_UNKNOWN otherwise
 				*/
-			SINT32 join();
+			SINT32 join()
+				{
+#ifdef OS_TUDOS
+					CAMsg::printMsg(LOG_ERR,"CAThread - join() L4 implement me !\n");
+					if(m_Thread==L4THREAD_INVALID_ID)
+						return E_SUCCESS;
+
+					return E_UNKNOWN;
+#else
+					if(m_pThread==NULL)
+						return E_SUCCESS;
+					if(pthread_join(*m_pThread,NULL)==0)
+						{
+							#ifdef DEBUG
+								CAMsg::printMsg(LOG_DEBUG,"CAThread - join() successful\n");
+							#endif	
+							delete m_pThread;
+							m_pThread=NULL;
+							return E_SUCCESS;
+						}
+					else
+						{
+							CAMsg::printMsg(LOG_ERR,"CAThread - join() not successful\n");
+							return E_UNKNOWN;
+						}
+#endif
+				}
 
 /*			SINT32 sleep(UINT32 msSeconds)
 				{
@@ -182,16 +203,6 @@ class CAThread
 					return E_SUCCESS;
 				}
 */
-			UINT8* getName() const
-			{
-				return m_strName;
-			}
-
-			UINT32 getID() const
-				{
-					return m_Id;
-				}
-
 #ifdef PRINT_THREAD_STACK_TRACE
 			static const char* METHOD_BEGIN;
 			static const char* METHOD_END;
@@ -212,17 +223,6 @@ class CAThread
 	 		pthread_t* m_pThread;
 #endif
 			UINT8* m_strName; //< a name mostly for debuging purpose...
-			UINT32 m_Id; // some unique identifier
-			static UINT32 ms_LastId;
-#if defined _DEBUG && ! defined(ONLY_LOCAL_PROXY)
-			static CAThreadList* m_pThreadList;
-		public:
-			static void setThreadList(CAThreadList* pThreadList)
-				{
-					m_pThreadList=pThreadList;
-				}
-#endif
 	};
 #endif
 
-#endif //ONLY_LOCAL_PROXY

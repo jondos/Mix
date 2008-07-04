@@ -26,9 +26,6 @@ IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISI
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 #include "StdAfx.h"
-
-#ifndef ONLY_LOCAL_PROXY
-
 #include "CATempIPBlockList.hpp"
 #include "CAUtil.hpp"
 #include "CAMsg.hpp"
@@ -44,7 +41,7 @@ CATempIPBlockList::CATempIPBlockList(UINT64 validTimeMillis)
 		m_pMutex = new CAMutex();
 	
 		// launch cleanup thread
-		m_pCleanupThread = new CAThread((UINT8*)"Cleanup Thread");
+		m_pCleanupThread = new CAThread();
 		m_bRunCleanupThread=true;
 		m_pCleanupThread->setMainLoop(cleanupThreadMainLoop);
 		m_pCleanupThread->start(this);
@@ -222,4 +219,4 @@ THREAD_RETURN CATempIPBlockList::cleanupThreadMainLoop(void *param)
 	
 	THREAD_RETURN_SUCCESS;
 }
-#endif //ONLY_LOCAL_PROXY
+

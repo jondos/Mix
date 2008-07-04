@@ -39,8 +39,6 @@ typedef UINT32 HCHANNEL;
 #define CHANNEL_DATA		0x00
 #define CHANNEL_OPEN		0x08
 
-#define CHANNEL_TIMESTAMPS_UP	0x60
-#define CHANNEL_TIMESTAMPS_DOWN	0x90
 #define CHANNEL_CLOSE		0x01
 #define CHANNEL_SUSPEND 0x02
 #define	CHANNEL_RESUME	0x04
@@ -49,16 +47,16 @@ typedef UINT32 HCHANNEL;
 #ifdef LOG_CRIME
 	#define	CHANNEL_SIG_CRIME 0x20
 	#define	CHANNEL_SIG_CRIME_ID_MASK 0x0000FF00
-	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME|CHANNEL_TIMESTAMPS_UP|CHANNEL_TIMESTAMPS_DOWN|CHANNEL_SIG_CRIME|CHANNEL_SIG_CRIME_ID_MASK)
+	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME|CHANNEL_SIG_CRIME|CHANNEL_SIG_CRIME_ID_MASK)
 #else
-	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME|CHANNEL_TIMESTAMPS_UP|CHANNEL_TIMESTAMPS_DOWN)
+	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME)
 #endif
 
 #ifdef NEW_FLOW_CONTROL
 	#define NEW_FLOW_CONTROL_FLAG 0x8000
 #endif
 	
-#define CONNECTION_ERROR_FLAG 0x01
+#define CONNECTION_ERROR_FLAG 0x4000
 
 #define DATA_SIZE 			992
 #define PAYLOAD_SIZE 		989
@@ -109,13 +107,11 @@ typedef t_MixPacket MIXPACKET;
 struct t_queue_entry
 	{
 		MIXPACKET packet;
-		#if defined  (LOG_PACKET_TIMES) || defined (LOG_CHANNEL)
+		#ifdef LOG_PACKET_TIMES
 			UINT64 timestamp_proccessing_start;
-			UINT64 timestamp_proccessing_start_OP;
 			UINT64 timestamp_proccessing_end;
-		#endif
-		#if defined  (LOG_PACKET_TIMES)
 			//without send/receive or queueing times
+			UINT64 timestamp_proccessing_start_OP;
 			UINT64 timestamp_proccessing_end_OP;
 			#ifdef USE_POOL
 				UINT64 pool_timestamp_in;
@@ -130,7 +126,6 @@ typedef struct t_queue_entry tQueueEntry;
 typedef tQueueEntry tPoolEntry; 	
 
 ///the Replaytimestamp type
-/*
 struct t_replay_timestamp
 	{
 		UINT interval; //the current interval number
@@ -138,14 +133,13 @@ struct t_replay_timestamp
 	};
 
 typedef struct t_replay_timestamp tReplayTimestamp;
-*/
+
 struct t_mix_parameters
 	{
 		//stores the mix id of the mix
 		UINT8* m_strMixID;
 		/// stores the local time in seconds since epoch for interval '0' for this mix
-		UINT32 m_u32ReplayOffset;
-		UINT16 m_u32ReplayBase;
+		UINT32 m_u32ReplayRefTime;
 	};
 typedef struct t_mix_parameters tMixParameters;
 
@@ -212,9 +206,7 @@ typedef struct t_mix_parameters tMixParameters;
  */
 #define AUTH_DELETE_ENTRY 0x80000 
 
-#define AUTH_LOGIN_NOT_FINISHED 0x100000 
-#define AUTH_LOGIN_FAILED 0x200000 
-#define AUTH_LOGIN_SKIP_SETTLEMENT 0x400000 
+
 
 class CASignature;
 class CAAccountingControlChannel;

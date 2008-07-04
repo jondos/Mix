@@ -31,7 +31,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAUtil.hpp"
 #include "CAInfoService.hpp"
 #include "CACmdLnOptions.hpp"
-#include "CAStatusManager.hpp"
 
 extern CACmdLnOptions* pglobalOptions;
 
@@ -41,12 +40,14 @@ CAMix::CAMix()
     m_acceptReconfiguration = pglobalOptions->acceptReconfiguration();
 		m_pSignature=NULL;
 		m_pInfoService=NULL;
+		#ifdef REPLAY_DETECTION
+			m_pReplayMsgProc=NULL;
+		#endif
 		m_pMuxOutControlChannelDispatcher=NULL;
 		m_pMuxInControlChannelDispatcher=NULL;
 		m_u32KeepAliveSendInterval=0;//zero means --> do not use
 		m_u32KeepAliveRecvInterval=0;//zero means --> do not use
-		m_bShutDown = false;
-		m_docMixCascadeInfo=NULL;
+		m_bShutDown = false; 
 #ifdef DYNAMIC_MIX
 		/* LERNGRUPPE: Run by default */
 		m_bLoop = true;
@@ -69,9 +70,8 @@ SINT32 CAMix::start()
         
 			UINT32 opCertLength;
 			CACertificate** opCerts = pglobalOptions->getOpCertificates(opCertLength);
-			CACertificate* pOwnCert=pglobalOptions->getOwnCertificate();
-			m_pInfoService->setSignature(m_pSignature, pOwnCert, opCerts, opCertLength);
-			delete pOwnCert;
+			m_pInfoService->setSignature(m_pSignature, pglobalOptions->getOwnCertificate(), opCerts, opCertLength);
+			
 			UINT64 currentMillis;
 			if (getcurrentTimeMillis(currentMillis) != E_SUCCESS)
 			{
@@ -90,114 +90,120 @@ SINT32 CAMix::start()
 	        bool needReconf = needAutoConfig();
 	
 	        m_pInfoService->setConfiguring(allowReconf && needReconf);
-			CAMsg::printMsg(LOG_DEBUG, "CAMix start: starting InfoService\n");
-			m_pInfoService->start();
-		}
+					CAMsg::printMsg(LOG_DEBUG, "CAMix start: starting InfoService\n");
+	        m_pInfoService->start();
+// 	LERNGRUPPE: Moved this loop to the beginning of the main loop to allow reconfiguration
+//         while(allowReconf && needReconf)
+//         {
+//             CAMsg::printMsg(LOG_INFO, "No next mix or no prev. mix certificate specified. Waiting for auto-config from InfoService.\n");
+// 
+//             sSleep(20);
+//             needReconf = needAutoConfig();
+//         }
+        }
 		else
 		{
 			m_pInfoService = NULL;
 		}
 		bool allowReconf = pglobalOptions->acceptReconfiguration();
+//     bool needReconf = needAutoConfig();
 #ifdef DYNAMIC_MIX
 		/* LERNGRUPPE: We might want to break out of this loop if the mix-type changes */
 		while(m_bLoop)
 #else
-    	while(true)
+    while(true)
 #endif
-	    {
-	    	if (m_pInfoService != NULL)
-	    		m_pInfoService->setConfiguring(allowReconf && needAutoConfig());
-			while(allowReconf && (needAutoConfig() || m_bReconfiguring))
-			{
-				CAMsg::printMsg(LOG_DEBUG, "Not configured -> sleeping\n");
-	            sSleep(20);
-	        }
+    {
+    	if (m_pInfoService != NULL)
+    		m_pInfoService->setConfiguring(allowReconf && needAutoConfig());
+		while(allowReconf && (needAutoConfig() || m_bReconfiguring))
+		{
+			CAMsg::printMsg(LOG_DEBUG, "Not configured -> sleeping\n");
+            sSleep(20);
+        }
 #ifdef DYNAMIC_MIX
-			// if we change the mix type, we must not enter init!
-			if(!m_bLoop) goto SKIP;
+		// if we change the mix type, we must not enter init!
+		if(!m_bLoop) goto SKIP;
 #endif
-			CAMsg::printMsg(LOG_DEBUG, "CAMix main: before init()\n");
-			initStatus = init();
-	        if(initStatus == E_SUCCESS)
-	        {
-				CAMsg::printMsg(LOG_DEBUG, "CAMix main: init() returned success\n");
-	            if(m_pInfoService != NULL)
-	            {
-	                m_pInfoService->setConfiguring(false);
-	                if( ! m_pInfoService->isRunning())
-	                    m_pInfoService->start();
-	            }
-	
-	            CAMsg::printMsg(LOG_INFO, "The mix is now on-line.\n");
+		CAMsg::printMsg(LOG_DEBUG, "CAMix main: before init()\n");
+		initStatus = init();
+        if(initStatus == E_SUCCESS)
+        {
+					CAMsg::printMsg(LOG_DEBUG, "CAMix main: init() returned success\n");
+            if(m_pInfoService != NULL)
+            {
+                m_pInfoService->setConfiguring(false);
+                if( ! m_pInfoService->isRunning())
+                    m_pInfoService->start();
+            }
+
+            CAMsg::printMsg(LOG_INFO, "The mix is now on-line.\n");
 #ifdef DYNAMIC_MIX
-							m_bReconfiguring = false;
-							m_bCascadeEstablished = true;
-							m_bReconfigured = false;
-							if(pglobalOptions->isFirstMix() && pglobalOptions->isDynamic())
-								m_pInfoService->sendCascadeHelo();
+						m_bReconfiguring = false;
+						m_bCascadeEstablished = true;
+						m_bReconfigured = false;
+						if(pglobalOptions->isFirstMix() && pglobalOptions->isDynamic())
+							m_pInfoService->sendCascadeHelo();
 #endif
-							MONITORING_FIRE_SYS_EVENT(ev_sys_enterMainLoop);
-							loop();
-							MONITORING_FIRE_SYS_EVENT(ev_sys_leavingMainLoop);
+						loop();
 #ifdef DYNAMIC_MIX
-							m_bCascadeEstablished = false;
-							/** If the cascade breaks down, some mix might have been reconfigured. Let's have a look if there is new information */
-							if(!m_bReconfiguring)
-								m_pInfoService->dynamicCascadeConfiguration();
+						m_bCascadeEstablished = false;
+						/** If the cascade breaks down, some mix might have been reconfigured. Let's have a look if there is new information */
+						if(!m_bReconfiguring)
+							m_pInfoService->dynamicCascadeConfiguration();
 #endif
-							CAMsg::printMsg(LOG_DEBUG, "CAMix main: loop() returned, maybe connection lost.\n");
-	        }
-	        else if (initStatus == E_SHUTDOWN)
-	        {
-	        	CAMsg::printMsg(LOG_DEBUG, "Mix has been stopped. Waiting for shutdown...\n");
-				//break;
-			}
-	        else
-	        {
-	            CAMsg::printMsg(LOG_DEBUG, "init() failed, maybe no connection.\n");
-	        }
+						CAMsg::printMsg(LOG_DEBUG, "CAMix main: loop() returned, maybe connection lost.\n");
+        }
+        else if (initStatus == E_SHUTDOWN)
+        {
+        	CAMsg::printMsg(LOG_DEBUG, "Mix has been stopped. Waiting for shutdown...\n");
+        }
+        else
+        {
+            CAMsg::printMsg(LOG_DEBUG, "init() failed, maybe no connection.\n");
+        }
 #ifdef DYNAMIC_MIX
 SKIP:
 #endif
-	        if(m_pInfoService != NULL)
-	        {
+        if(m_pInfoService != NULL)
+        {
 #ifndef DYNAMIC_MIX
-	            if(pglobalOptions->acceptReconfiguration())
+            if(pglobalOptions->acceptReconfiguration())
 #else
-				// Only keep the InfoService alive if the Mix-Type doesn't change
-				if(pglobalOptions->acceptReconfiguration() && m_bLoop)
+			// Only keep the InfoService alive if the Mix-Type doesn't change
+			if(pglobalOptions->acceptReconfiguration() && m_bLoop)
 #endif
-                	m_pInfoService->setConfiguring(true);
-	            else
-				{
-					CAMsg::printMsg(LOG_DEBUG, "CAMix main: stopping InfoService\n");
-	                m_pInfoService->stop();
-				}
-	            // maybe Cascade information (e.g. certificate validity) will change on next connection
-	            UINT64 currentMillis;
-	            if (getcurrentTimeMillis(currentMillis) != E_SUCCESS)
-	            {
-	            	currentMillis = 0;
-	            }
-	            m_pInfoService->setSerial(currentMillis);            
-	        }
-			CAMsg::printMsg(LOG_DEBUG, "CAMix main: before clean()\n");
-			clean();
-			CAMsg::printMsg(LOG_DEBUG, "CAMix main: after clean()\n");
+                m_pInfoService->setConfiguring(true);
+            else
+			{
+				CAMsg::printMsg(LOG_DEBUG, "CAMix main: stopping InfoService\n");
+                m_pInfoService->stop();
+			}
+            // maybe Cascade information (e.g. certificate validity) will change on next connection
+            UINT64 currentMillis;
+            if (getcurrentTimeMillis(currentMillis) != E_SUCCESS)
+            {
+            	currentMillis = 0;
+            }
+            m_pInfoService->setSerial(currentMillis);            
+        }
+		CAMsg::printMsg(LOG_DEBUG, "CAMix main: before clean()\n");
+		clean();
+		CAMsg::printMsg(LOG_DEBUG, "CAMix main: after clean()\n");
 #ifdef DYNAMIC_MIX
-			if(m_bLoop)
+		if(m_bLoop)
 #endif
-			sSleep(10);
-		}// Big loop....
-		if(m_pInfoService != NULL)
-		{
-			m_pInfoService->stop();
-			delete m_pInfoService;
-			m_pInfoService = NULL;
-		}
-		m_pInfoService=NULL;
-		return E_SUCCESS;
-	}
+		sSleep(10);
+    }
+#ifdef DYNAMIC_MIX
+	if(m_pInfoService != NULL && m_pInfoService->isRunning())
+	{
+		m_pInfoService->stop();
+		delete m_pInfoService;
+    }
+	return E_SUCCESS;
+#endif
+}
 
 
 /**
@@ -225,8 +231,7 @@ bool CAMix::needAutoConfig()
             {
                 ret = false;
             }
-						delete oNextMix.addr;
-				}
+			}
 
         if(!pglobalOptions->hasNextMixTestCertificate())
             ret = true;
@@ -244,14 +249,11 @@ bool CAMix::needAutoConfig()
 * @retval E_UNKNOWN if processing produces an error
 * @retval E_SUCCESS otherwise
 */
-SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
+SINT32 CAMix::initMixCascadeInfo(DOM_Element& mixes)
 {
     int count;
-    m_docMixCascadeInfo=createDOMDocument();
-    DOMElement* elemRoot=createDOMElement(m_docMixCascadeInfo,"MixCascade");
-#ifdef LOG_DIALOG
-    setDOMElementAttribute(elemRoot,"study",(UINT8*)"true");
-#endif
+    m_docMixCascadeInfo=DOM_Document::createDocument();
+    DOM_Element elemRoot=m_docMixCascadeInfo.createElement("MixCascade");
 
     UINT8 id[50];
 		UINT8* cascadeID=NULL;
@@ -263,15 +265,15 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
     	CAMsg::printMsg(LOG_ERR,"No cascade name given!\n");
 			return E_UNKNOWN;
 		}
-    m_docMixCascadeInfo->appendChild(elemRoot);
-    DOMElement* elem=createDOMElement(m_docMixCascadeInfo,"Name");
+    m_docMixCascadeInfo.appendChild(elemRoot);
+    DOM_Element elem=m_docMixCascadeInfo.createElement("Name");
 		setDOMElementValue(elem,name);
-    elemRoot->appendChild(elem);
+    elemRoot.appendChild(elem);
 
-    elem=createDOMElement(m_docMixCascadeInfo,"Network");
-    elemRoot->appendChild(elem);
-    DOMElement* elemListenerInterfaces=createDOMElement(m_docMixCascadeInfo,"ListenerInterfaces");
-    elem->appendChild(elemListenerInterfaces);
+    elem=m_docMixCascadeInfo.createElement("Network");
+    elemRoot.appendChild(elem);
+    DOM_Element elemListenerInterfaces=m_docMixCascadeInfo.createElement("ListenerInterfaces");
+    elem.appendChild(elemListenerInterfaces);
 
     for(UINT32 i=1;i<=pglobalOptions->getListenerInterfaceCount();i++)
     {
@@ -281,20 +283,20 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
         }
         else if(pListener->getType()==RAW_TCP)
         {
-            DOMElement* elemTmpLI=NULL;
-            pListener->toDOMElement(elemTmpLI,m_docMixCascadeInfo);
-            elemListenerInterfaces->appendChild(elemTmpLI);
+            DOM_DocumentFragment docFrag;
+            pListener->toDOMFragment(docFrag,m_docMixCascadeInfo);
+            elemListenerInterfaces.appendChild(docFrag);
         }
         delete pListener;
     }	
     
-    DOMNode* elemMixesDocCascade=createDOMElement(m_docMixCascadeInfo,"Mixes");
-    DOMElement* elemMix;
+    DOM_Node elemMixesDocCascade=m_docMixCascadeInfo.createElement("Mixes");
+    DOM_Element elemMix;
     count=1;
     if(pglobalOptions->isFirstMix())
     {
     	addMixInfo(elemMixesDocCascade, false);
-		getDOMChildByName(elemMixesDocCascade, "Mix", elemMix, false);
+		getDOMChildByName(elemMixesDocCascade, (UINT8*)"Mix", elemMix, false);
     	// create signature
 		if (signXML(elemMix) != E_SUCCESS)
 		{
@@ -305,27 +307,27 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
 		/*
         elemMixesDocCascade.appendChild(elemThisMix);*/
     }
-    elemRoot->appendChild(elemMixesDocCascade);
+    elemRoot.appendChild(elemMixesDocCascade);
 
 //    UINT8 cascadeId[255];
 //		UINT32 cascadeIdLen=255;
 
-    DOMNode* node=mixes->getFirstChild();
+    DOM_Node node=mixes.getFirstChild();
     while(node!=NULL)
     {
-        if(node->getNodeType()==DOMNode::ELEMENT_NODE&&equals(node->getNodeName(),"Mix"))
+        if(node.getNodeType()==DOM_Node::ELEMENT_NODE&&node.getNodeName().equals("Mix"))
         {
-            elemMixesDocCascade->appendChild(m_docMixCascadeInfo->importNode(node,true));
+            elemMixesDocCascade.appendChild(m_docMixCascadeInfo.importNode(node,true));
             count++;
  //           cascadeId = static_cast<const DOM_Element&>(node).getAttribute("id").transcode();
         }
-        node=node->getNextSibling();
+        node=node.getNextSibling();
     }
 
     if(pglobalOptions->isLastMix())
     {
-      addMixInfo(elemMixesDocCascade, false);
-			getLastDOMChildByName(elemMixesDocCascade, "Mix", elemMix);
+        addMixInfo(elemMixesDocCascade, false);
+		getLastDOMChildByName(elemMixesDocCascade, (UINT8*)"Mix", elemMix);
     	// create signature
 		if (signXML(elemMix) != E_SUCCESS)
 		{
@@ -342,21 +344,9 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
 				setDOMElementAttribute(elemRoot,"id",cascadeID);
     setDOMElementAttribute(elemMixesDocCascade,"count",count);
     
-    DOMElement* elemPerf = NULL;
-    if(getDOMChildByName(elemMixesDocCascade, "PerformanceServer", elemPerf, true) == E_SUCCESS && elemPerf != NULL)
-    {
-    	elemPerf = createDOMElement(m_docMixCascadeInfo, "PerformanceServer");    	
-    	setDOMElementValue(elemPerf, (UINT8*) "true");
-    }
-    else
-    {
-    	elemPerf = createDOMElement(m_docMixCascadeInfo, "PerformanceServer");   	
-    	setDOMElementValue(elemPerf, (UINT8*) "false");
-    }
-	elemRoot->appendChild(elemPerf);
-    
-  DOMNode* elemPayment=createDOMElement(m_docMixCascadeInfo,"Payment");
-	elemRoot->appendChild(elemPayment);
+		
+  DOM_Node elemPayment=m_docMixCascadeInfo.createElement("Payment");
+	elemRoot.appendChild(elemPayment);
 #ifdef PAYMENT
 	setDOMElementAttribute(elemPayment,"required",(UINT8*)"true");
 	setDOMElementAttribute(elemPayment,"version",(UINT8*)PAYMENT_VERSION);
@@ -370,28 +360,28 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
 		return E_SUCCESS;
 }
 
-SINT32 CAMix::addMixInfo(DOMNode* a_element, bool a_bForceFirstNode)
+SINT32 CAMix::addMixInfo(DOM_Node& a_element, bool a_bForceFirstNode)
 {
 	// this is a complete mixinfo node to be sent to the InfoService
-	XERCES_CPP_NAMESPACE::DOMDocument* docMixInfo=NULL;
+	DOM_Document docMixInfo;
 	if(pglobalOptions->getMixXml(docMixInfo)!=E_SUCCESS)
 	{
 		return E_UNKNOWN;
 	}
-	DOMNode* nodeMixInfo = a_element->getOwnerDocument()->importNode(
-		docMixInfo->getDocumentElement(), true);
-	if (a_bForceFirstNode && a_element->hasChildNodes())
+	DOM_Node nodeMixInfo = a_element.getOwnerDocument().importNode(
+		docMixInfo.getDocumentElement(), true);
+	if (a_bForceFirstNode && a_element.hasChildNodes())
 	{
-		a_element->insertBefore(nodeMixInfo, a_element->getFirstChild());
+		a_element.insertBefore(nodeMixInfo, a_element.getFirstChild());
 	}
 	else
 	{
-		a_element->appendChild(nodeMixInfo);
+		a_element.appendChild(nodeMixInfo);
 	}
 	return E_SUCCESS;
 }
 
-SINT32 CAMix::signXML(DOMNode* a_element)
+SINT32 CAMix::signXML(DOM_Node& a_element)
 	{
     CACertStore* tmpCertStore=new CACertStore();
     

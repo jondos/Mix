@@ -39,16 +39,11 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 extern CACmdLnOptions* pglobalOptions;
 
-CAAccountingSettleThread::CAAccountingSettleThread(Hashtable* a_accountingHashtable, 
-													UINT8* currentCascade)/*,
-													CAAccountingBIInterface *pPiInterface,
-													CAAccountingDBInterface *pDbInterface)*/
+CAAccountingSettleThread::CAAccountingSettleThread(Hashtable* a_accountingHashtable, UINT8* currentCascade)
 {
 	// launch AI thread
-	m_pThread = new CAThread((UINT8*)"Accounting Settle Thread");
+	m_pThread = new CAThread();
 	m_settleCascade = currentCascade;
-	//m_pPiInterface = pPiInterface;
-	//m_pDbInterface = pDbInterface;
 	m_pThread->setMainLoop( mainLoop );
 	CAMsg::printMsg(LOG_DEBUG, "Now launching Accounting SettleThread...\n");
 	m_bRun=true;
@@ -61,25 +56,16 @@ CAAccountingSettleThread::CAAccountingSettleThread(Hashtable* a_accountingHashta
 CAAccountingSettleThread::~CAAccountingSettleThread()
 	{
 		m_bRun=false;
-		if(m_pThread != NULL)
-		{
-			settle();
-			m_pThread->join();
-			delete m_pThread;
-			m_pThread = NULL;
-		}
-		if(m_pCondition != NULL)
-		{
-			delete m_pCondition;
-			m_pCondition = NULL;
-		}
+		m_pThread->join();
+		delete m_pThread;
+		delete m_pCondition;
 	}
 
 
 void CAAccountingSettleThread::settle()
 {
 	m_pCondition->lock();
-	//m_bSleep = false;
+	m_bSleep = false;
 	m_pCondition->signal();
 	m_pCondition->unlock();
 }
@@ -93,17 +79,15 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 		INIT_STACK;
 		BEGIN_STACK("CAAccountingSettleThread::mainLoop");
 		
-		UINT32 sleepInterval, settlement_status;
-		
 		CAAccountingSettleThread* m_pAccountingSettleThread=(CAAccountingSettleThread*)pParam;
-		/*CAAccountingBIInterface *biConn = new CAAccountingBIInterface();
+		CAAccountingBIInterface biConn;
 		CAAccountingDBInterface dbConn;
 		CAXMLErrorMessage * pErrMsg;
 		CAXMLCostConfirmation * pCC;
 		UINT32 sleepInterval;
 		CAQueue q;
 		UINT32 size;
-		//CASocketAddrINet biAddr;	
+		CASocketAddrINet biAddr;	
 		SettleEntry* entry;	
 		SettleEntry* nextEntry;			
 		bool bPICommunicationError;
@@ -118,27 +102,12 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 			CAMsg::printMsg(LOG_DEBUG, "AccountingSettleThread; Uuupss.. No BI given --> dying!\n");
 			THREAD_RETURN_ERROR;
 		}
-		//biAddr.setAddr(pBI->getHostName(), (UINT16)pBI->getPortNumber());
-		biConn->setPIServerConfiguration(pBI);*/
-		
+		biAddr.setAddr(pBI->getHostName(), (UINT16)pBI->getPortNumber());
 		pglobalOptions->getPaymentSettleInterval(&sleepInterval);
 
 		CAMsg::printMsg(LOG_DEBUG, "AccountingSettleThread: Start loop...\n");
-		
-		while(m_pAccountingSettleThread->m_bRun) {
-			m_pAccountingSettleThread->m_pCondition->lock();
-			m_pAccountingSettleThread->m_pCondition->wait(sleepInterval * 1000);
-			m_pAccountingSettleThread->m_pCondition->unlock();
-			settlement_status = CAAccountingInstance::settlementTransaction();
-			if(settlement_status != E_SUCCESS)
-			{
-				CAMsg::printMsg(LOG_ERR, "AccountingSettleThread: Settlement transaction failed\n");
-			}
-		}
-		
-		//return THREAD_RETURN_SUCCESS;
-		
-		/*while(0)
+
+		while(m_pAccountingSettleThread->m_bRun)
 		{
 			SAVE_STACK("CAAccountingSettleThread::mainLoop", "Loop");
 			
@@ -223,7 +192,7 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 //#ifdef DEBUG				
 				CAMsg::printMsg(LOG_DEBUG, "Settle Thread: Connecting to payment instance...\n");
 //#endif				
-				if(biConn->initBIConnection() != E_SUCCESS)
+				if(biConn.initBIConnection() != E_SUCCESS)
 				{
 					if (!bPICommunicationError)
 					{
@@ -232,7 +201,7 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 					//q.clean();
 					pErrMsg = NULL; // continue in order to tell AUTH_WAITING_FOR_FIRST_SETTLED_CC for all accounts
 					bPICommunicationError = true;
-					biConn->terminateBIConnection(); // make sure the socket is closed					
+					biConn.terminateBIConnection(); // make sure the socket is closed					
 				}
 				else
 				{					
@@ -240,8 +209,8 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 					CAMsg::printMsg(LOG_DEBUG, "SettleThread: successfully connected to payment instance");
 #endif				
 					bPICommunicationError = false;
-					pErrMsg = biConn->settle( *pCC );					
-					biConn->terminateBIConnection();
+					pErrMsg = biConn.settle( *pCC );					
+					biConn.terminateBIConnection();
 					CAMsg::printMsg(LOG_DEBUG, "CAAccountingSettleThread: settle done!\n");
 				}
 
@@ -284,17 +253,17 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 							print64(tmp, confirmedBytes);
 							CAMsg::printMsg(LOG_ERR, "CAAccountingSettleThread: Received %s confirmed bytes!\n", tmp);
 						}
-						dbConn.storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_ACCOUNT_EMPTY, pErrMsg->getExpTimeString());				
+						dbConn.storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_ACCOUNT_EMPTY);				
 						dbConn.markAsSettled(pCC->getAccountNumber(), m_pAccountingSettleThread->m_settleCascade, 
 							pCC->getTransferredBytes());
 					}
-					*//*
+					/*
 					else if (pErrMsg->getErrorCode() == CAXMLErrorMessage::ERR_INVALID_PRICE_CERT)
 					{
 						// this should never happen; the price certs in this CC do not fit to the ones of the cascade
 						// bDeleteCC = true;
 					}*/
-					/*else if (pErrMsg->getErrorCode() == CAXMLErrorMessage::ERR_OUTDATED_CC)
+					else if (pErrMsg->getErrorCode() == CAXMLErrorMessage::ERR_OUTDATED_CC)
 					{					
 						authRemoveFlags |= AUTH_WAITING_FOR_FIRST_SETTLED_CC; // this is a Mix not a client error
 															
@@ -375,7 +344,6 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 					 	CAMsg::printMsg(LOG_ERR, "SettleThread: Could not mark CC as settled. Maybe a new CC has been added meanwhile?\n");
 					 }
 				} 
-							
 				
 				if (authFlags || authRemoveFlags)
 				{
@@ -399,15 +367,15 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 					delete pErrMsg;
 					pErrMsg = NULL;
 				}
-			}*/
+			}
 			
 			/*
 			 * Now alter the hashtable entries if needed. This blocks communication with JAP clients
 			 * and should therefore be done as quickly as possible.
 			 */
-			/*if (entry)
+			if (entry)
 			{
-				m_pAccountingSettleThread->m_accountingHashtable->getMutex()->lock();
+				m_pAccountingSettleThread->m_accountingHashtable->getMutex().lock();
 				while (entry)
 				{			
 					AccountLoginHashEntry* loginEntry = 
@@ -452,16 +420,16 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 					delete entry;
 					entry = nextEntry;									
 				}
-				m_pAccountingSettleThread->m_accountingHashtable->getMutex()->unlock();		
+				m_pAccountingSettleThread->m_accountingHashtable->getMutex().unlock();		
 			}
-		}//main while run loop*/
+						
+		}//main while run loop
 		
 		FINISH_STACK("CAAccountingSettleThread::mainLoop");
 		
 		CAMsg::printMsg(LOG_DEBUG, "AccountingSettleThread: Exiting run loop!\n");
-		/*dbConn.terminateDBConnection();	
-		delete biConn;
-		biConn = NULL;*/
+		dbConn.terminateDBConnection();	
+		
 		THREAD_RETURN_SUCCESS;
 	}
 #endif //PAYMENT

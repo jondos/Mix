@@ -65,11 +65,6 @@ struct t_fmhashtableentry
 #ifdef COUNTRY_STATS
 			UINT32 countryID; /** CountryID of this IP Address*/
 #endif				
-
-#ifdef LOG_DIALOG
-			UINT8*				strDialog;
-#endif
-
 #ifdef DELAY_USERS
 			UINT32				delayBucket;
 			UINT32				delayBucketID;
@@ -126,8 +121,8 @@ struct t_firstmixchannellist
 
 #ifdef LOG_CHANNEL
 			UINT32				packetsInFromUser;
-			UINT64				timeCreated;
 			UINT32				packetsOutToUser;
+			UINT64				timeCreated;	
 #endif
 #ifdef SSL_HACK
 			UINT32				downStreamBytes; /* a hack to solve the SSL problem */
@@ -204,12 +199,8 @@ class CAFirstMixChannelList
 		public:
 			CAFirstMixChannelList();
 			~CAFirstMixChannelList();
-
-#ifndef LOG_DIALOG
+		
 			fmHashTableEntry* add(CAMuxSocket* pMuxSocket,const UINT8 peerIP[4],CAQueue* pQueueSend);
-#else
-			fmHashTableEntry* add(CAMuxSocket* pMuxSocket,const UINT8 peerIP[4],CAQueue* pQueueSend,UINT8* strDialog);
-#endif
 			SINT32 addChannel(CAMuxSocket* pMuxSocket,HCHANNEL channelIn,CASymCipher* pCipher,HCHANNEL* channelOut);
 			
 			fmChannelListEntry* get(CAMuxSocket* pMuxSocket,HCHANNEL channelIn);			

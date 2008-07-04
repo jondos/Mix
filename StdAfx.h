@@ -33,7 +33,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #if !defined(AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_)
 #define AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_
 
-#define MIX_VERSION "00.08.15"
+#define MIX_VERSION "00.07.11"
+
+#define SSL_HACK
+#define MAX_DATA_PER_CHANNEL 100000
 
 #include "doxygen.h"
 
@@ -47,7 +50,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define LOG_TRAFFIC_PER_USER //Log detail for traffic per user
 //#define LOG_CHANNEL //Log detail for traffic per cahnnel
 //#define LOG_PACKET_TIMES //computes statistics about the processing time each packet needs
-//#define LOG_DIALOG
 //#define COMPRESSED_LOGS
 //#define DO_TRACE
 //#define PSEUDO_LOG
@@ -55,30 +57,15 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define DELAY_USERS //to enable max per user bandwidth
 //#define DELAY_CHANNELS_LATENCY //to enable min latency per channel
 //#define HAVE_EPOLL //define if you have epoll support on your (Linux) system
-//#define MXML_DOM //define this if you wnat to use the Mix-XML library (www.minixml.org) instead of the default Xerces-C library
 //#define COUNTRY_STATS //collect stats about countries users come from
 //#define ONLY_LOCAL_PROXY //define to build only the local proxy (aka JAP)
 /* LERNGRUPPE: define this to get dynamic mixes */
 //#define DYNAMIC_MIX
 //#define SDTFA // specific logic needed by SDTFA, http://www.sdtfa.com
 
-//#define LASTMIX_CHECK_MEMORY // only for internal debugging purpose 
-
 //#define PRINT_THREAD_STACK_TRACE //Usefull for debugging output of stack trace if mix dies...
-#if !defined(PRINT_THREAD_STACK_TRACE) && defined (DEBUG)&& ! defined(ONLY_LOCAL_PROXY)
+#if !defined(PRINT_THREAD_STACK_TRACE) && defined (DEBUG)
 	#define PRINT_THREAD_STACK_TRACE
-#endif
-
-#if defined(LOG_DIALOG)
-	#ifndef LOG_CHANNEL
-		#define LOG_CHANNEL
-	#endif
-	#ifndef COUNTRY_STATS
-		#define COUNTRY_STATS
-	#endif
-#endif
-#if (defined(LOG_CHANNEL)) && !defined(LOG_TRAFFIC_PER_USER)
-	#define LOG_TRAFFIC_PER_USER
 #endif
 
 #ifdef COUNTRY_STATS
@@ -117,10 +104,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifdef DELAY_CHANNELS_LATENCY
 	#define DELAY_CHANNEL_LATENCY 10000 //min latency defaults to 10 second
 #endif
-
-#if defined LASTMIX_CHECK_MEMORY && ! defined(QUEUE_SIZE_LOG)
-	#define QUEUE_SIZE_LOG
-#endif
 //#define LOG_CRIME
 //#define PAYMENT //to enable payment support, now use configure --enable-payment..
 //#define NO_PARKING //to disable control flow
@@ -134,17 +117,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define REPLAY_DETECTION // enable to prevent replay of mix packets
 #define REPLAY_TIMESTAMP_PROPAGATION_INTERVALL 1 //How often (in minutes) should the current replay timestamps be propagate
 
-#define KEEP_ALIVE_TRAFFIC_RECV_WAIT_TIME  75000 //How long to wait for a Keep-Alive (or any other packet)
+#define KEEP_ALIVE_TRAFFIC_RECV_WAIT_TIME  70000 //How long to wait for a Keep-Alive (or any other packet)
 																							       //before we believe that the connection is broken (in ms)
 #define KEEP_ALIVE_TRAFFIC_SEND_WAIT_TIME 60000 //How long to wait before we sent a dummy a Keep-Alive-Traffic
-
-
-//#define SSL_HACK //???
-
-
-#if defined(PAYMENT) && ! defined(SSL_HACK)
-	#define SSL_HACK
-#endif
 
 //#define DATABASE_PERFORMANCE_TEST //to performe a performance test of the replay db
 //Some constants
@@ -153,17 +128,14 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define CLIENTS_PER_IP 10 //how many jap connections per IP are allowed?
 #define CHANNELS_PER_CLIENT 50 //how many channels per jap client are allowed?
 
-#define FIRST_MIX_RECEIVE_SYM_KEY_FROM_JAP_TIME_OUT 40000 //Timout in waiting for login information to receive from JAP (10 seconds)
+#define FIRST_MIX_RECEIVE_SYM_KEY_FROM_JAP_TIME_OUT 30000 //Timout in waiting for login information to receive from JAP (10 seconds)
 #define LAST_MIX_TO_PROXY_CONNECT_TIMEOUT 2000 //Connection timeout for last mix to proxy connections 2 Seconds...
-#define AI_LOGIN_SO_TIMEOUT (UINT32) 10000 //5 Seconds...
 #define LAST_MIX_TO_PROXY_SEND_TIMEOUT (UINT32)5000 //5 Seconds...
 #define MIX_TO_INFOSERVICE_TIMEOUT 30000 //How long to wait when communicating with the InfoService? (ms)
 #define NUM_LOGIN_WORKER_TRHEADS 10//How many working threads for login *do not change this until you really know that you are doing!* ??
 #define MAX_LOGIN_QUEUE 500 //how many waiting entries in the login queue *do not change this until you really know that you are doing!*??
 
 #define MAX_USER_SEND_QUEUE 100000 //How many bytes could be in each User's send queue, before we suspend the belonging channels
-#define MAX_DATA_PER_CHANNEL 100000
-#define USER_SEND_BUFFER_RESUME 10000
 
 #define PAYMENT_ACCOUNT_CERT_TIMEOUT 180 //Timeout for receiving the Payment certificate in seconds
 #define CLEANUP_THREAD_SLEEP_INTERVAL 60 //sleep interval for payment blocked ip list
@@ -172,10 +144,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define FLOW_CONTROL_SENDME_HARD_LIMIT 95 //last mix stops sending after this unack packets
 #define FLOW_CONTROL_SENDME_SOFT_LIMIT 80 //last mix sends request for 'SENDME' after this unack packets
 
-#define MAX_READ_FROM_PREV_MIX_QUEUE_SIZE 10000000
-#define MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE 10000000 //How many bytes could be in the incoming queue ??
-#define MAX_MIXIN_SEND_QUEUE_SIZE 10000000
-#define MAX_NEXT_MIX_QUEUE_SIZE 10000000
 
 #define DEFAULT_INFOSERVICE "141.76.45.37"
 
@@ -187,7 +155,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define FM_PACKET_STATS_LOG_INTERVALL 1 //Intervall in Minutes for loggin packet stats for the first Mix
 #define LM_PACKET_STATS_LOG_INTERVALL 1 //Intervall in Minutes for loggin packet stats for the last Mix
-
+#if defined(LOG_CHANNEL) &&!defined(LOG_PACKET_TIMES)
+	#define LOG_PACKET_TIMES
+#endif
 
 //#define MIX_CASCADE_PROTOCOL_VERSION_0_9 9  //with new payment protocol
 #define MIX_CASCADE_PROTOCOL_VERSION_0_8 8  //with replay detection + control channels + first mix symmetric
@@ -198,8 +168,11 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define MIX_CASCADE_PROTOCOL_VERSION_0_3 3 //with reply detection [deprecated - not in use anymore!]
 #define MIX_CASCADE_PROTOCOL_VERSION_0_2 2 //old normal protocol
 
+#if (defined(LOG_CHANNEL)) && !defined(LOG_TRAFFIC_PER_USER)
+	#define LOG_TRAFFIC_PER_USER
+#endif
 #ifdef REPLAY_DETECTION
-	#define MIX_CASCADE_PROTOCOL_VERSION "0.81"
+	#define MIX_CASCADE_PROTOCOL_VERSION "0.8"
 //#elif defined(PAYMENT)
 	//#define MIX_CASCADE_PROTOCOL_VERSION "0.9"
 #else
@@ -340,7 +313,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include <stdarg.h>
 	#include <memory.h>
 	#include <sys/resource.h>
-	#include <sys/wait.h>
 	#include <termios.h> 
 
 	#include <ctype.h>
@@ -373,8 +345,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 		#define MSG_DONTWAIT 0
 	#endif
 #endif //WIn32 ?
-
-#include "basetypedefs.h"
 
 #include <assert.h>
 
@@ -449,12 +419,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include <openssl/sha.h>
 	#include <openssl/md5.h>
 #endif
-
+#ifndef ONLY_LOCAL_PROXY
 //For DOM
-#ifdef MXML_DOM
-	#include <mxml.h>
-	#include "xml/dom/mxml/mxmlDOM.hpp"
-#else
 #include <util/XercesDefs.hpp>
 #include <util/PlatformUtils.hpp>
 #include <util/XMLString.hpp>
@@ -463,21 +429,18 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include <util/TranscodingException.hpp>
 #include <framework/MemBufInputSource.hpp>
 
-/*#if (XERCES_VERSION_MAJOR >1)
+#if (XERCES_VERSION_MAJOR >1)
 	#include <dom/deprecated/DOM.hpp>
 	#include <dom/deprecated/DOMParser.hpp>
 #else
 	#include <dom/DOM.hpp>
 	#include <parsers/DOMParser.hpp>
 #endif
-*/
-#include <dom/DOM.hpp>
-#include <parsers/XercesDOMParser.hpp>
 
 #if (_XERCES_VERSION >= 20200)
     XERCES_CPP_NAMESPACE_USE
 #endif
-#endif //wich DOM-Implementation to use?
+#endif //ONLY_LOCAL_PROXY
 
 //For large file support
 #ifndef O_LARGEFILE
@@ -505,15 +468,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 //For MySQL
 #if defined(COUNTRY_STATS)
-    #ifdef HAVE_CONFIG_H
-	#ifdef HAVE_MYSQL_MYSQL_H
-	    #include <mysql/mysql.h>
-	#else
-	    #include <mysql.h>
-	#endif
-    #else //HAVE_CONFIG_H
-	#include <mysql/mysql.h>
-    #endif
+    #include <mysql/mysql.h>
 #endif
 
 //For Payment
@@ -526,7 +481,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 		#else
 	    #include <libpq-fe.h>
 		#endif
-  #elif defined(__FreeBSD__) ||defined (_WIN32)
+  #elif defined(__FreeBSD__)
 		#include <libpq-fe.h>
 			#else
 		#include <postgresql/libpq-fe.h>
@@ -561,6 +516,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define MIX_VERSION_INFO "Mix-Version: " MIX_VERSION PAYMENT_VERSION_INFO "\nUsing: " OPENSSL_VERSION_TEXT "\nUsing Xerces-C: " MY_XERCES_VERSION "\n"
 
+#include "basetypedefs.h"
 #include "errorcodes.hpp"
 #include "typedefs.hpp"
 #include "controlchannelids.h"

@@ -45,10 +45,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
   /* TypeB mixes are using an own implementation */
   #include "CALastMixChannelList.hpp"
 #endif
-
-#ifdef REPLAY_DETECTION
-	#include "CAMixWithReplayDB.hpp"
-#endif
+#include "CAMixWithReplayDB.hpp"
 
 THREAD_RETURN	lm_loopLog(void*);
 THREAD_RETURN	lm_loopSendToMix(void* param);
@@ -64,10 +61,8 @@ class CALastMix:public
 		public:
 			CALastMix()
 				{
-					m_pMuxIn=NULL;
-					m_pSignature=NULL;
-					m_pRSA=NULL;
-					m_pInfoService=NULL;
+					m_pMuxIn=NULL;m_pSignature=NULL;
+					m_pRSA=NULL;m_pInfoService=NULL;
           #ifndef NEW_MIX_TYPE // not TypeB mixes
             /* TypeB mixes are using an own implementation */
 					m_pChannelList=NULL;
@@ -110,7 +105,7 @@ class CALastMix:public
       #endif
 
     // added by ronin <ronin2@web.de>
-    SINT32 initMixCascadeInfo(DOMElement* );
+    SINT32 initMixCascadeInfo(DOM_Element&);
 
     // moved to CAMix.hpp
     virtual SINT32 processKeyExchange();

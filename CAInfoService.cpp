@@ -188,13 +188,7 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 			loops = 0;
 #else
 			CAMsg::printMsg(LOG_DEBUG,"InfoService: Next update in %i seconds...\n", nextUpdate);
-			
-			/* We can interrupt this thread if the mix is shutting down */
-			pInfoService->m_pLoopCV->lock();
-			pInfoService->m_pLoopCV->wait(nextUpdate * 1000);
-			pInfoService->m_pLoopCV->unlock();
-			
-			//sSleep(nextUpdate);
+			sSleep(nextUpdate);
 #endif
 		}
 		FINISH_STACK("CAInfoService::InfoLoop");
@@ -346,7 +340,6 @@ CAInfoService::CAInfoService()
 		m_minuts=0;
 		m_lastMixedPackets=0;
     m_expectedMixRelPos = 0;
-    	m_pLoopCV = new CAConditionVariable();
 		m_pthreadRunLoop=new CAThread((UINT8*)"InfoServiceThread");
 #ifdef DYNAMIC_MIX
 		m_bReconfig = false;
@@ -362,8 +355,7 @@ CAInfoService::CAInfoService(CAMix* pMix)
 		m_minuts=0;
 		m_lastMixedPackets=0;
     m_expectedMixRelPos = 0;
-    m_pLoopCV = new CAConditionVariable();
-    m_pthreadRunLoop=new CAThread((UINT8*)"InfoServiceThread");
+		m_pthreadRunLoop=new CAThread((UINT8*)"InfoServiceThread");
 		m_pMix=pMix;
 #ifdef DYNAMIC_MIX
 		m_bReconfig = false;
@@ -373,12 +365,8 @@ CAInfoService::CAInfoService(CAMix* pMix)
 CAInfoService::~CAInfoService()
 	{
 		stop();
-		delete m_pLoopCV;
-		m_pLoopCV = NULL;
 		delete m_pcertstoreOwnCerts;
-		m_pcertstoreOwnCerts = NULL;
 		delete m_pthreadRunLoop;
-		m_pthreadRunLoop = NULL;
 	}
 /** Sets the signature used to sign the messages send to Infoservice.
 	* If pOwnCert!=NULL this Certifcate is included in the Signature
@@ -442,11 +430,6 @@ SINT32 CAInfoService::stop()
 		if(m_bRun)
 			{
 				m_bRun=false;
-				/* Interrupt this thread */
-				m_pLoopCV->lock();
-				m_pLoopCV->signal();
-				m_pLoopCV->unlock();
-				
 				m_pthreadRunLoop->join();
 			}
 		return E_SUCCESS;
@@ -625,21 +608,26 @@ UINT8* CAInfoService::getMixHeloXMLAsString(UINT32& a_len)
 
 		UINT32 sendBuffLen;
 		UINT8* sendBuff=NULL;
-		XERCES_CPP_NAMESPACE::DOMDocument* docMixInfo=NULL;
-		if(pglobalOptions->getMixXml(docMixInfo)!=E_SUCCESS)
-			{
-				goto ERR;
-			}
-		if(m_pSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
-			{
-				goto ERR;
-			}
-		
-		sendBuff=DOM_Output::dumpToMem(docMixInfo,&sendBuffLen);
-		if(sendBuff==NULL)
-			goto ERR;
-		a_len=sendBuffLen;
-		return sendBuff;	
+			DOM_Element elemTimeStamp;
+	
+DOM_Element elemRoot;
+
+
+				DOM_Document docMixInfo;
+				if(pglobalOptions->getMixXml(docMixInfo)!=E_SUCCESS)
+					{
+						goto ERR;
+					}
+				if(m_pSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
+					{
+						goto ERR;
+					}
+				
+				sendBuff=DOM_Output::dumpToMem(docMixInfo,&sendBuffLen);
+				if(sendBuff==NULL)
+					goto ERR;
+				a_len=sendBuffLen;
+				return sendBuff;	
 			
 ERR:
 		if(sendBuff!=NULL)
@@ -652,67 +640,71 @@ ERR:
 	*/
 SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT32 requestCommand,const UINT8* param,
 									const CASocketAddrINet* a_pSocketAddress)
-	{
+{
     UINT8* recvBuff = NULL;
     SINT32 ret = E_SUCCESS;
     UINT32 len = 0;
 
-		CASocket oSocket(true);
-		UINT8 hostname[255];
-		UINT8 buffHeader[255];
-		CAHttpClient httpClient;
+	CASocket oSocket(true);
+	UINT8 hostname[255];
+	UINT8 buffHeader[255];
+	CAHttpClient httpClient;
 
-		UINT64 currentTimeout = MIX_TO_INFOSERVICE_TIMEOUT;
-		UINT64 startupTime, currentMillis;
+	UINT64 currentTimeout = MIX_TO_INFOSERVICE_TIMEOUT;
+	UINT64 startupTime, currentMillis;
 
     UINT32 requestType = REQUEST_TYPE_POST;
     bool receiveAnswer = false;
 
-		if (a_pSocketAddress == NULL)
-		{
-			return E_UNKNOWN;
-		}
+	if (a_pSocketAddress == NULL)
+	{
+		return E_UNKNOWN;
+	}
 
     if(requestCommand<0)
-			{
+	{
         if(m_bConfiguring)
-					{
-						requestCommand = REQUEST_COMMAND_CONFIGURE;
-						receiveAnswer = true;
-					}
+		{
+			requestCommand = REQUEST_COMMAND_CONFIGURE;
+			receiveAnswer = true;
+		}
         else
-					{
-						requestCommand = REQUEST_COMMAND_HELO;
-						receiveAnswer = true;
-					}
-			}
-		else if(requestCommand==REQUEST_COMMAND_MIXINFO)
-			{
-				requestType=REQUEST_TYPE_GET;
-				receiveAnswer = true;
-			}
-	
-		if(a_pSocketAddress->getIPAsStr(hostname, 255)!=E_SUCCESS)
-			{
-				goto ERR;
-			}
+		{
+			requestCommand = REQUEST_COMMAND_HELO;
+			receiveAnswer = true;
+		}
+	}
+	else
+	{
+        if(requestCommand==REQUEST_COMMAND_MIXINFO)
+		{
+			requestType=REQUEST_TYPE_GET;
+			receiveAnswer = true;
+		}
+	}
+
+	if(a_pSocketAddress->getIPAsStr(hostname, 255)!=E_SUCCESS)
+	{
+		goto ERR;
+	}
 		
     oSocket.setRecvBuff(255);
-		if(oSocket.connect(*a_pSocketAddress, MIX_TO_INFOSERVICE_TIMEOUT)==E_SUCCESS)
+	if(oSocket.connect(*a_pSocketAddress, MIX_TO_INFOSERVICE_TIMEOUT)==E_SUCCESS)
+	{
+		httpClient.setSocket(&oSocket);
+		const char* strRequestCommand=STRINGS_REQUEST_COMMANDS[requestCommand];
+		const char* strRequestType=STRINGS_REQUEST_TYPES[requestType];
+        CAMsg::printMsg(LOG_DEBUG,"InfoService: Sending [%s] %s to InfoService %s:%d.\r\n", strRequestType,strRequestCommand, hostname, a_pSocketAddress->getPort());
+
+        if(requestCommand==REQUEST_COMMAND_MIXINFO)
+   		{
+			sprintf((char*)buffHeader,"%s /%s%s HTTP/1.0\r\nContent-Length: %u\r\n\r\n", strRequestType, strRequestCommand, param,a_len);
+   		}
+		else
 		{
-			httpClient.setSocket(&oSocket);
-			const char* strRequestCommand=STRINGS_REQUEST_COMMANDS[requestCommand];
-			const char* strRequestType=STRINGS_REQUEST_TYPES[requestType];
-			CAMsg::printMsg(LOG_DEBUG,"InfoService: Sending [%s] %s to InfoService %s:%d.\r\n", strRequestType,strRequestCommand, hostname, a_pSocketAddress->getPort());
-			if(requestCommand==REQUEST_COMMAND_MIXINFO)
-   			{
-				sprintf((char*)buffHeader,"%s /%s%s HTTP/1.0\r\nContent-Length: %u\r\n\r\n", strRequestType, strRequestCommand, param,a_len);
-   			}
-			else
-			{
-				sprintf((char*)buffHeader,"%s /%s HTTP/1.0\r\nContent-Length: %u\r\n\r\n", strRequestType, strRequestCommand, a_len);
-			}
-			
+			sprintf((char*)buffHeader,"%s /%s HTTP/1.0\r\nContent-Length: %u\r\n\r\n", strRequestType, strRequestCommand, a_len);
+		}
+		
 		getcurrentTimeMillis(startupTime);
 		if (oSocket.sendFullyTimeOut(buffHeader,strlen((char*)buffHeader), currentTimeout, SEND_INFO_TIMEOUT_MS)!=E_SUCCESS)
 		{
@@ -727,16 +719,16 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
 			goto ERR;
 		}
 
-    if(receiveAnswer)
-      {
-				getcurrentTimeMillis(currentMillis);	
-				currentTimeout -= (currentMillis - startupTime);
-				if(currentTimeout <= 0 || httpClient.parseHTTPHeader(&len) != E_SUCCESS)
-				{
-					goto ERR;
-				}
+        if(receiveAnswer)
+        {
+        	getcurrentTimeMillis(currentMillis);	
+			currentTimeout -= (currentMillis - startupTime);
+			if(currentTimeout <= 0 || httpClient.parseHTTPHeader(&len) != E_SUCCESS)
+			{
+				goto ERR;
+			}
 				
-	      if(len > 0)
+            if(len > 0)
             {
             	getcurrentTimeMillis(currentMillis);	
 				currentTimeout -= (currentMillis - startupTime);
@@ -759,13 +751,16 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
 
         if(recvBuff != NULL)
         {
-            XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(recvBuff,len);
+            MemBufInputSource oInput(recvBuff,len,"tmpID");
+            DOMParser oParser;
+            oParser.parse(oInput);
+            DOM_Document doc=oParser.getDocument();
             delete[] recvBuff;
             recvBuff=NULL;
-            DOMElement* root=NULL;
-            if(doc!=NULL && (root = doc->getDocumentElement()) != NULL)
+            DOM_Element root;
+            if(!doc.isNull() && (root = doc.getDocumentElement()) != NULL)
             {
-                if(equals(root->getNodeName(),"MixCascade"))
+                if(root.getNodeName().equals("MixCascade"))
                 {
                     ret = handleConfigEvent(doc);
                     if(ret == E_SUCCESS)
@@ -773,29 +768,19 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
                     else
                         return ret;
                 }
-                else if(equals(root->getNodeName(),"Mix"))
+                else if(root.getNodeName().equals("Mix"))
                 {
                     if(m_expectedMixRelPos < 0)
-											{
-												XMLCh* id=XMLString::transcode("id");
-												char* tmpStr=XMLString::transcode(root->getAttribute(id));
-                        CAMsg::printMsg(LOG_DEBUG,"InfoService: Setting new previous mix: %s\n",tmpStr);
-												XMLString::release(&tmpStr);
-												XMLString::release(&id);
+                    {
+                        CAMsg::printMsg(LOG_DEBUG,"InfoService: Setting new previous mix: %s\n",root.getAttribute("id").transcode());
                         pglobalOptions->setPrevMix(doc);
-											}
+                    }
                     else if(m_expectedMixRelPos > 0)
-											{
-												XMLCh* id=XMLString::transcode("id");
-												char* tmpStr=XMLString::transcode(root->getAttribute(id));
-                        CAMsg::printMsg(LOG_DEBUG,"InfoService: Setting new next mix: %s\n",tmpStr);
-												XMLString::release(&id);
-												XMLString::release(&tmpStr);
+                    {
+                        CAMsg::printMsg(LOG_DEBUG,"InfoService: Setting new next mix: %s\n",root.getAttribute("id").transcode());
                         pglobalOptions->setNextMix(doc);
-											}
+                    }
                 }
-                CAMsg::printMsg(LOG_DEBUG,"InfoService::sendMixHelo(): XML infoservice doc 0x%x not needed anymore.\n", 
-                		doc);
             }
             else
             {
@@ -880,22 +865,23 @@ UINT8* CAInfoService::getCascadeHeloXMLAsString(UINT32& a_len)
 		a_len=0;
  		UINT32 sendBuffLen;
 		UINT8* sendBuff=NULL;
-		XERCES_CPP_NAMESPACE::DOMDocument* docMixInfo=NULL;
-		DOMElement* elemTimeStamp=NULL;
-		DOMElement* elemRoot=NULL;
+		DOM_Document docMixInfo;
+		DOM_Element elemTimeStamp;
+		DOM_Element elemSerial; 
+		DOM_Element elemRoot;
 		
-	  if(m_pMix->getMixCascadeInfo(docMixInfo)!=E_SUCCESS)
+	    if(m_pMix->getMixCascadeInfo(docMixInfo)!=E_SUCCESS)
 		{
-	    CAMsg::printMsg(LOG_INFO,"InfoService: Cascade not yet configured.\n");
+	        CAMsg::printMsg(LOG_INFO,"InfoService: Cascade not yet configured.\n");
 			goto ERR;
 		}
 		//insert (or update) the Timestamp
-		elemRoot=docMixInfo->getDocumentElement();
+		elemRoot=docMixInfo.getDocumentElement();
 		
-		if(getDOMChildByName(elemRoot,"LastUpdate",elemTimeStamp,false)!=E_SUCCESS)
+		if(getDOMChildByName(elemRoot,(UINT8*)"LastUpdate",elemTimeStamp,false)!=E_SUCCESS)
 			{
-				elemTimeStamp=createDOMElement(docMixInfo,"LastUpdate");
-				elemRoot->appendChild(elemTimeStamp);
+				elemTimeStamp=docMixInfo.createElement("LastUpdate");
+				elemRoot.appendChild(elemTimeStamp);
 			}
 		UINT64 currentMillis;
 		getcurrentTimeMillis(currentMillis);
@@ -1010,7 +996,7 @@ ERR:
 	return E_UNKNOWN;
 }
 
-SINT32 CAInfoService::handleConfigEvent(XERCES_CPP_NAMESPACE::DOMDocument* doc) const
+SINT32 CAInfoService::handleConfigEvent(DOM_Document& doc) const
 {
 	///*** Nedd redesigning!*/
 /*    CAMsg::printMsg(LOG_INFO,"InfoService: Cascade info received from InfoService\n");
@@ -1108,7 +1094,7 @@ SINT32 CAInfoService::getPaymentInstance(const UINT8* a_pstrPIID,CAXMLBI** a_pXM
 
 
 /** Gets a payment instance from the InfoService.
-	@param a_pstrPIID id of the payment instance for which the information is requested
+	@param a_pstrPIID id of the payment instacne for which the information is requested
 	@param a_pXMLBI a pointer to a pointer which on a successful return will point to a newly created CAXMLBI object
 	@param a_socketAddress adress of the InfoService from which the information is to be requested
 	@retval E_SUCCESS if succesful
@@ -1161,14 +1147,16 @@ SINT32 CAInfoService::getPaymentInstance(const UINT8* a_pstrPIID,CAXMLBI** a_pXM
 			}
 		socket.close();
 		//Parse XML
-		XERCES_CPP_NAMESPACE::DOMDocument* doc = parseDOMDocument(content,contentLength);
+		MemBufInputSource oInput( content, contentLength, "PaymentInstance" );
+		DOMParser oParser;
+		oParser.parse( oInput );
 		delete []content;
+		DOM_Document doc = oParser.getDocument();
 		if(doc==NULL)
 			return E_UNKNOWN;
-		DOMElement* elemRoot=doc->getDocumentElement();
+		DOM_Element elemRoot=doc.getDocumentElement();
 
 		*a_pXMLBI = CAXMLBI::getInstance(elemRoot);
-		CAMsg::printMsg(LOG_DEBUG, "CAInfoService::getPaymentInstance(): XML doc not needed anymore\n");
 		if (*a_pXMLBI != NULL)
 			{
 				return E_SUCCESS;

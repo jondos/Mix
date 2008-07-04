@@ -86,23 +86,24 @@ CAListenerInterface* CAListenerInterface::getInstance(NetworkType type,const UIN
 	}
 
 #ifndef ONLY_LOCAL_PROXY
-CAListenerInterface** CAListenerInterface::getInstance(DOMElement* a_elemListenerInterfaces, 
+CAListenerInterface** CAListenerInterface::getInstance(DOM_Element& a_elemListenerInterfaces, 
 													  UINT32& r_length)
 {
 	CAListenerInterface** interfaces = NULL;
 	if(a_elemListenerInterfaces!=NULL)
 	{
-		DOMNodeList* nlListenerInterfaces =
-			getElementsByTagName(a_elemListenerInterfaces,CAListenerInterface::XML_ELEMENT_NAME);
-		r_length=nlListenerInterfaces->getLength();
+		DOM_NodeList nlListenerInterfaces =
+			a_elemListenerInterfaces.getElementsByTagName(
+				CAListenerInterface::XML_ELEMENT_NAME);
+		r_length=nlListenerInterfaces.getLength();
 		if(r_length>0)
 		{
 			interfaces=new CAListenerInterface*[r_length];
 			UINT32 aktInterface=0;
 			for(UINT32 i=0;i<r_length;i++)
 			{
-				DOMNode* elemListenerInterface;
-				elemListenerInterface=nlListenerInterfaces->item(i);
+				DOM_Node elemListenerInterface;
+				elemListenerInterface=nlListenerInterfaces.item(i);
 				CAListenerInterface* pListener=CAListenerInterface::getInstance(elemListenerInterface);
 				if(pListener!=NULL)
 				{
@@ -122,18 +123,20 @@ CAListenerInterface** CAListenerInterface::getInstance(DOMElement* a_elemListene
 }
 
 
-SINT32	CAListenerInterface::toDOMElement(DOMElement* & elemListenerInterface,XERCES_CPP_NAMESPACE::DOMDocument* ownerDoc) const
+SINT32	CAListenerInterface::toDOMFragment(DOM_DocumentFragment& fragment,DOM_Document& ownerDoc) const
 	{
-		elemListenerInterface=createDOMElement(ownerDoc,"ListenerInterface");
-		DOMElement* elem=createDOMElement(ownerDoc,"Type");
-		elemListenerInterface->appendChild(elem);
+		fragment=ownerDoc.createDocumentFragment();
+		DOM_Element elemListenerInterface=ownerDoc.createElement("ListenerInterface");
+		fragment.appendChild(elemListenerInterface);
+		DOM_Element elem=ownerDoc.createElement("Type");
+		elemListenerInterface.appendChild(elem);
 		setDOMElementValue(elem,(UINT8*)"RAW/TCP");
-		elem=createDOMElement(ownerDoc,"Port");
-		elemListenerInterface->appendChild(elem);
+		elem=ownerDoc.createElement("Port");
+		elemListenerInterface.appendChild(elem);
 		UINT32 port=((CASocketAddrINet*)m_pAddr)->getPort();
 		setDOMElementValue(elem,port);
-		elem=createDOMElement(ownerDoc,"Host");
-		elemListenerInterface->appendChild(elem);
+		elem=ownerDoc.createElement("Host");
+		elemListenerInterface.appendChild(elem);
 		UINT8 ip[50];
 		if(m_strHostname!=NULL)
 			setDOMElementValue(elem,m_strHostname);
@@ -142,27 +145,27 @@ SINT32	CAListenerInterface::toDOMElement(DOMElement* & elemListenerInterface,XER
 				((CASocketAddrINet*)m_pAddr)->getIPAsStr(ip,50);
 				setDOMElementValue(elem,ip);
 			}
-		elem=createDOMElement(ownerDoc,"IP");
-		elemListenerInterface->appendChild(elem);
+		elem=ownerDoc.createElement("IP");
+		elemListenerInterface.appendChild(elem);
 		((CASocketAddrINet*)m_pAddr)->getIPAsStr(ip,50);
 		setDOMElementValue(elem,ip);
 		return E_SUCCESS;
 	}
 
-CAListenerInterface* CAListenerInterface::getInstance(const DOMNode* elemListenerInterface)
+CAListenerInterface* CAListenerInterface::getInstance(const DOM_Node& elemListenerInterface)
 	{
 		if(	elemListenerInterface==NULL||
-				elemListenerInterface->getNodeType()!=DOMNode::ELEMENT_NODE)//||
+				elemListenerInterface.getNodeType()!=DOM_Node::ELEMENT_NODE)//||
 				//!elemListenerInterface.getNodeName().equals("ListenerInterface"))
 			return NULL;
 		CAListenerInterface* pListener=new CAListenerInterface();
 		getDOMElementAttribute(elemListenerInterface,"hidden",pListener->m_bHidden);
 		getDOMElementAttribute(elemListenerInterface,"virtual",pListener->m_bVirtual);
-		DOMNode* elemType=NULL;
-		getDOMChildByName(elemListenerInterface,"NetworkProtocol",elemType,false);
+		DOM_Element elemType;
+		getDOMChildByName(elemListenerInterface,(UINT8*)"NetworkProtocol",elemType,false);
 		if (elemType == NULL)
 		{
-			getDOMChildByName(elemListenerInterface,"Type",elemType,false);
+			getDOMChildByName(elemListenerInterface,(UINT8*)"Type",elemType,false);
 		}
 		UINT32 tmpLen = 255;
 		UINT8 tmpBuff[255];
@@ -194,15 +197,15 @@ CAListenerInterface* CAListenerInterface::getInstance(const DOMNode* elemListene
 		if(pListener->m_Type==SSL_TCP||pListener->m_Type==RAW_TCP
 		   ||pListener->m_Type==HTTP_TCP)
 			{ 
-				DOMNode* elemIP=NULL;
-				DOMElement* elemPort=NULL;
-				DOMNode* elemHost=NULL;
-				getDOMChildByName(elemListenerInterface,"Port",elemPort,false);
+				DOM_Element elemIP;
+				DOM_Element elemPort;
+				DOM_Element elemHost;
+				getDOMChildByName(elemListenerInterface,(UINT8*)"Port",elemPort,false);
 				UINT32 port;
 				if(getDOMElementValue(elemPort,&port)!=E_SUCCESS)
 					goto ERR;
 				pListener->m_pAddr=new CASocketAddrINet;
-				getDOMChildByName(elemListenerInterface,"IP",elemIP,false);
+				getDOMChildByName(elemListenerInterface,(UINT8*)"IP",elemIP,false);
 				if(elemIP!=NULL)
 					{
 						UINT8 buffIP[50];
@@ -212,7 +215,7 @@ CAListenerInterface* CAListenerInterface::getInstance(const DOMNode* elemListene
 						if(((CASocketAddrINet*)pListener->m_pAddr)->setAddr(buffIP,(UINT16)port)!=E_SUCCESS)
 							goto ERR;
 					}
-				getDOMChildByName(elemListenerInterface,"Host",elemHost,false);
+				getDOMChildByName(elemListenerInterface,(UINT8*)"Host",elemHost,false);
 				tmpLen=255;										
 				if(getDOMElementValue(elemHost,tmpBuff,&tmpLen)==E_SUCCESS)
 					{
@@ -229,8 +232,8 @@ CAListenerInterface* CAListenerInterface::getInstance(const DOMNode* elemListene
 		else
 			#ifdef HAVE_UNIX_DOMAIN_PROTOCOL
 				{
-					DOMElement* elemFile=NULL;
-					getDOMChildByName(elemListenerInterface,"File",elemFile,false);
+					DOM_Element elemFile;
+					getDOMChildByName(elemListenerInterface,(UINT8*)"File",elemFile,false);
 					tmpLen=255;
 					if(getDOMElementValue(elemFile,tmpBuff,&tmpLen)!=E_SUCCESS)
 						goto ERR;

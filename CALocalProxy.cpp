@@ -64,7 +64,7 @@ SINT32 CALocalProxy::start()
 	{
 		if(initOnce()!=E_SUCCESS)
 			return E_UNKNOWN;
-    for(;;)
+    while(true)
     {
 				CAMsg::printMsg(LOG_DEBUG, "CALocalProxy main: before init()\n");
         if(init() == E_SUCCESS)
@@ -180,7 +180,7 @@ SINT32 CALocalProxy::init()
 						CAMsg::printMsg(LOG_INFO,"%s\n",buff);
 #endif
 						SINT32 ret=processKeyExchange(buff,size);
-						delete[]  buff;
+						delete []  buff;
 						if(ret!=E_SUCCESS)
 							return E_UNKNOWN;
 					}
@@ -380,7 +380,7 @@ SINT32 CALocalProxy::loop()
 										else 
 											{
 												pMixPacket->channel=tmpCon->outChannel;
-												pMixPacket->payload.len=htons((UINT16)len);
+												pMixPacket->payload.len=htons(len);
 												if(bHaveSocks&&tmpCon->pSocket->getLocalPort()==socksPort)
 													{
 														pMixPacket->payload.type=MIX_PAYLOAD_SOCKS;
@@ -509,18 +509,22 @@ SINT32 CALocalProxy::clean()
 SINT32 CALocalProxy::processKeyExchange(UINT8* buff,UINT32 len)
 	{
 		CAMsg::printMsg(LOG_INFO,"Login process and key exchange started...\n");
+#ifndef ONLY_LOCAL_PROXY
 		//Parsing KeyInfo received from Mix n+1
-		XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(buff,len);
-		if(doc==NULL)
+		MemBufInputSource oInput(buff,len,"localoproxy");
+		DOMParser oParser;
+		oParser.parse(oInput);		
+		DOM_Document doc=oParser.getDocument();
+		if(doc.isNull())
 			{
 				CAMsg::printMsg(LOG_INFO,"Error parsing Key Info from Mix!\n");
 				return E_UNKNOWN;
 			}
 
 
-		DOMElement* root=doc->getDocumentElement();
-		DOMElement* elemVersion=NULL;
-		getDOMChildByName(root,"MixProtocolVersion",elemVersion,false);
+		DOM_Element root=doc.getDocumentElement();
+		DOM_Element elemVersion;
+		getDOMChildByName(root,(UINT8*)"MixProtocolVersion",elemVersion,false);
 		UINT8 strVersion[255];
 		UINT32 tmpLen=255;
 		if(getDOMElementValue(elemVersion,strVersion,&tmpLen)==E_SUCCESS&&tmpLen==3)
@@ -556,8 +560,8 @@ SINT32 CALocalProxy::processKeyExchange(UINT8* buff,UINT32 len)
 			return E_UNKNOWN;
 #endif
 		}
-		DOMElement* elemMixes=NULL;
-		getDOMChildByName(root,"Mixes",elemMixes,false);
+		DOM_Element elemMixes;
+		getDOMChildByName(root,(UINT8*)"Mixes",elemMixes,false);
 		SINT32 chainlen=-1;
 		if(elemMixes==NULL||getDOMElementAttribute(elemMixes,"count",&chainlen)!=E_SUCCESS)
 			{
@@ -579,12 +583,12 @@ SINT32 CALocalProxy::processKeyExchange(UINT8* buff,UINT32 len)
 			}
 		UINT32 i=0;
 		m_arRSA=new CAASymCipher[m_chainlen];
-		DOMNode* child=elemMixes->getLastChild();
+		DOM_Node child=elemMixes.getLastChild();
 		while(child!= NULL&&chainlen>0)
 			{
-				if(equals(child->getNodeName(),"Mix"))
+				if(child.getNodeName().equals("Mix"))
 					{
-						DOMNode* nodeKey=child->getFirstChild();
+						DOM_Node nodeKey=child.getFirstChild();
 						if(m_arRSA[i++].setPublicKeyAsDOMNode(nodeKey)!=E_SUCCESS)
 							{
 #ifdef _DEBUG
@@ -594,7 +598,7 @@ SINT32 CALocalProxy::processKeyExchange(UINT8* buff,UINT32 len)
 							}
 						chainlen--;
 					}
-				child=child->getPreviousSibling();
+				child=child.getPreviousSibling();
 			}
 		if(chainlen!=0)
 			{
@@ -603,6 +607,25 @@ SINT32 CALocalProxy::processKeyExchange(UINT8* buff,UINT32 len)
 				return E_UNKNOWN;
 #endif
 			}
+#else
+	m_MixCascadeProtocolVersion=MIX_CASCADE_PROTOCOL_VERSION_0_4;
+	m_chainlen=2;
+	m_arRSA=new CAASymCipher[m_chainlen];
+	UINT8* modulus;
+	UINT32 moduluslen;
+	UINT8* exponent;
+	UINT32 exponentlen;
+	modulus=(UINT8*)strstr((char*)buff,"<Modulus>")+9;
+	moduluslen=((UINT8*)strstr((char*)modulus,"</Modulus>"))-modulus;
+	exponent=(UINT8*)strstr((char*)modulus,"<Exponent>")+10;
+	exponentlen=((UINT8*)strstr((char*)exponent,"</Exponent>"))-exponent;
+	m_arRSA[1].setPublicKey(modulus,moduluslen,exponent,exponentlen);
+	modulus=(UINT8*)strstr((char*)exponent,"<Modulus>")+9;
+	moduluslen=((UINT8*)strstr((char*)modulus,"</Modulus>"))-modulus;
+	exponent=(UINT8*)strstr((char*)modulus,"<Exponent>")+10;
+	exponentlen=((UINT8*)strstr((char*)exponent,"</Exponent>"))-exponent;
+	m_arRSA[0].setPublicKey(modulus,moduluslen,exponent,exponentlen);
+#endif
 		//Now sending SymKeys....
 		if(m_MixCascadeProtocolVersion==MIX_CASCADE_PROTOCOL_VERSION_0_2)
 			{
@@ -654,7 +677,7 @@ SINT32 CALocalProxy::processKeyExchange(UINT8* buff,UINT32 len)
 				sprintf((char*)buff,XML_JAP_KEY_TEMPLATE,outBuffLinkKey,outBuffMixKey);
 				UINT32 encbufflen;
 				UINT8* encbuff=encryptXMLElement(buff,strlen((char*)buff),encbufflen,&m_arRSA[m_chainlen-1]);
-				UINT16 size2=htons((UINT16)(encbufflen+XML_HEADER_SIZE));
+				UINT16 size2=htons(encbufflen+XML_HEADER_SIZE);
 				SINT32 ret=((CASocket*)&m_muxOut)->send((UINT8*)&size2,2);
 				ret=((CASocket*)&m_muxOut)->send((UINT8*)XML_HEADER,XML_HEADER_SIZE);
 				ret=((CASocket*)&m_muxOut)->send(encbuff,encbufflen);
@@ -670,7 +693,6 @@ SINT32 CALocalProxy::processKeyExchange(UINT8* buff,UINT32 len)
 				m_muxOut.setReceiveKey(linkKeys+32,32);
 				m_muxOut.setCrypt(true);
 			}
-		doc->release();
 		CAMsg::printMsg(LOG_INFO,"Login process and key exchange finished!\n");		
 		return E_SUCCESS;
 	}

@@ -27,7 +27,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 */
 #ifndef CAXMLPRICECERT_H_
 #define CAXMLPRICECERT_H_
-#ifdef PAYMENT
 #include "xml/DOM_Output.hpp"
 #include "CAAbstractXMLSignable.hpp"
 #include "CAMsg.hpp"
@@ -47,10 +46,10 @@ class CAXMLPriceCert : public CAAbstractXMLSignable
 		*/
 		static CAXMLPriceCert* getInstance(const UINT8 * strXmlData,UINT32 strXMLDataLength);
 		
-		static CAXMLPriceCert* getInstance(DOMElement* elemRoot);
+		static CAXMLPriceCert* getInstance(DOM_Element &elemRoot);
 		~CAXMLPriceCert();
 		
-		SINT32 toXmlElement(XERCES_CPP_NAMESPACE::DOMDocument* a_doc, DOMElement* & elemRoot);
+		SINT32 toXmlElement(DOM_Document &a_doc, DOM_Element &elemRoot);
 		
 		/** dumps the XML CC to memory without trailing '0'.*/
 		UINT8* dumpToMem(UINT32* pLen)
@@ -117,12 +116,12 @@ class CAXMLPriceCert : public CAAbstractXMLSignable
 			return pTmpStr;	
 		}
 		
-		static const char* const getXMLElementName()
+		static const UINT8* const getXMLElementName()
 		{
 			return ms_pStrElemName;
 		}
 	
-		 XERCES_CPP_NAMESPACE::DOMDocument* getXMLDocument()
+		DOM_Document getXMLDocument()
 		{
 			return m_domDocument;
 		}
@@ -138,11 +137,11 @@ class CAXMLPriceCert : public CAAbstractXMLSignable
 		double 		m_lRate;
 		UINT8* 		m_StrSignatureTime;
 		UINT8*		m_StrBiID;
-		DOMElement*  m_signature;
-		 XERCES_CPP_NAMESPACE::DOMDocument*	m_domDocument;
-		static const char* const ms_pStrElemName;
+		DOM_Element  m_signature;
+		DOM_Document	m_domDocument;
+		static const UINT8* const ms_pStrElemName;
 				
 };
 
-#endif //PAYMENT
 #endif /*CAXMLPRICECERT_H_*/
+

@@ -33,7 +33,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 CAXMLErrorMessage::CAXMLErrorMessage(const UINT32 errorCode, UINT8 * message)
 	: CAAbstractXMLEncodable()
 	{
-		m_strExpires = new char[10];
 		m_iErrorCode = errorCode;
 		m_strErrMsg = new UINT8[strlen((char *)message)+1];
 		strcpy((char *)m_strErrMsg, (char *)message);
@@ -82,7 +81,6 @@ CAXMLErrorMessage::CAXMLErrorMessage(UINT32 errorCode)
 			strcpy((char *)m_strErrMsg, (char *)errors[errorCode]);
 		}
 		m_messageObject = NULL;
-		m_strExpires = new char[10];
 	}
 
 
@@ -93,8 +91,7 @@ CAXMLErrorMessage::CAXMLErrorMessage(const UINT32 errorCode, UINT8* message, CAA
 	m_strErrMsg = new UINT8[strlen((char *)message)+1];
 	strcpy((char *)m_strErrMsg, (char *)message);
 	
-	m_messageObject = messageObject;
-	m_strExpires = new char[10];
+	m_messageObject = messageObject;	
 }
 
 
@@ -102,44 +99,28 @@ CAXMLErrorMessage::CAXMLErrorMessage(const UINT32 errorCode, UINT8* message, CAA
 CAXMLErrorMessage::CAXMLErrorMessage(UINT8 * strXmlData)
 	: CAAbstractXMLEncodable()
 {
+	MemBufInputSource oInput( strXmlData, strlen((char*)strXmlData), "XMLErrorMessage" );
+	DOMParser oParser;
+	oParser.parse( oInput );
+	DOM_Document doc = oParser.getDocument();
+	DOM_Element elemRoot = doc.getDocumentElement();
 	m_strErrMsg=NULL;
 	m_messageObject = NULL;
-	m_strExpires = new char[10];
-	XERCES_CPP_NAMESPACE::DOMDocument* doc = parseDOMDocument(strXmlData,strlen((char*)strXmlData));
-	
-	if(doc != NULL)
-	{
-		DOMElement* elemRoot = doc->getDocumentElement();
-		if (setValues(elemRoot) != E_SUCCESS)
-		{
-			m_iErrorCode = ERR_NO_ERROR_GIVEN;
-		}
-		if(doc != NULL)
-		{
-			doc->release();
-			doc = NULL;
-		}
-	}
-	else
+	if (setValues(elemRoot) != E_SUCCESS)
 	{
 		m_iErrorCode = ERR_NO_ERROR_GIVEN;
 	}
 }
 
 
-SINT32 CAXMLErrorMessage::setValues(DOMElement* elemRoot)
+SINT32 CAXMLErrorMessage::setValues(DOM_Element &elemRoot)
 {	
 	UINT8 strGeneral[256];
 	UINT32 strGeneralLen = 256;
-	
-	char strExp[10];
-	UINT32 strExpLen = 10;
-	
 	SINT32 tmp;
 	SINT32 rc;
-		
 	if( ((rc=getDOMElementAttribute(elemRoot, "code", &tmp)) !=E_SUCCESS) ||
-			 ((rc=getDOMElementValue(elemRoot, strGeneral, &strGeneralLen)) !=E_SUCCESS)
+			((rc=getDOMElementValue(elemRoot, strGeneral, &strGeneralLen)) !=E_SUCCESS)
 		)
 	{
 		UINT8 buff[8192];
@@ -149,35 +130,27 @@ SINT32 CAXMLErrorMessage::setValues(DOMElement* elemRoot)
 		
 		return rc;
 	}
-	
 	m_iErrorCode = (UINT32)tmp;
 	if(m_strErrMsg) delete [] m_strErrMsg;
 	m_strErrMsg = new UINT8[strGeneralLen+1];
 	strcpy((char*)m_strErrMsg, (char*)strGeneral);
 	
-	/*if((rc=getDOMElementAttribute(elemRoot, "expires", (UINT8*) strExp, &strExpLen)) ==E_SUCCESS)
-	{	
-		if(m_strExpires != NULL)
-		{
-			strncpy(m_strExpires, strExp, 10);
-		}
-	}*/
-	DOMElement* objectRootElem=NULL;
-	getDOMChildByName(elemRoot, "MessageObject", objectRootElem, false);
+	DOM_Element objectRootElem;
+	getDOMChildByName(elemRoot, (UINT8*)"MessageObject", objectRootElem, false);
 	
 	//due to lack of RTTI, we need to hardcode how to deal with each specific object type
 	if (ERR_OUTDATED_CC == m_iErrorCode)
 	{
-		DOMElement* ccElem=NULL;
-		if (getDOMChildByName(objectRootElem,"CC",ccElem,true) == E_SUCCESS)
+		DOM_Element ccElem;
+		if (getDOMChildByName(objectRootElem,(UINT8*)"CC",ccElem,true) == E_SUCCESS)
 		{
 			m_messageObject = CAXMLCostConfirmation::getInstance(ccElem);	
 		}
 	}
 	else if (ERR_ACCOUNT_EMPTY == m_iErrorCode)
 	{
-		DOMElement* confirmedElem=NULL;
-		if (getDOMChildByName(objectRootElem,"GenericText",confirmedElem,true) == E_SUCCESS)
+		DOM_Element confirmedElem;
+		if (getDOMChildByName(objectRootElem,(UINT8*)"GenericText",confirmedElem,true) == E_SUCCESS)
 		{
 			m_messageObject = new UINT64;
 			if(getDOMElementValue(confirmedElem, (*(UINT64*)m_messageObject)) != E_SUCCESS)
@@ -199,46 +172,27 @@ SINT32 CAXMLErrorMessage::setValues(DOMElement* elemRoot)
 CAXMLErrorMessage::~CAXMLErrorMessage()
 	{
 		if(m_strErrMsg)
-		{
 			delete [] m_strErrMsg;
-			m_strErrMsg = NULL;
-		}
 		if (m_messageObject != NULL)
-		{
 			delete m_messageObject;
-			m_messageObject = NULL;
-		}
-		
-		if (m_strExpires !=NULL)
-		{
-			delete[] m_strExpires;
-			m_strExpires = NULL;
-		}
 	}
 
 
-SINT32 CAXMLErrorMessage::toXmlElement(XERCES_CPP_NAMESPACE::DOMDocument* a_doc, DOMElement* & elemRoot)
+SINT32 CAXMLErrorMessage::toXmlElement(DOM_Document &a_doc, DOM_Element &elemRoot)
 	{	
-		elemRoot = createDOMElement(a_doc,"ErrorMessage");
+		elemRoot = a_doc.createElement("ErrorMessage");
 		setDOMElementAttribute(elemRoot, "code", m_iErrorCode);
-		/*if(m_strExpires != NULL)
-		{
-			if(m_strExpires[0] != 0)
-			{
-				setDOMElementAttribute(elemRoot, "expires", (UINT8*)m_strExpires);
-			}
-		}*/
 		setDOMElementValue(elemRoot, m_strErrMsg);
 
 		if (m_messageObject)
 		{
-			DOMElement* objectRoot = createDOMElement(a_doc,"MessageObject");
-			DOMElement* objectElem=NULL;
+			DOM_Element objectRoot = a_doc.createElement("MessageObject");
+			DOM_Element objectElem;
 			//WARNING: this will fail for CAXMLCostConfirmation!!! (since it is not a subclass of CAAbstractXMLEncodable)
 			CAAbstractXMLEncodable* encodableObject = (CAAbstractXMLEncodable*) m_messageObject;
 			encodableObject->toXmlElement(a_doc,objectElem);
-			objectRoot->appendChild(objectElem);
-			elemRoot->appendChild(objectRoot);
+			objectRoot.appendChild(objectElem);
+			elemRoot.appendChild(objectRoot);
 		}
 		
 		return E_SUCCESS;

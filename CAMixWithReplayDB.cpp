@@ -32,7 +32,5 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 CAMixWithReplayDB::CAMixWithReplayDB()
 	{
 		m_pReplayDB=NULL;
-		m_pReplayMsgProc=NULL;
-		m_u64ReferenceTime=0;
 	}
 #endif ///ONLY_LOCAL_PROXY

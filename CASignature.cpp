@@ -72,9 +72,9 @@ SINT32 CASignature::generateSignKey(UINT32 size)
 		return E_SUCCESS;
 	}
 
-SINT32 CASignature::getSignKey(DOMElement* & elem,XERCES_CPP_NAMESPACE::DOMDocument* doc)
+SINT32 CASignature::getSignKey(DOM_DocumentFragment& node,DOM_Document& doc)
 	{
-		CACertificate* pCert=NULL;
+		CACertificate* pCert;
 		getVerifyKey(&pCert);
 		EVP_PKEY* pPKey=EVP_PKEY_new();
 		EVP_PKEY_set1_DSA(pPKey,m_pDSA);		
@@ -88,20 +88,22 @@ SINT32 CASignature::getSignKey(DOMElement* & elem,XERCES_CPP_NAMESPACE::DOMDocum
 		CABase64::encode(buff,len,outbuff,&outlen);
 		outbuff[outlen]=0;
 		OPENSSL_free(buff);
-		elem=createDOMElement(doc,"X509PKCS12");
+		node=doc.createDocumentFragment();
+		DOM_Element elem=doc.createElement("X509PKCS12");
+		node.appendChild(elem);
 		setDOMElementValue(elem,outbuff);
 		return E_SUCCESS;
 	}
 
-SINT32 CASignature::setSignKey(const DOMNode* n,UINT32 type,const char* passwd)
+SINT32 CASignature::setSignKey(const DOM_Node& n,UINT32 type,const char* passwd)
 	{
-		const DOMNode* node=n; 
+		DOM_Node node=n; 
 		switch(type)
 			{
 				case SIGKEY_PKCS12:
 					while(node!=NULL)
 						{
-							if(equals(node->getNodeName(),"X509PKCS12"))
+							if(node.getNodeName().equals("X509PKCS12"))
 								{
 									UINT32 strLen=4096;
 									UINT8* tmpStr=new UINT8[strLen];
@@ -118,7 +120,7 @@ SINT32 CASignature::setSignKey(const DOMNode* n,UINT32 type,const char* passwd)
 									delete[] decBuff;
 									return ret;
 								}
-							node=node->getNextSibling();
+							node=node.getNextSibling();
 						}
 			}
 		return E_UNKNOWN;
@@ -142,11 +144,7 @@ SINT32 CASignature::setSignKey(const UINT8* buff,UINT32 len,UINT32 type,const ch
 					EVP_PKEY* key=NULL;
 //					X509* cert=NULL;
 					if(PKCS12_parse(tmpPKCS12,passwd,&key,NULL,NULL)!=1)
-							{
-								PKCS12_free(tmpPKCS12);
-								return E_UNKNOWN;
-							}	
-					PKCS12_free(tmpPKCS12);
+						return E_UNKNOWN;
 	//				X509_free(cert);
 					if(EVP_PKEY_type(key->type)!=EVP_PKEY_DSA)
 						{
@@ -172,73 +170,65 @@ SINT32 CASignature::setSignKey(const UINT8* buff,UINT32 len,UINT32 type,const ch
 SINT32 CASignature::parseSignKeyXML(const UINT8* buff,UINT32 len)
 	{
 
-		XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(buff,len);
-		if(doc == NULL)
-		{
+		MemBufInputSource oInput(buff,len,"sigkey");
+		DOMParser oParser;
+		oParser.parse(oInput);
+		DOM_Document doc=oParser.getDocument();
+		DOM_Element rootKeyInfo=doc.getDocumentElement();
+		if(!rootKeyInfo.getNodeName().equals("KeyInfo"))
 			return E_UNKNOWN;
-		}
-		DOMElement* rootKeyInfo=doc->getDocumentElement();
-		if(rootKeyInfo == NULL)
-		{
+		DOM_Node elemKeyValue;
+		if(getDOMChildByName(rootKeyInfo,(UINT8*)"KeyValue",elemKeyValue)!=E_SUCCESS)
 			return E_UNKNOWN;
-		}
-		if(!equals(rootKeyInfo->getNodeName(),"KeyInfo"))
-		{
-			return E_UNKNOWN;
-		}
-		DOMNode* elemKeyValue;
-		if(getDOMChildByName(rootKeyInfo,"KeyValue",elemKeyValue)!=E_SUCCESS)
-			return E_UNKNOWN;
-		if(getDOMChildByName(elemKeyValue,"DSAKeyValue",elemKeyValue)!=E_SUCCESS)
+		if(getDOMChildByName(elemKeyValue,(UINT8*)"DSAKeyValue",elemKeyValue)!=E_SUCCESS)
 			return E_UNKNOWN;
 		UINT8 tbuff[4096];
 		UINT32 tlen=4096;
 		DSA* tmpDSA=DSA_new();
-		DOMNode* child=elemKeyValue->getFirstChild();
+		DOM_Node child=elemKeyValue.getFirstChild();
 		while(child!=NULL)
 			{
-				char* name=XMLString::transcode(child->getNodeName());
-				DOMNode* text=child->getFirstChild();
-				if(text!=NULL)
+				DOMString name=child.getNodeName();
+				DOM_Node text=child.getFirstChild();
+				if(!text.isNull())
 					{
-						char* tmpStr=XMLString::transcode(text->getNodeValue());
+						char* tmpStr=text.getNodeValue().transcode();
 						tlen=4096;
 						CABase64::decode((UINT8*)tmpStr,strlen(tmpStr),tbuff,&tlen);
-						XMLString::release(&tmpStr);
-						if(strcmp(name,"P")==0)
+						delete tmpStr;
+						if(name.equals("P"))
 							{
 								if(tmpDSA->p!=NULL)
 									BN_free(tmpDSA->p);
 								tmpDSA->p=BN_bin2bn(tbuff,tlen,NULL);
 							}
-						else if(strcmp(name,"Q")==0)
+						else if(name.equals("Q"))
 							{
 								if(tmpDSA->q!=NULL)
 									BN_free(tmpDSA->q);
 								tmpDSA->q=BN_bin2bn(tbuff,tlen,NULL);
 							}
-						else if(strcmp(name,"G")==0)
+						else if(name.equals("G"))
 							{
 								if(tmpDSA->g!=NULL)
 										BN_free(tmpDSA->g);
 									tmpDSA->g=BN_bin2bn(tbuff,tlen,NULL);
 							}
-						else if(strcmp(name,"X")==0)
+						else if(name.equals("X"))
 							{
 								if(tmpDSA->priv_key!=NULL)
 									BN_free(tmpDSA->priv_key);
 								tmpDSA->priv_key=BN_bin2bn(tbuff,tlen,NULL);
 
 							}
-						else if(strcmp(name,"Y")==0)
+						else if(name.equals("Y"))
 							{
 								if(tmpDSA->pub_key!=NULL)
 									BN_free(tmpDSA->pub_key);
 								tmpDSA->pub_key=BN_bin2bn(tbuff,tlen,NULL);
 							}
 					}
-				XMLString::release(&name);
-				child=child->getNextSibling();
+				child=child.getNextSibling();
 			}
 		if(DSA_sign_setup(tmpDSA,NULL,&tmpDSA->kinv,&tmpDSA->r)!=1)
 			{
@@ -254,15 +244,10 @@ SINT32 CASignature::parseSignKeyXML(const UINT8* buff,UINT32 len)
 
 SINT32 CASignature::sign(UINT8* in,UINT32 inlen,UINT8* sig,UINT32* siglen)
 	{
-		DSA_SIG* signature=NULL;
-		if(	sign(in,inlen,&signature)!=E_SUCCESS)
+		DSA_SIG* signature;
+		if(	sign(in,inlen,&signature)!=E_SUCCESS||
+				encodeRS(sig,siglen,signature)!=E_SUCCESS)
 			return E_UNKNOWN;
-		if(encodeRS(sig,siglen,signature)!=E_SUCCESS)
-			{
-				DSA_SIG_free(signature);
-				return E_UNKNOWN;
-			}
-		DSA_SIG_free(signature);
 		return E_SUCCESS;
 	}
 
@@ -298,10 +283,13 @@ SINT32 CASignature::signXML(UINT8* in,UINT32 inlen,UINT8* out,UINT32* outlen,CAC
 		if(in==NULL||inlen<1||out==NULL||outlen==NULL)
 			return E_UNKNOWN;
 		
-		XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(in,inlen);
+		MemBufInputSource oInput(in,inlen,"signxml");
+		DOMParser oParser;
+		oParser.parse(oInput);
+		DOM_Document doc=oParser.getDocument();
 		if(doc==NULL)
 			return E_UNKNOWN;
-		DOMElement* root=doc->getDocumentElement();
+		DOM_Element root=doc.getDocumentElement();
 		if(signXML(root,pIncludeCerts)!=E_SUCCESS)
 			return E_UNKNOWN;
 		return DOM_Output::dumpToMem(root,out,outlen);
@@ -316,29 +304,27 @@ SINT32 CASignature::signXML(UINT8* in,UINT32 inlen,UINT8* out,UINT32* outlen,CAC
 	*	@retval E_SUCCESS, if the Signature could be successful created
 	* @retval E_UNKNOWN, otherwise
 */
-SINT32 CASignature::signXML(DOMNode* node,CACertStore* pIncludeCerts)
+SINT32 CASignature::signXML(DOM_Node& node,CACertStore* pIncludeCerts)
 	{	
 		//getting the Document an the Node to sign
-		XERCES_CPP_NAMESPACE::DOMDocument* doc=NULL;
-		DOMNode* elemRoot=NULL;
-		if(node->getNodeType()==DOMNode::DOCUMENT_NODE)
-			{
-				doc=(XERCES_CPP_NAMESPACE::DOMDocument*)node;
-				elemRoot=doc->getDocumentElement();
+		DOM_Document doc;
+		DOM_Node elemRoot;
+		if(node.getNodeType()==DOM_Node::DOCUMENT_NODE)
+			{ //Hm, I am to stupid to do it better...
+				DOM_Document* tmpDoc=static_cast<DOM_Document*>(&node);
+				doc=*tmpDoc;
+				elemRoot=doc.getDocumentElement();
 			}
 		else
 			{
+				doc=node.getOwnerDocument();
 				elemRoot=node;
-				doc=node->getOwnerDocument();
 			}
 
 		//check if there is already a Signature and if so remove it first...
-		DOMNode* tmpSignature=NULL;
-		if(getDOMChildByName(elemRoot,"Signature",tmpSignature,false)==E_SUCCESS)
-			{
-				DOMNode* n=elemRoot->removeChild(tmpSignature);
-				n->release();
-			}
+		DOM_Node tmpSignature;
+		if(getDOMChildByName(elemRoot,(UINT8*)"Signature",tmpSignature,false)==E_SUCCESS)
+			elemRoot.removeChild(tmpSignature);
 
 		//Calculating the Digest...
 		UINT32 len=0;
@@ -358,13 +344,13 @@ SINT32 CASignature::signXML(DOMNode* node,CACertStore* pIncludeCerts)
 
 
 		//Creating the Sig-InfoBlock....
-		DOMElement* elemSignedInfo=createDOMElement(doc,"SignedInfo");
-		DOMElement* elemReference=createDOMElement(doc,"Reference");
-		setDOMElementAttribute(elemReference,"URI",(UINT8*)"");
-		DOMElement* elemDigestValue=createDOMElement(doc,"DigestValue");
+		DOM_Element elemSignedInfo=doc.createElement("SignedInfo");
+		DOM_Element elemReference=doc.createElement("Reference");
+		elemReference.setAttribute("URI","");
+		DOM_Element elemDigestValue=doc.createElement("DigestValue");
 		setDOMElementValue(elemDigestValue,tmpBuff);
-		elemSignedInfo->appendChild(elemReference);
-		elemReference->appendChild(elemDigestValue);
+		elemSignedInfo.appendChild(elemReference);
+		elemReference.appendChild(elemDigestValue);
 
 		// Signing the SignInfo block....
 
@@ -398,24 +384,25 @@ SINT32 CASignature::signXML(DOMNode* node,CACertStore* pIncludeCerts)
 		sig[sigSize]=0;
 
 		//Makeing the whole Signature-Block....
-		DOMElement* elemSignature=createDOMElement(doc,"Signature");
-		DOMElement* elemSignatureValue=createDOMElement(doc,"SignatureValue");
+		DOM_Element elemSignature=doc.createElement("Signature");
+		DOM_Element elemSignatureValue=doc.createElement("SignatureValue");
 		setDOMElementValue(elemSignatureValue,sig);
-		elemSignature->appendChild(elemSignedInfo);
-		elemSignature->appendChild(elemSignatureValue);
+		elemSignature.appendChild(elemSignedInfo);
+		elemSignature.appendChild(elemSignatureValue);
 	
 		if(pIncludeCerts!=NULL)
 			{
 				//Making KeyInfo-Block
-				DOMElement* tmpElemCerts=NULL;
-				if(pIncludeCerts->encode(tmpElemCerts,doc)==E_SUCCESS && tmpElemCerts!=NULL)
+				DOM_DocumentFragment tmpDocFrag;
+				if(pIncludeCerts->encode(tmpDocFrag,doc)==E_SUCCESS&&!tmpDocFrag.isNull())
 					{
-						DOMElement* elemKeyInfo=createDOMElement(doc,"KeyInfo");
-						elemKeyInfo->appendChild(tmpElemCerts);
-						elemSignature->appendChild(elemKeyInfo);
+						DOM_Element elemKeyInfo=doc.createElement("KeyInfo");
+						elemKeyInfo.appendChild(doc.importNode(tmpDocFrag,true));
+						tmpDocFrag=0;
+						elemSignature.appendChild(elemKeyInfo);
 					}
 			}
-		elemRoot->appendChild(elemSignature);
+		elemRoot.appendChild(elemSignature);
 		return E_SUCCESS;
 	}
 
@@ -491,11 +478,10 @@ SINT32 CASignature::setVerifyKey(CACertificate* pCert)
 /**
  * Parses the XML representation of a DSA public key
  */
-SINT32 CASignature::setVerifyKey(const DOMElement* xmlKey)
+SINT32 CASignature::setVerifyKey(const DOM_Element& xmlKey)
 {
 	UINT8 decodeBuffer[4096];
-	UINT32 len = 4096;
-	UINT32 encodedLen = 0;
+	UINT32 len = 4096, encodedLen = 0;
 	DSA * tmpDSA = NULL;
 	
 	if(xmlKey==NULL)
@@ -504,26 +490,29 @@ SINT32 CASignature::setVerifyKey(const DOMElement* xmlKey)
 		m_pDSA = NULL;
 		return E_SUCCESS;
 	}
-	if(!equals(xmlKey->getTagName(), "JapPublicKey")!=0)
+	char * tmpStr = xmlKey.getTagName().transcode();
+	if(strcmp(tmpStr, "JapPublicKey")!=0)
 	{
-		char* tmpStr=XMLString::transcode(xmlKey->getTagName());
-		CAMsg::printMsg(LOG_DEBUG, "CASignature::setVerifyKey(): no JapPublicKey! -- Tagname is %s\n", tmpStr);
-		XMLString::release(&tmpStr);
+		CAMsg::printMsg(LOG_DEBUG, 
+				"CASignature::setVerifyKey(): no JapPublicKey!"
+				"Tagname is %s", tmpStr);
+		delete[] tmpStr;
 		return E_UNKNOWN;
 	}
+	delete[] tmpStr;
 
-	decodeBuffer[0]=0;
+
 	if( getDOMElementAttribute(xmlKey,"version",decodeBuffer,&len)!=E_SUCCESS || 
 		strcmp((char*)decodeBuffer, "1.0")!=0 )
 	{
 		CAMsg::printMsg(LOG_DEBUG, 
 				"CASignature::setVerifyKey(): JapPublicKey has unknown version %s. "
-				"Version 1.0 expected!",decodeBuffer);
+				"Version 1.0 expected!", tmpStr);
 		return E_UNKNOWN;
 	}
 	
-	DOMNode* elemDsaKey;
-	if(getDOMChildByName(xmlKey, "DSAKeyValue", elemDsaKey, false)
+	DOM_Element elemDsaKey;
+	if(getDOMChildByName(xmlKey, (UINT8*)"DSAKeyValue", elemDsaKey, false)
 			!=E_SUCCESS)
 		{
 			CAMsg::printMsg(LOG_DEBUG, 
@@ -534,8 +523,8 @@ SINT32 CASignature::setVerifyKey(const DOMElement* xmlKey)
 	tmpDSA=DSA_new();
 	
 	// parse "Y"
-	DOMNode* elem;
-	if(getDOMChildByName(elemDsaKey, "Y", elem, false)
+	DOM_Element elem;
+	if(getDOMChildByName(elemDsaKey, (UINT8*)"Y", elem, false)
 			!=E_SUCCESS)
 		{
 			return E_UNKNOWN;
@@ -557,7 +546,7 @@ SINT32 CASignature::setVerifyKey(const DOMElement* xmlKey)
 
 	// parse "G"
 	len = 4096;
-	if(getDOMChildByName(elemDsaKey, "G", elem, false)
+	if(getDOMChildByName(elemDsaKey, (UINT8*)"G", elem, false)
 			!=E_SUCCESS)
 		{
 			DSA_free(tmpDSA);
@@ -579,7 +568,7 @@ SINT32 CASignature::setVerifyKey(const DOMElement* xmlKey)
 	
 	// parse "P"
 	len = 4096;
-	if(getDOMChildByName(elemDsaKey,"P", elem, false)
+	if(getDOMChildByName(elemDsaKey, (UINT8*)"P", elem, false)
 			!=E_SUCCESS)
 		{
 			DSA_free(tmpDSA);
@@ -601,7 +590,7 @@ SINT32 CASignature::setVerifyKey(const DOMElement* xmlKey)
 
 	// parse "Q"
 	len = 4096;
-	if(getDOMChildByName(elemDsaKey, "Q", elem, false)
+	if(getDOMChildByName(elemDsaKey, (UINT8*)"Q", elem, false)
 			!=E_SUCCESS)
 		{
 			DSA_free(tmpDSA);
@@ -677,44 +666,37 @@ SINT32 CASignature::verifyDER(UINT8* in, UINT32 inlen, const UINT8 * dsaSig, con
 
 SINT32 CASignature::verifyXML(const UINT8* const in,UINT32 inlen)
 	{
-		XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(in,inlen);
-		if(doc == NULL)
-		{
-			return E_UNKNOWN;
-		}
-		DOMElement* root=doc->getDocumentElement();
-		if(root == NULL)
-		{
-			return E_UNKNOWN;
-		}
-		//CAMsg::printMsg(LOG_DEBUG,"verified document 0x%x doesn't clean up itself!\n",
-							//doc);
+		MemBufInputSource oInput(in,inlen,"sigverify");
+		DOMParser oParser;
+		oParser.parse(oInput);
+		DOM_Document doc=oParser.getDocument();
+		DOM_Element root=doc.getDocumentElement();
 		return verifyXML(root,NULL);
 	}
 
 
 /** Verifies a XML Signature under node root.*/
-SINT32 CASignature::verifyXML(DOMNode* root,CACertStore* trustedCerts)
+SINT32 CASignature::verifyXML(DOM_Node& root,CACertStore* trustedCerts)
 	{
-		DOMNode* elemSignature;
-		getDOMChildByName(root,"Signature",elemSignature);
-		if(elemSignature==NULL)
+		DOM_Element elemSignature;
+		getDOMChildByName(root,(UINT8*)"Signature",elemSignature);
+		if(elemSignature.isNull())
 			return E_UNKNOWN;
-		DOMNode* elemSigValue;
-		getDOMChildByName(elemSignature,"SignatureValue",elemSigValue);
-		if(elemSigValue==NULL)
+		DOM_Element elemSigValue;
+		getDOMChildByName(elemSignature,(UINT8*)"SignatureValue",elemSigValue);
+		if(elemSigValue.isNull())
 			return E_UNKNOWN;
-		DOMNode* elemSigInfo;
-		getDOMChildByName(elemSignature,"SignedInfo",elemSigInfo);
-		if(elemSigInfo==NULL)
+		DOM_Element elemSigInfo;
+		getDOMChildByName(elemSignature,(UINT8*)"SignedInfo",elemSigInfo);
+		if(elemSigInfo.isNull())
 			return E_UNKNOWN;
-		DOMNode* elemReference;
-		getDOMChildByName(elemSigInfo,"Reference",elemReference);
-		if(elemReference==NULL)
+		DOM_Element elemReference;
+		getDOMChildByName(elemSigInfo,(UINT8*)"Reference",elemReference);
+		if(elemReference.isNull())
 			return E_UNKNOWN;
-		DOMNode* elemDigestValue;
-		getDOMChildByName(elemReference,"DigestValue",elemDigestValue);
-		if(elemDigestValue==NULL)
+		DOM_Element elemDigestValue;
+		getDOMChildByName(elemReference,(UINT8*)"DigestValue",elemDigestValue);
+		if(elemDigestValue.isNull())
 			return E_UNKNOWN;
 
 		UINT8 dgst[255];
@@ -777,10 +759,10 @@ SINT32 CASignature::verifyXML(DOMNode* root,CACertStore* trustedCerts)
 				return E_UNKNOWN;
 			}
 		DSA_SIG_free(dsaSig);
-		DOMNode* tmpNode=root->removeChild(elemSignature);
+		DOM_Node tmpNode=root.removeChild(elemSignature);
 		outlen=5000;
 		DOM_Output::makeCanonical(root,out,&outlen);
-		root->appendChild(tmpNode);
+		root.appendChild(tmpNode);
 		UINT8 dgst1[SHA_DIGEST_LENGTH];
 		SHA1(out,outlen,dgst1);
 		delete[] out;

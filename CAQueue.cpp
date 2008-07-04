@@ -79,13 +79,6 @@ SINT32 CAQueue::add(const void* buff,UINT32 size)
 		m_pcsQueue->lock();
 		//if(m_pHeap==NULL)
 		//	incHeap();
-#ifdef _DEBUG
-//		if(m_nExpectedElementSize>0&&size>(m_nExpectedElementSize<<1))
-		/*if(size>1500)
-			{
-				CAMsg::printMsg(LOG_DEBUG,"CAQueue::add() WARNING: request for add %u bytes in a queue with expected element size of %u bytes !\n",size,m_nExpectedElementSize);
-			}*/
-#endif
 		if(m_Queue==NULL)
 			{
 				/*m_Queue=m_pHeap;
@@ -123,16 +116,8 @@ SINT32 CAQueue::add(const void* buff,UINT32 size)
 				memcpy(m_lastElem->pBuff,buff,size);
 			}
 		m_nQueueSize+=size;
-#ifdef QUEUE_SIZE_LOG
-		if(m_nLogSize!=0 && m_nQueueSize>m_nLogSize)
-			{
-				CAMsg::printMsg(LOG_DEBUG,"CAQueue::add() WARNING: queue size is now %u bytes which is above the expected maximum size of %u\n !\n",m_nQueueSize,m_nLogSize);
-			}
-#endif
 		m_pcsQueue->unlock();
-		m_pconvarSize->lock();
 		m_pconvarSize->signal();
-		m_pconvarSize->unlock();
 		return E_SUCCESS;
 	}
 
@@ -411,8 +396,8 @@ SINT32 CAQueue::test()
 			return E_UNKNOWN;
 		
 		//Multiple Threads....
-		CAThread* pthreadProducer=new CAThread((UINT8*)"Queue Producer Thread");
-		CAThread* pthreadConsumer=new CAThread((UINT8*)"Queue Consumer Thread");
+		CAThread* pthreadProducer=new CAThread();
+		CAThread* pthreadConsumer=new CAThread();
 		pthreadProducer->setMainLoop(producer);
 		pthreadConsumer->setMainLoop(consumer);
 		struct __queue_test t1,t2;

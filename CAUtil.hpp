@@ -43,8 +43,6 @@ SINT32 getcurrentTime(timespec& t);
 SINT32 getcurrentTimeMillis(UINT64& u64Time);
 SINT32 getcurrentTimeMicros(UINT64& u64Time);
 
-SINT32 compDate(struct tm *date1, struct tm *date2);
-
 SINT32 initRandom();
 SINT32 getRandom(UINT8* buff,UINT32 len);
 
@@ -58,43 +56,34 @@ SINT32 sSleep(UINT16 sec);
 
 UINT32 getMemoryUsage();
 
-inline SINT64 filesize64(int handle)
-	{
-		#ifdef _WIN32
-			return _filelengthi64(handle);
-		#elif defined (HAVE_FSTAT64)
-			struct stat64 info;
-			if(fstat64(handle, &info) != 0)
-				return E_UNKNOWN;
-			return info.st_size;
-		#else
-			struct stat info;
-			if(fstat(handle, &info) != 0)
-				return E_UNKNOWN;
-			return info.st_size;
-		#endif
-	}
+#ifndef _WIN32
+SINT32 filelength(int handle);
+#endif
 
-inline SINT32 filesize32(int handle)
-	{
-		#ifdef _WIN32
-			return _filelength(handle);
-		#else
-			struct stat info;
-			if(fstat(handle, &info) != 0)
-				return E_UNKNOWN;
-			return info.st_size;
-		#endif
-	}
+#ifndef ONLY_LOCAL_PROXY
+SINT32 setDOMElementValue(DOM_Element& elem,UINT32 value);
 
-/** Parses  a buffer containing an XML document and returns this document.
-	*/
-XERCES_CPP_NAMESPACE::DOMDocument* parseDOMDocument(const UINT8* const buff, UINT32 len);
-void releaseDOMParser();
+/**
+ * Returns the content of the text node under elem
+ * as 64bit unsigned integer.
+ */
+SINT32 getDOMElementValue(const DOM_Element& elem, UINT64 &value);
 
-SINT32 getDOMChildByName(const DOMNode* pNode,const XMLCh* const name,DOMNode* & child,bool deep=false);
-SINT32 getDOMChildByName(const DOMNode* pNode,const char * const name,DOMNode* & child,bool deep=false);
-SINT32 getDOMChildByName(const DOMNode* pNode,const char * const name,DOMElement* & child,bool deep=false);
+/**
+ * Sets the decimal text representation of a 64bit integer as node value
+ * TODO: implement this for non-64bit platforms
+ */
+SINT32 setDOMElementValue(DOM_Element & elem, const UINT64 text);
+
+SINT32 getDOMElementValue(const DOM_Element& elem,UINT32* value);
+/** Gets the value from an DOM-Element as UINT32. If an error occurs, the default value is returned.
+*/
+SINT32 getDOMElementValue(const DOM_Element& elem,UINT32& value,UINT32 defaultValue);
+
+SINT32 getDOMElementValue(const DOM_Element& elem,UINT16* value);
+
+SINT32 setDOMElementValue(DOM_Element& elem,const UINT8* value);
+
 
 /** 
  * Returns the content of the text node(s) under elem
@@ -106,83 +95,31 @@ SINT32 getDOMChildByName(const DOMNode* pNode,const char * const name,DOMElement
  * @param len on call contains the buffer size, on return contains the number of bytes copied
  * @return E_SPACE if the buffer is too small, E_SUCCESS otherwise, E_UNKNOWN if the element is NULL
  */
-SINT32 getDOMElementValue(const DOMNode * const pElem,UINT8* value,UINT32* len);
+SINT32 getDOMElementValue(const DOM_Node& elem,UINT8* value,UINT32* len);
+SINT32 getDOMElementValue(const DOM_Element& elem,double* value);
 
-SINT32 setDOMElementAttribute(DOMNode* pElem,const char* attrName,const UINT8* value);
+SINT32 setDOMElementAttribute(DOM_Node& elem,const char* attrName,SINT32 value);
+SINT32 setDOMElementValue(DOM_Element& elem,double floatValue);
+SINT32 setDOMElementAttribute(DOM_Node& elem,const char* attrName,const UINT8* value);
 
-bool equals(const XMLCh* const e1,const char* const e2);
+SINT32 getDOMElementAttribute(const DOM_Node& elem,const char* attrName,SINT32* value);
+SINT32 getDOMElementAttribute(const DOM_Node& elem,const char* attrName,UINT32& value);
+SINT32 getDOMElementAttribute(const DOM_Node& elem,const char* attrName,bool& value);
+SINT32 getDOMElementAttribute(const DOM_Node& elem,const char* attrName,UINT8* value,UINT32* len);
 
-SINT32 getDOMElementAttribute(const DOMNode * const pElem,const char* attrName,SINT32* value);
-
-/** Creates a new DOMElement with the given name which belongs to the DOMDocument owernDoc. 
-**/
-DOMElement* createDOMElement(XERCES_CPP_NAMESPACE::DOMDocument* pOwnerDoc,const char * const name);
-
-/** Creates a new DOMText with the given value which belongs to the DOMDocument owernDoc. 
-**/
-DOMText* createDOMText(XERCES_CPP_NAMESPACE::DOMDocument* pOwnerDoc,const char * const text);
-
-#ifndef ONLY_LOCAL_PROXY
-/** Creates an empty DOM DOcument.
-	*/
-XERCES_CPP_NAMESPACE::DOMDocument* createDOMDocument();
-
-/** Creates a new DOMText with the given value which belongs to the DOMDocument owernDoc. 
-**/
-DOMText* createDOMText(XERCES_CPP_NAMESPACE::DOMDocument* pOwnerDoc,const char * const text);
-
-
-SINT32 setDOMElementValue(DOMElement* pElem,UINT32 value);
-
-/**
- * Returns the content of the text node under elem
- * as 64bit unsigned integer.
- */
-SINT32 getDOMElementValue(const DOMElement * const pElem, UINT64 &value);
-
-/**
- * Sets the decimal text representation of a 64bit integer as node value
- * TODO: implement this for non-64bit platforms
- */
-SINT32 setDOMElementValue(DOMElement* pElem, const UINT64 text);
-
-SINT32 getDOMElementValue(const DOMElement * const pElem,UINT32* value);
-/** Gets the value from an DOM-Element as UINT32. If an error occurs, the default value is returned.
-*/
-SINT32 getDOMElementValue(const DOMElement * const pElem,UINT32& value,UINT32 defaultValue);
-
-SINT32 getDOMElementValue(const DOMElement * const pElem,UINT16* value);
-
-SINT32 setDOMElementValue(DOMElement* pElem,const UINT8* value);
-
-
-SINT32 getDOMElementValue(const DOMElement * const pElem,double* value);
-
-SINT32 setDOMElementAttribute(DOMNode* pElem,const char* attrName,SINT32 value);
-SINT32 setDOMElementValue(DOMElement* pElem,double floatValue);
-
-SINT32 getDOMElementAttribute(const DOMNode * const pElem,const char* attrName,SINT64& value);
-SINT32 getDOMElementAttribute(const DOMNode * const pElem,const char* attrName,UINT32& value);
-SINT32 getDOMElementAttribute(const DOMNode * const pElem,const char* attrName,bool& value);
-SINT32 getDOMElementAttribute(const DOMNode * const pElem,const char* attrName,UINT8* value,UINT32* len);
-
-DOMNodeList* getElementsByTagName(DOMElement* pElem,const char* const name);
-
-SINT32 getLastDOMChildByName(const DOMNode* pNode,const XMLCh* const name,DOMNode* & a_child);
-SINT32 getLastDOMChildByName(const DOMNode* pNode,const char * const name,DOMNode* & a_child);
-SINT32 getLastDOMChildByName(const DOMNode* pNode,const char * const name,DOMElement* & a_child);
-
+SINT32 getDOMChildByName(const DOM_Node& node,const UINT8* const name,DOM_Node& child,bool deep=false);
+SINT32 getLastDOMChildByName(const DOM_Node& node,const UINT8* const name,DOM_Node& a_child);
 
 SINT32 encodeXMLEncryptedKey(UINT8* key,UINT32 keylen, UINT8* xml, UINT32* xmllen,CAASymCipher* pRSA);
-SINT32 encodeXMLEncryptedKey(UINT8* key,UINT32 keylen, DOMElement* & elemRootEncodedKey,XERCES_CPP_NAMESPACE::DOMDocument* docOwner,CAASymCipher* pRSA);
+SINT32 encodeXMLEncryptedKey(UINT8* key,UINT32 keylen, DOM_DocumentFragment& docFrag,CAASymCipher* pRSA);
 SINT32 decodeXMLEncryptedKey(UINT8* key,UINT32* keylen, const UINT8* const xml, UINT32 xmllen,CAASymCipher* pRSA);
-SINT32 decodeXMLEncryptedKey(UINT8* key,UINT32* keylen, const DOMNode* pRoot,CAASymCipher* pRSA);
+SINT32 decodeXMLEncryptedKey(UINT8* key,UINT32* keylen, DOM_Node & root,CAASymCipher* pRSA);
 
 /** Replaces a DOM element with an encrypted version of this element*/
-SINT32 encryptXMLElement(DOMNode* pElem , CAASymCipher* pRSA);
+SINT32 encryptXMLElement(DOM_Node , CAASymCipher* pRSA);
 
 /** Replaces a DOM element with a deencrypted version of this element*/
-SINT32 decryptXMLElement(DOMNode* pelem , CAASymCipher* pRSA);
+SINT32 decryptXMLElement(DOM_Node , CAASymCipher* pRSA);
 
 #endif //ONLY_LOCAL_PROXY
 
@@ -198,27 +135,13 @@ inline void set64(UINT64& op1,UINT32 op2)
 #endif
 	}
 
-/** Sets the value of dst to the value of src
-*/
-inline void set64(UINT64& dst,UINT64 src)
+inline void set64(UINT64& op1,UINT64 op2)
 	{
 #if !defined(HAVE_NATIVE_UINT64)
-		dst.low=src.low;
-		dst.high=src.high;
+		op1.low=op2.low;
+		op1.high=op2.high;
 #else
-		dst=src;
-#endif
-	}
-
-/** Sets the value of dst to the value of src
-*/
-inline void set64(SINT64& dst,SINT64 src)
-	{
-#if !defined(HAVE_NATIVE_UINT64)
-		dst.low=src.low;
-		dst.high=src.high;
-#else
-		dst=src;
+		op1=op2;
 #endif
 	}
 
@@ -232,16 +155,6 @@ inline void setZero64(UINT64& op1)
 #endif
 	}
 	
-inline void setZero64(SINT64& op1)
-	{
-#if !defined(HAVE_NATIVE_UINT64)
-		op1.low=0;
-		op1.high=0;
-#else
-		op1=0;
-#endif
-	}
-
 inline void add64(UINT64& op1,UINT32 op2)
 	{
 #if !defined(HAVE_NATIVE_UINT64)
@@ -296,19 +209,6 @@ inline bool isGreater64(UINT64& op1,UINT64& op2)
 #endif
 	}
 
-inline bool isGreater64(SINT64 op1,SINT64 op2)
-	{
-#if !defined(HAVE_NATIVE_UINT64)
-		if(op1.high>op2.high)
-			return true;
-		if(op1.high==op2.high)
-			return op1.low>op2.low;
-		return false;
-#else
-		return op1>op2;
-#endif
-	}
-
 inline bool isLesser64(UINT64& smallOp1,UINT64& bigOp2)
 	{
 #if !defined(HAVE_NATIVE_UINT64)
@@ -340,15 +240,6 @@ inline bool isZero64(UINT64& op1)
 #endif
 	}
 	
-inline bool isZero64(SINT64& op1)
-	{
-#if !defined(HAVE_NATIVE_UINT64)
-		return (op1.high==0)&&op1.low==0;
-#else
-		return op1==0;
-#endif
-	}
-
 inline void print64(UINT8* buff,UINT64 num)
 	{
 		#ifdef HAVE_NATIVE_UINT64
@@ -410,14 +301,9 @@ UINT8* readFile(UINT8* name,UINT32* size);
 
 
 /**
- * Parses a 64bit unsigned integer
+ * Parses a 64bit integer
  */
 SINT32 parseU64(const UINT8 * str, UINT64& value);
-
-/**
- * Parses a 64bit signed integer
- */
-SINT32 parseS64(const UINT8 * str, SINT64& value);
 
 /** Read a passwd (i.e. without echoing the chars typed in)
 	*/

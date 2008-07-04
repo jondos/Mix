@@ -269,40 +269,40 @@ SINT32 CAASymCipher::getPublicKeyAsXML(UINT8* buff,UINT32 *len)
 	{
 		if(m_pRSA==NULL||buff==NULL)
 			return E_UNKNOWN;
-		XERCES_CPP_NAMESPACE::DOMDocument* pDoc=createDOMDocument();
-		DOMElement* elemRoot=NULL;
-		getPublicKeyAsDOMElement(elemRoot,pDoc);
-		DOM_Output::dumpToMem(elemRoot,buff,len);
-		pDoc->release();
+		DOM_DocumentFragment pDFrag;
+		getPublicKeyAsDocumentFragment(pDFrag);
+		DOM_Output::dumpToMem(pDFrag,buff,len);
 		return E_SUCCESS;
 	}
 
-SINT32 CAASymCipher::getPublicKeyAsDOMElement(DOMElement* & elemRoot,XERCES_CPP_NAMESPACE::DOMDocument* docOwner)
+SINT32 CAASymCipher::getPublicKeyAsDocumentFragment(DOM_DocumentFragment& dFrag)
 	{
 		if(m_pRSA==NULL)
 			return E_UNKNOWN;
-		elemRoot=createDOMElement(docOwner,"RSAKeyValue");
+		DOM_Document doc=DOM_Document::createDocument();
+		DOM_Element root=doc.createElement(DOMString("RSAKeyValue"));
+		dFrag=doc.createDocumentFragment();
 		
-		DOMElement* nodeModulus=createDOMElement(docOwner,"Modulus");
-		elemRoot->appendChild(nodeModulus);
+		DOM_Element nodeModulus=doc.createElement(DOMString("Modulus"));
+		root.appendChild(nodeModulus);
 		UINT8 tmpBuff[256];
 		UINT32 size=256;
 		BN_bn2bin(m_pRSA->n,tmpBuff);
 		CABase64::encode(tmpBuff,BN_num_bytes(m_pRSA->n),tmpBuff,&size);
 		tmpBuff[size]=0;
-		DOMText* tmpTextNode=createDOMText(docOwner,(const char* const)tmpBuff);
-		nodeModulus->appendChild(tmpTextNode);
+		DOM_Text tmpTextNode=doc.createTextNode(DOMString((char*)tmpBuff));
+		nodeModulus.appendChild(tmpTextNode);
 
-		DOMElement* nodeExponent=createDOMElement(docOwner,"Exponent");
+		DOM_Element nodeExponent=doc.createElement(DOMString("Exponent"));
 		BN_bn2bin(m_pRSA->e,tmpBuff);
 		size=256;
 		CABase64::encode(tmpBuff,BN_num_bytes(m_pRSA->e),tmpBuff,&size);
 		tmpBuff[size]=0;
-		
-		tmpTextNode=createDOMText(docOwner,(const char* const)tmpBuff);
-		nodeExponent->appendChild(tmpTextNode);
+		tmpTextNode=doc.createTextNode(DOMString((char*)tmpBuff));
+		nodeExponent.appendChild(tmpTextNode);
 
-		elemRoot->appendChild(nodeExponent);
+		root.appendChild(nodeExponent);
+		dFrag.appendChild(root);
 		return E_SUCCESS;
 	}
 
@@ -319,60 +319,49 @@ SINT32 CAASymCipher::setPublicKeyAsXML(const UINT8* key,UINT32 len)
 		if(key==NULL)
 			return E_UNKNOWN;
 
-		XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(key,len);
-		if(doc == NULL)
-		{
-			return E_UNKNOWN;
-		}
-		DOMElement* root=doc->getDocumentElement();
-		if(root == NULL)
-		{
-			return E_UNKNOWN;
-		}
+		MemBufInputSource oInput(key,len,"rsaKey");
+		DOMParser oParser;
+		oParser.parse(oInput);
+		DOM_Document doc=oParser.getDocument();
+		DOM_Element root=doc.getDocumentElement();
 		return setPublicKeyAsDOMNode(root);
 	}		
 
-#endif //ONLY_LOCAL_PROXY
-
 //Bugy!! Changes node!!!		
-SINT32 CAASymCipher::setPublicKeyAsDOMNode(DOMNode* node)
+SINT32 CAASymCipher::setPublicKeyAsDOMNode(DOM_Node& node)
 	{	
-		DOMNode* root=node;
+		DOM_Node root=node;
 		while(root!=NULL)
 			{	
-				if(equals(root->getNodeName(),"RSAKeyValue"))
+				if(root.getNodeName().equals("RSAKeyValue"))
 					{
 						RSA* tmpRSA=RSA_new();
 						UINT32 decLen=4096;
 						UINT8 decBuff[4096];
-						DOMNode* child=root->getFirstChild();
+						DOM_Node child=root.getFirstChild();
 						while(child!=NULL)
 							{
-								if(equals(child->getNodeName(),"Modulus"))
+								if(child.getNodeName().equals("Modulus"))
 									{
 										if(tmpRSA->n!=NULL)
 											BN_free(tmpRSA->n);
-										UINT8* tmpStr=new UINT8[4096];
-										UINT32 tmpStrLen=4096;
-										getDOMElementValue(child,tmpStr,&tmpStrLen);
+										char* tmpStr=child.getFirstChild().getNodeValue().transcode();
 										decLen=4096;
-										CABase64::decode(tmpStr,tmpStrLen,decBuff,&decLen);
-										delete []tmpStr;
+										CABase64::decode((UINT8*)tmpStr,strlen(tmpStr),decBuff,&decLen);
+										delete[] tmpStr;
 										tmpRSA->n=BN_bin2bn(decBuff,decLen,NULL);
 									}
-								else if(equals(child->getNodeName(),"Exponent"))
+								else if(child.getNodeName().equals("Exponent"))
 									{
 										if(tmpRSA->e!=NULL)
 											BN_free(tmpRSA->e);
-										UINT8* tmpStr=new UINT8[4096];
-										UINT32 tmpStrLen=4096;
-										getDOMElementValue(child,tmpStr,&tmpStrLen);
+										char* tmpStr=child.getFirstChild().getNodeValue().transcode();
 										decLen=4096;
-										CABase64::decode(tmpStr,tmpStrLen,decBuff,&decLen);
-										delete []tmpStr;
+										CABase64::decode((UINT8*)tmpStr,strlen(tmpStr),decBuff,&decLen);
+										delete[] tmpStr;
 										tmpRSA->e=BN_bin2bn(decBuff,decLen,NULL);
 									}
-								child=child->getNextSibling();
+								child=child.getNextSibling();
 							}
 						if(tmpRSA->n!=NULL&&tmpRSA->e!=NULL)
 							{
@@ -385,10 +374,11 @@ SINT32 CAASymCipher::setPublicKeyAsDOMNode(DOMNode* node)
 						RSA_free(tmpRSA);
 						return E_UNKNOWN;
 					}
-				root=root->getNextSibling();		
+				root=root.getNextSibling();		
 			}
 		return E_UNKNOWN;
 	}
+#endif //ONLY_LOCAL_PROXY
 
 #ifndef ONLY_LOCAL_PROXY
 /** Sets the public key which is used for encryption to the contained in the

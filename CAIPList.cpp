@@ -34,20 +34,16 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 extern CACmdLnOptions* pglobalOptions;
 
-///TODO: Fix LOG_TRAFFIC output which is not done anymore, as per default no log message are ommited...
-
 /** Constructs an empty CAIPList. 
 	* The default number #MAX_IP_CONNECTIONS of allowed insertions is used*/ 
 CAIPList::CAIPList()
 	{	
 		m_pMutex=new CAMutex();
+		m_Random=new UINT8[56];
 		m_HashTable=new PIPLIST[0x10000];
 		memset((void*)m_HashTable,0,0x10000*sizeof(PIPLIST));
 		m_allowedConnections=MAX_IP_CONNECTIONS;
-#if defined (_DEBUG)
-		m_Random=new UINT8[56];
 		getRandom(m_Random,56);
-#endif
 	}
 
 /**Constructs a empty CAIPList, there allowedConnections insertions 
@@ -57,13 +53,11 @@ are allowed, until an error is returned.
 CAIPList::CAIPList(UINT32 allowedConnections)
 	{
 		m_pMutex=new CAMutex();
+		m_Random=new UINT8[56];
 		m_HashTable=new PIPLIST[0x10000];
 		memset((void*)m_HashTable,0,0x10000*sizeof(PIPLIST));
 		m_allowedConnections=allowedConnections;
-#if defined (_DEBUG)
-		m_Random=new UINT8[56];
 		getRandom(m_Random,56);
-#endif
 	}
 
 /** Deletes the IPList and frees all used resources*/
@@ -80,10 +74,8 @@ CAIPList::~CAIPList()
 						delete tmpEntry;
 					}
 			}
-#ifdef _DEUBG
-		delete[] m_Random;
-#endif
-		delete[] m_HashTable;
+		delete [] m_Random;
+		delete [] m_HashTable;
 		delete m_pMutex;
 	}
 
@@ -110,12 +102,10 @@ SINT32 CAIPList::insertIP(const UINT8 ip[4])
 		if(entry==NULL)
 			{//Hashkey nicht in der Hashtabelle gefunden --> neuer Eintrag in Hashtabelle
 #ifndef PSEUDO_LOG
-#ifdef _DEBUG
 				UINT8 hash[16];
 				memcpy(m_Random,ip,4);
 				MD5(m_Random,56,hash);
 				CAMsg::printMsg(LOG_DEBUG,"Inserting new IP-Address: %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X !\n",hash[0],hash[1],hash[2],hash[3],hash[4],hash[5],hash[6],hash[7],hash[8],hash[9],hash[10],hash[11],hash[12],hash[13],hash[14],hash[15]);
-#endif
 #else
 				CAMsg::printMsg(LOG_DEBUG,"Inserting new IP-Address: {%u.%u.%u.%u} !\n",ip[0],ip[1],ip[2],ip[3]);
 #endif
@@ -127,9 +117,7 @@ SINT32 CAIPList::insertIP(const UINT8 ip[4])
 				ret = entry->count;
 #ifdef DEBUG
 #ifndef PSEUDO_LOG
-#ifdef DEBUG
 				CAMsg::printMsg(LOG_DEBUG,"New IP-Address inserted: %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X !\n",hash[0],hash[1],hash[2],hash[3],hash[4],hash[5],hash[6],hash[7],hash[8],hash[9],hash[10],hash[11],hash[12],hash[13],hash[14],hash[15]);
-#endif
 #else
 				CAMsg::printMsg(LOG_DEBUG,"New IP-Address inserted: {%u.%u.%u.%u} !\n",ip[0],ip[1],ip[2],ip[3]);
 #endif
@@ -184,7 +172,11 @@ SINT32 CAIPList::insertIP(const UINT8 ip[4])
 	* @return the remaining count of inserts for this IP-Address. 
 	* @retval 0 if IP-Address is delete form the list
 	*/
+#ifndef LOG_TRAFFIC_PER_USER
 	SINT32 CAIPList::removeIP(const UINT8 ip[4])
+#else
+	SINT32 CAIPList::removeIP(const UINT8 ip[4],UINT32 time,UINT32 trafficIn,UINT32 trafficOut)
+#endif
 	{	
 #ifdef PAYMENT	
 	return E_SUCCESS;
@@ -210,10 +202,12 @@ SINT32 CAIPList::insertIP(const UINT8 ip[4])
 						if(entry->count==0)
 						{						
 							#ifndef PSEUDO_LOG
-								#if defined (_DEBUG)
-									UINT8 hash[16];
-									memcpy(m_Random,ip,4);
-									MD5(m_Random,56,hash);
+								UINT8 hash[16];
+								memcpy(m_Random,ip,4);
+								MD5(m_Random,56,hash);
+								#ifdef LOG_TRAFFIC_PER_USER
+									CAMsg::printMsg(LOG_DEBUG,"Removing IP-Address: %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X -- Time [ms]: %u  Traffic was: IN: %u  --  OUT: %u\n",hash[0],hash[1],hash[2],hash[3],hash[4],hash[5],hash[6],hash[7],hash[8],hash[9],hash[10],hash[11],hash[12],hash[13],hash[14],hash[15],time,trafficIn,trafficOut);
+								#else
 									CAMsg::printMsg(LOG_DEBUG,"Removing IP-Address: %02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X !\n",hash[0],hash[1],hash[2],hash[3],hash[4],hash[5],hash[6],hash[7],hash[8],hash[9],hash[10],hash[11],hash[12],hash[13],hash[14],hash[15]);
 								#endif
 							#else

@@ -45,10 +45,19 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CABase64.hpp"
 #include "CAPool.hpp"
 #include "xml/DOM_Output.hpp"
-#include "CAStatusManager.hpp"
 
 extern CACmdLnOptions* pglobalOptions;
 
+/*#ifdef LOG_CHANNEL
+	#define MACRO_DO_LOG_CHANNEL\
+		getcurrentTimeMillis(current_millis);\
+		diff_time=diff64(current_millis,pChannelListEntry->timeCreated);\
+		CAMsg::printMsg(LOG_DEBUG,"Channel %u closed - Start %Lu - End %Lu - Time [ms] - %u, Upload - %u, Download - %u, DataPacketsFromUser %u, DataPacketsToUser %u\n",\
+			pChannelListEntry->channelIn,pChannelListEntry->timeCreated,\
+			current_millis,diff_time,pChannelListEntry->trafficInFromUser,pChannelListEntry->trafficOutToUser,\
+			pChannelListEntry->packetsDataInFromUser,pChannelListEntry->packetsDataOutToUser); 
+#endif
+*/
 /*******************************************************************************/
 // ----------START NEW VERSION -----------------------
 //---------------------------------------------------------
@@ -113,16 +122,15 @@ SINT32 CALastMix::init()
 					CAMsg::printMsg(LOG_CRIT,"Reason: call to accept() faild with error code: %i\n",ret); 
 					return E_UNKNOWN;
 		    }
-		// connected to previous mix
 		((CASocket*)*m_pMuxIn)->setRecvBuff(500*MIXPACKET_SIZE);
 		((CASocket*)*m_pMuxIn)->setSendBuff(500*MIXPACKET_SIZE);
 		if(((CASocket*)*m_pMuxIn)->setKeepAlive((UINT32)1800)!=E_SUCCESS)
-		{
-			CAMsg::printMsg(LOG_INFO,"Socket option TCP-KEEP-ALIVE returned an error - so not set!\n");
-			if(((CASocket*)*m_pMuxIn)->setKeepAlive(true)!=E_SUCCESS)
-				CAMsg::printMsg(LOG_INFO,"Socket option KEEP-ALIVE returned an error - so also not set!\n");
-		}
-		MONITORING_FIRE_NET_EVENT(ev_net_prevConnected);
+			{
+				CAMsg::printMsg(LOG_INFO,"Socket option TCP-KEEP-ALIVE returned an error - so not set!\n");
+				if(((CASocket*)*m_pMuxIn)->setKeepAlive(true)!=E_SUCCESS)
+					CAMsg::printMsg(LOG_INFO,"Socket option KEEP-ALIVE returned an error - so also not set!\n");
+			}
+		
 		CAMsg::printMsg(LOG_INFO,"connected!\n");
 
 #ifdef LOG_CRIME
@@ -133,12 +141,7 @@ SINT32 CALastMix::init()
 #endif	
 		ret=processKeyExchange();
 		if(ret!=E_SUCCESS)
-		{
-			MONITORING_FIRE_NET_EVENT(ev_net_keyExchangePrevFailed);
 			return ret;
-		}
-		MONITORING_FIRE_NET_EVENT(ev_net_keyExchangePrevSuccessful);
-		//keyexchange successful
 #ifdef REPLAY_DETECTION
 		m_pReplayDB=new CADatabase();
 		m_pReplayDB->start();
@@ -150,7 +153,6 @@ SINT32 CALastMix::init()
 #ifdef REPLAY_DETECTION
 		m_pReplayMsgProc=new CAReplayCtrlChannelMsgProc(this);
 		m_pReplayMsgProc->startTimeStampPorpagation(REPLAY_TIMESTAMP_PROPAGATION_INTERVALL);
-		m_u64ReferenceTime=time(NULL);
 #endif
 
 		m_bRestart=false;
@@ -189,24 +191,24 @@ SINT32 CALastMix::init()
 	*/
 SINT32 CALastMix::processKeyExchange()
 	{
-		XERCES_CPP_NAMESPACE::DOMDocument* doc=createDOMDocument();
-		DOMElement* elemMixes=createDOMElement(doc,"Mixes");
+		DOM_Document doc=DOM_Document::createDocument();
+		DOM_Element elemMixes=doc.createElement("Mixes");
 		setDOMElementAttribute(elemMixes,"count",1);
     //UINT8 cName[128];
     //pglobalOptions->getCascadeName(cName,128);
     //setDOMElementAttribute(elemMixes,"cascadeName",cName);
-		doc->appendChild(elemMixes);
+		doc.appendChild(elemMixes);
 		
 		addMixInfo(elemMixes, false);
-		DOMElement* elemMix=NULL;
-		getDOMChildByName(elemMixes, "Mix", elemMix, false);
+		DOM_Element elemMix;
+		getDOMChildByName(elemMixes, (UINT8*)"Mix", elemMix, false);
 
 		//Inserting MixProtocol Version 
 		// Version 0.3  - "normal", initial mix protocol
 		// Version 0.4  - with new flow control
     // Version 0.5  - end-to-end 1:n channels (only between client and last mix)
-		DOMElement* elemMixProtocolVersion=createDOMElement(doc,"MixProtocolVersion");
-		elemMix->appendChild(elemMixProtocolVersion);
+		DOM_Element elemMixProtocolVersion=doc.createElement("MixProtocolVersion");
+		elemMix.appendChild(elemMixProtocolVersion);
     #ifdef NEW_MIX_TYPE // TypeB mixes
       setDOMElementValue(elemMixProtocolVersion,(UINT8*)"0.5");
       DOM_Element elemDownstreamPackets = doc.createElement("DownstreamPackets");
@@ -228,11 +230,13 @@ SINT32 CALastMix::processKeyExchange()
       #endif
     #endif
 		//Inserting RSA-Key
-		DOMElement* nodeRsaKey=NULL;
-		m_pRSA->getPublicKeyAsDOMElement(nodeRsaKey,doc);
-		elemMix->appendChild(nodeRsaKey);
+		DOM_DocumentFragment tmpDocFrag;
+		m_pRSA->getPublicKeyAsDocumentFragment(tmpDocFrag);
+		DOM_Node nodeRsaKey=doc.importNode(tmpDocFrag,true);
+		elemMix.appendChild(nodeRsaKey);
+		tmpDocFrag=0;
 		//inserting Nonce
-		DOMElement* elemNonce=createDOMElement(doc,"Nonce");
+		DOM_Element elemNonce=doc.createElement("Nonce");
 		UINT8 arNonce[16];
 		getRandom(arNonce,16);
 		UINT8 tmpBuff[50];
@@ -240,24 +244,24 @@ SINT32 CALastMix::processKeyExchange()
 		CABase64::encode(arNonce,16,tmpBuff,&tmpLen);
 		tmpBuff[tmpLen]=0;
 		setDOMElementValue(elemNonce,tmpBuff);
-		elemMix->appendChild(elemNonce);
+		elemMix.appendChild(elemNonce);
 		
     
 		
 // Add Info about KeepAlive traffic
-		DOMElement* elemKeepAlive=NULL;
+		DOM_Element elemKeepAlive;
 		UINT32 u32KeepAliveSendInterval=pglobalOptions->getKeepAliveSendInterval();
 		UINT32 u32KeepAliveRecvInterval=pglobalOptions->getKeepAliveRecvInterval();
-		elemKeepAlive=createDOMElement(doc,"KeepAlive");
-		DOMElement* elemKeepAliveSendInterval=NULL;
-		DOMElement* elemKeepAliveRecvInterval=NULL;
-		elemKeepAliveSendInterval=createDOMElement(doc,"SendInterval");
-		elemKeepAliveRecvInterval=createDOMElement(doc,"ReceiveInterval");
-		elemKeepAlive->appendChild(elemKeepAliveSendInterval);
-		elemKeepAlive->appendChild(elemKeepAliveRecvInterval);
+		elemKeepAlive=doc.createElement("KeepAlive");
+		DOM_Element elemKeepAliveSendInterval;
+		DOM_Element elemKeepAliveRecvInterval;
+		elemKeepAliveSendInterval=doc.createElement("SendInterval");
+		elemKeepAliveRecvInterval=doc.createElement("ReceiveInterval");
+		elemKeepAlive.appendChild(elemKeepAliveSendInterval);
+		elemKeepAlive.appendChild(elemKeepAliveRecvInterval);
 		setDOMElementValue(elemKeepAliveSendInterval,u32KeepAliveSendInterval);
 		setDOMElementValue(elemKeepAliveRecvInterval,u32KeepAliveRecvInterval);
-		elemMix->appendChild(elemKeepAlive);
+		elemMix.appendChild(elemKeepAlive);
 		CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Offering -- SendInterval %u -- Receive Interval %u\n",u32KeepAliveSendInterval,u32KeepAliveRecvInterval);		
 		
 		// create signature
@@ -268,7 +272,6 @@ SINT32 CALastMix::processKeyExchange()
 
 		UINT32 len=0;
 		UINT8* messageBuff=DOM_Output::dumpToMem(doc,&len);
-		doc->release();
 		UINT16 tmp=htons((UINT16)len);
 		CAMsg::printMsg(LOG_INFO,"Sending Infos (chain length and RSA-Key, Message-Size %u)\n",len);
 		
@@ -294,7 +297,7 @@ SINT32 CALastMix::processKeyExchange()
 		CAMsg::printMsg(LOG_INFO,"Waiting for Symmetric Key from previous Mix...\n");
 		if(((CASocket*)*m_pMuxIn)->receiveFully(messageBuff,len)!=E_SUCCESS)
 			{
-				CAMsg::printMsg(LOG_ERR,"Error receiving symmetric key!\n");
+				CAMsg::printMsg(LOG_ERR,"Error receiving symetric key!\n");
 				delete []messageBuff;
 				return E_UNKNOWN;
 			}
@@ -308,28 +311,18 @@ SINT32 CALastMix::processKeyExchange()
 		delete pCert;
 		if(oSig.verifyXML(messageBuff,len)!=E_SUCCESS)
 			{
-				CAMsg::printMsg(LOG_CRIT,"Could not verify the symmetric key!\n");		
+				CAMsg::printMsg(LOG_CRIT,"Could not verify the symetric key!\n");		
 				delete []messageBuff;
 				return E_UNKNOWN;
 			}
 		//Verifying nonce!
-		doc=parseDOMDocument(messageBuff,len);
-		if(doc == NULL)
-		{
-			CAMsg::printMsg(LOG_CRIT,"Could not parse symmetric key !\n");
-			delete []messageBuff;
-			return E_UNKNOWN;
-		}
-		DOMElement* elemRoot=doc->getDocumentElement();
-		if(elemRoot == NULL)
-		{
-			CAMsg::printMsg(LOG_CRIT,"Symmetric key XML is invalid!\n");
-			doc->release();
-			delete []messageBuff;
-			return E_UNKNOWN;
-		}
+		MemBufInputSource oInput(messageBuff,len,"tmp");
+		DOMParser oParser;
+		oParser.parse(oInput);
+		doc=oParser.getDocument();
+		DOM_Element elemRoot=doc.getDocumentElement();
 		elemNonce=NULL;
-		getDOMChildByName(elemRoot,"Nonce",elemNonce,false);
+		getDOMChildByName(elemRoot,(UINT8*)"Nonce",elemNonce,false);
 		tmpLen=50;
 		memset(tmpBuff,0,tmpLen);
 		if(elemNonce==NULL||getDOMElementValue(elemNonce,tmpBuff,&tmpLen)!=E_SUCCESS||
@@ -338,8 +331,7 @@ SINT32 CALastMix::processKeyExchange()
 			memcmp(SHA1(arNonce,16,NULL),tmpBuff,SHA_DIGEST_LENGTH)!=0
 			)
 			{
-				CAMsg::printMsg(LOG_CRIT,"Could not verify the Nonce!\n");		
-				doc->release();
+				CAMsg::printMsg(LOG_CRIT,"Couldt not verify the Nonce!\n");		
 				delete []messageBuff;
 				return E_UNKNOWN;
 			}
@@ -351,13 +343,11 @@ SINT32 CALastMix::processKeyExchange()
 		delete []messageBuff;
 		if(ret!=E_SUCCESS||keySize!=64)
 			{
-				doc->release();
 				CAMsg::printMsg(LOG_CRIT,"Couldt not decrypt the symetric key!\n");		
 				return E_UNKNOWN;
 			}
 		if(m_pMuxIn->setReceiveKey(key,32)!=E_SUCCESS||m_pMuxIn->setSendKey(key+32,32)!=E_SUCCESS)
 			{
-				doc->release();
 				CAMsg::printMsg(LOG_CRIT,"Couldt not set the symetric key to be used by the MuxSocket!\n");		
 				return E_UNKNOWN;
 			}
@@ -366,9 +356,9 @@ SINT32 CALastMix::processKeyExchange()
 		elemKeepAlive=NULL;
 		elemKeepAliveSendInterval=NULL;
 		elemKeepAliveRecvInterval=NULL;
-		getDOMChildByName(elemRoot,"KeepAlive",elemKeepAlive);
-		getDOMChildByName(elemKeepAlive,"SendInterval",elemKeepAliveSendInterval);
-		getDOMChildByName(elemKeepAlive,"ReceiveInterval",elemKeepAliveRecvInterval);
+		getDOMChildByName(elemRoot,(UINT8*)"KeepAlive",elemKeepAlive);
+		getDOMChildByName(elemKeepAlive,(UINT8*)"SendInterval",elemKeepAliveSendInterval);
+		getDOMChildByName(elemKeepAlive,(UINT8*)"ReceiveInterval",elemKeepAliveRecvInterval);
 		UINT32 tmpSendInterval,tmpRecvInterval;
 		getDOMElementValue(elemKeepAliveSendInterval,tmpSendInterval,0xFFFFFFFF); //if now send interval was given set it to "infinite"
 		getDOMElementValue(elemKeepAliveRecvInterval,tmpRecvInterval,0xFFFFFFFF); //if no recv interval was given --> set it to "infinite"
@@ -377,7 +367,6 @@ SINT32 CALastMix::processKeyExchange()
 		if(m_u32KeepAliveSendInterval>10000)
 			m_u32KeepAliveSendInterval-=10000; //make the send interval a little bit smaller than the related receive intervall
 		m_u32KeepAliveRecvInterval=max(u32KeepAliveRecvInterval,tmpSendInterval);
-		doc->release();
 		CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval,m_u32KeepAliveRecvInterval);		
 		return E_SUCCESS;
 	}
@@ -473,13 +462,11 @@ THREAD_RETURN lm_loopSendToMix(void* param)
 					{
 						CAMsg::printMsg(LOG_ERR,"CALastMix::lm_loopSendToMix - Error in dequeueing MixPaket\n");
 						CAMsg::printMsg(LOG_ERR,"ret=%i len=%i\n",ret,len);
-						MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
 						break;
 					}
 				if(pMuxSocket->send(pMixPacket)!=MIXPACKET_SIZE)
 					{
 						CAMsg::printMsg(LOG_ERR,"CALastMix::lm_loopSendToMix - Error in sending MixPaket\n");
-						MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
 						break;
 					}
 #ifdef LOG_PACKET_TIMES
@@ -536,6 +523,7 @@ THREAD_RETURN lm_loopSendToMix(void* param)
 		THREAD_RETURN_SUCCESS;
 	}
 
+#define MAX_READ_FROM_PREV_MIX_QUEUE_SIZE	10000000
 
 /* How to end this thread:
  * 1. set m_brestart=true
@@ -559,9 +547,6 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 			{
 				if(pQueue->getSize()>MAX_READ_FROM_PREV_MIX_QUEUE_SIZE)
 					{
-#ifdef DEBUG						
-						CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::Queue is full!\n");
-#endif
 						msSleep(200);
 						getcurrentTimeMillis(keepaliveLast);
 						continue;
@@ -571,13 +556,11 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 				UINT32 keepaliveDiff=diff64(keepaliveNow,keepaliveLast);
 				if(keepaliveDiff>u32KeepAliveRecvInterval)
 					{
-						CAMsg::printMsg(LOG_ERR,"CALastMix::loopReadFromMix() -- restart because of KeepAlive-Traffic Timeout!\n");
 						pLastMix->m_bRestart=true;
-						MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
 						break;
 					}
-				SINT32 ret=pSocketGroup->select(MIX_POOL_TIMEOUT);
-				if(ret < 0)
+				SINT32 ret=pSocketGroup->select(MIX_POOL_TIMEOUT);	
+        if(ret < 0) 
 					{
 						if (ret == E_TIMEDOUT) 
 							{
@@ -604,33 +587,31 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 							}
 					}
 				else if(ret>0)
-				{
-					ret=pMuxSocket->receive(pMixPacket); //receives a whole MixPacket
-					#ifdef LOG_PACKET_TIMES
-						getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_start);
-					#endif
-					if(ret!=MIXPACKET_SIZE)
-					{//something goes wrong...
-						CAMsg::printMsg(LOG_ERR,"CALastMix::lm_loopReadFromMix - received returned: %i\n",ret);
-						pLastMix->m_bRestart=true;
-						MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
-						break;
+					{
+						ret=pMuxSocket->receive(pMixPacket); //receives a whole MixPacket
+						#ifdef LOG_PACKET_TIMES
+							getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_start);
+						#endif
+						if(ret!=MIXPACKET_SIZE)
+							{//something goes wrong...
+								CAMsg::printMsg(LOG_ERR,"CALastMix::lm_loopReadFromMix - received returned: %i\n",ret);
+								pLastMix->m_bRestart=true;
+								break;
+							}
 					}
-				}
-		#ifdef USE_POOL
-			#ifdef LOG_PACKET_TIMES
-				getcurrentTimeMicros(pQueueEntry->pool_timestamp_in);
-			#endif
-				pPool->pool((tPoolEntry*) pQueueEntry);
-			#ifdef LOG_PACKET_TIMES
-				getcurrentTimeMicros(pQueueEntry->pool_timestamp_out);
-			#endif
-		#endif
+				#ifdef USE_POOL
+					#ifdef LOG_PACKET_TIMES
+						getcurrentTimeMicros(pQueueEntry->pool_timestamp_in);
+					#endif
+					pPool->pool((tPoolEntry*) pQueueEntry);
+					#ifdef LOG_PACKET_TIMES
+						getcurrentTimeMicros(pQueueEntry->pool_timestamp_out);
+					#endif
+				#endif		
 				pQueue->add(pQueueEntry,sizeof(tQueueEntry));
 				getcurrentTimeMillis(keepaliveLast);
 			}
 		delete pQueueEntry;
-		delete pSocketGroup;
 		#ifdef USE_POOL
 			delete pPool;
 		#endif			
@@ -740,9 +721,6 @@ SINT32 CALastMix::setTargets()
 
 SINT32 CALastMix::clean()
 {
-		m_bRestart=true;
-		MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
-		m_bRunLog=false;
 #ifdef REPLAY_DETECTION
 		if(m_pReplayMsgProc!=NULL)
 			{
@@ -760,78 +738,37 @@ SINT32 CALastMix::clean()
 		if(m_pMuxIn!=NULL)
 			{
 				m_pMuxIn->close();
-			}
-		//writng some bytes to the queue...
-		if(m_pQueueSendToMix!=NULL)
-			{
-				UINT8 b[sizeof(tQueueEntry)+1];
-				m_pQueueSendToMix->add(b,sizeof(tQueueEntry)+1);
-			}
-
-		if(m_pthreadSendToMix!=NULL)
-			{
-				CAMsg::printMsg(LOG_CRIT,"Wait for LoopSendToMix!\n");
-				m_pthreadSendToMix->join();
-				delete m_pthreadSendToMix;
-			}
-		m_pthreadSendToMix=NULL;	
-		if(m_pthreadReadFromMix!=NULL)
-			{
-				CAMsg::printMsg(LOG_CRIT,"Wait for LoopReadFromMix!\n");
-				m_pthreadReadFromMix->join();
-				delete m_pthreadReadFromMix;
-			}
-		m_pthreadReadFromMix=NULL;	
-	
-#ifdef LOG_PACKET_TIMES
-			CAMsg::printMsg(LOG_CRIT,"Wait for LoopLogPacketStats to terminate!\n");
-			if(m_pLogPacketStats!=NULL)
-				{
-					m_pLogPacketStats->stop();
-					delete m_pLogPacketStats;
-				}
-			m_pLogPacketStats=NULL;
-#endif	
-		if(m_pChannelList!=NULL)
-			{
-				lmChannelListEntry* pChannelListEntry=m_pChannelList->getFirstSocket();
-				while(pChannelListEntry!=NULL)
-					{
-						delete pChannelListEntry->pCipher;
-						delete pChannelListEntry->pQueueSend;
-						pChannelListEntry->pSocket->close();
-						delete pChannelListEntry->pSocket;
-						pChannelListEntry=m_pChannelList->getNextSocket();
-					}
-			}	
-		if(m_pQueueReadFromMix!=NULL)
-			delete m_pQueueReadFromMix;
-		m_pQueueReadFromMix=NULL;	
-		if(m_pQueueSendToMix!=NULL)
-			delete m_pQueueSendToMix;
-		m_pQueueSendToMix=NULL;	
-    #ifndef NEW_MIX_TYPE // not TypeB mixes
-      /* TypeB mixes are using an own implementation */
-		if(m_pChannelList!=NULL)
-			delete m_pChannelList;
-		m_pChannelList=NULL;
-		if(m_pMuxIn!=NULL)
-			{
-				m_pMuxIn->close();
 				delete m_pMuxIn;
 			}
 		m_pMuxIn=NULL;
 		if(m_pRSA!=NULL)
 			delete m_pRSA;
 		m_pRSA=NULL;
+		if(m_pthreadSendToMix!=NULL)
+			delete m_pthreadSendToMix;
+		m_pthreadSendToMix=NULL;	
+		if(m_pQueueSendToMix!=NULL)
+			delete m_pQueueSendToMix;
+		m_pQueueSendToMix=NULL;	
+		if(m_pthreadReadFromMix!=NULL)
+			delete m_pthreadReadFromMix;
+		m_pthreadReadFromMix=NULL;	
+		if(m_pQueueReadFromMix!=NULL)
+			delete m_pQueueReadFromMix;
+		m_pQueueReadFromMix=NULL;	
+    #ifndef NEW_MIX_TYPE // not TypeB mixes
+      /* TypeB mixes are using an own implementation */
+		if(m_pChannelList!=NULL)
+			delete m_pChannelList;
+		m_pChannelList=NULL;
     #endif
 		return E_SUCCESS;
 	}
 
-SINT32 CALastMix::initMixCascadeInfo(DOMElement*  mixes)
+SINT32 CALastMix::initMixCascadeInfo(DOM_Element& mixes)
 {
     SINT32 r = CAMix::initMixCascadeInfo(mixes);
-    DOMElement* cascade = m_docMixCascadeInfo->getDocumentElement();
+    DOM_Element cascade = m_docMixCascadeInfo.getDocumentElement();
     setDOMElementAttribute(cascade,"create",(UINT8*)"true");
     return r;
 }

@@ -66,7 +66,7 @@ CAFirstMixChannelList::CAFirstMixChannelList()
 		m_u32DelayChannelBucketGrowIntervall=DELAY_USERS_BUCKET_GROW_INTERVALL;
 		m_pDelayBuckets=new UINT32*[MAX_POLLFD];
 		memset(m_pDelayBuckets,0,sizeof(UINT32*)*MAX_POLLFD);
-		m_pMutexDelayChannel=new CAMutex((UINT8*)"Delay Channel Thread");
+		m_pMutexDelayChannel=new CAMutex();
 		m_pThreadDelayBucketsLoop=new CAThread();
 		m_bDelayBucketsLoopRun=true;
 		m_pThreadDelayBucketsLoop->setMainLoop(fml_loopDelayBuckets);
@@ -99,11 +99,7 @@ CAFirstMixChannelList::~CAFirstMixChannelList()
 	* @retval the fmHashTableEntry of the newly added connection
 	* @retval NULL if an error occured
 	*/
-#ifndef LOG_DIALOG
 fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8 peerIP[4],CAQueue* pQueueSend)
-#else
-fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8 peerIP[4],CAQueue* pQueueSend,UINT8* strDialog)
-#endif
 	{
 		INIT_STACK;
 		BEGIN_STACK("CAFirstMixChannelList::add");
@@ -139,11 +135,7 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 		pHashTableEntry->trafficIn=0;
 		pHashTableEntry->trafficOut=0;
 		getcurrentTimeMillis(pHashTableEntry->timeCreated);
-#endif
-#ifdef LOG_DIALOG
-		pHashTableEntry->strDialog=new UINT8[strlen((char*)strDialog)+1];
-		strcpy((char*)pHashTableEntry->strDialog,(char*)strDialog);
-#endif
+#endif		
 		getRandom(&(pHashTableEntry->id));
 
 #ifdef PAYMENT
@@ -165,7 +157,7 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 		m_pDelayBuckets[pHashTableEntry->delayBucketID]=&pHashTableEntry->delayBucket;
 #endif
 
-		SAVE_STACK("CAFirstMixChannelList::add", "inserting in connection list");
+		//SAVE_STACK("CAFirstMixChannelList::add", "inserting in connection list");
 		//now insert the new connection in the list of all open connections
 		if(m_listHashTableHead==NULL) //if first one
 		{
@@ -179,7 +171,7 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 		pHashTableEntry->list_HashEntries.prev=NULL;
 		m_listHashTableHead=pHashTableEntry;	
 		
-		SAVE_STACK("CAFirstMixChannelList::add", "inserting in timout list");
+		//SAVE_STACK("CAFirstMixChannelList::add", "inserting in timout list");
 		// insert in timeout list; entries are added to the foot of the list
 #ifdef PAYMENT
 		pHashTableEntry->bRecoverTimeout = true;
@@ -245,7 +237,6 @@ SINT32 CAFirstMixChannelList::addChannel(CAMuxSocket* pMuxSocket,HCHANNEL channe
 #ifdef SSL_HACK
 		pNewEntry->downStreamBytes = 0;
 #endif
-		
 		
 		
 		//add to the channel list for the given connection
@@ -625,9 +616,6 @@ SINT32 CAFirstMixChannelList::remove(CAMuxSocket* pMuxSocket)
 		// cleanup accounting information
 		CAAccountingInstance::cleanupTableEntry(pHashTableEntry);
 #endif
-#ifdef LOG_DIALOG
-		delete[] pHashTableEntry->strDialog;
-#endif
 		memset(pHashTableEntry,0,sizeof(fmHashTableEntry)); //'delete' the connection from the connection hash table 
 		m_Mutex.unlock();
 		return E_SUCCESS;
@@ -999,11 +987,7 @@ SINT32 CAFirstMixChannelList::test()
 		CAMuxSocket *pMuxSocket=new CAMuxSocket();
 		((CASocket*)pMuxSocket)->create();
 		UINT8 peerIP[4];
-#ifndef LOG_DIALOG
 		pList->add(pMuxSocket,peerIP,NULL);
-#else
-		pList->add(pMuxSocket,peerIP,NULL,(UINT8*)"1");
-#endif
 #if defined(HAVE_CRTDBG)
 		_CrtMemState s1, s2, s3;
 		_CrtMemCheckpoint( &s1 );

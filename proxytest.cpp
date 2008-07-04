@@ -34,16 +34,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAMsg.hpp"
 #include "CALocalProxy.hpp"
 #include "CAQueue.hpp"
-#include "CAThreadList.hpp"
-#include "CAStatusManager.hpp"
-
-
 #ifdef _DEBUG //For FreeBSD memory checking functionality
 	const char* _malloc_options="AX";
 #endif
-#ifdef PERFORMANCE_SERVER
-	#include "CAPerformanceServer.hpp"
-#endif
+
 #ifndef ONLY_LOCAL_PROXY
 	#include "xml/DOM_Output.hpp"
 	#include "CAMix.hpp"
@@ -65,12 +59,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 // The Mix....
 CAMix* pMix=NULL;
 #endif
-CACmdLnOptions* pglobalOptions=NULL;
-#if defined (_DEBUG) && ! defined (ONLY_LOCAL_PROXY)
-CAThreadList *pThreadList = NULL;
-#endif
+CACmdLnOptions* pglobalOptions;
+
 //Global Locks required by OpenSSL-Library
-CAMutex* pOpenSSLMutexes=NULL;
+CAMutex* pOpenSSLMutexes;
 
 bool bTriedTermination = false;
 
@@ -91,25 +83,8 @@ typedef struct
 	#endif
 #endif
 
-///Callbackfunction for locking required by OpenSSL
-void openssl_locking_callback(int mode, int type, char * /*file*/, int /*line*/)
-	{
-		if (mode & CRYPTO_LOCK)
-			{
-				pOpenSSLMutexes[type].lock();
-			}
-		else
-			{
-				pOpenSSLMutexes[type].unlock();
-			}
-	}
-/// Removes the stored PID (file)
 void removePidFile()
 	{
-		if(pglobalOptions==NULL)
-			{
-				return;
-			}
 		UINT8 strPidFile[512];
 		if(pglobalOptions->getPidFile(strPidFile,512)==E_SUCCESS)
 			{
@@ -125,96 +100,9 @@ void removePidFile()
 			}
 	}
 
-
-/**do necessary initialisations of libraries etc.*/
-void init()
-	{
-#ifndef ONLY_LOCAL_PROXY
-		XMLPlatformUtils::Initialize();
-#endif
-		OpenSSL_add_all_algorithms();
-		pOpenSSLMutexes=new CAMutex[CRYPTO_num_locks()];
-		CRYPTO_set_locking_callback((void (*)(int,int,const char *,int))openssl_locking_callback);
-
-#ifndef ONLY_LOCAL_PROXY
-		SSL_library_init();
-#endif
-#if defined _DEBUG && ! defined (ONLY_LOCAL_PROXY)
-		pThreadList=new CAThreadList();
-		CAThread::setThreadList(pThreadList);
-#endif
-		CAMsg::init();
-		CASocketAddrINet::init();
-		//startup
-		#ifdef _WIN32
-			int err=0;
-			WSADATA wsadata;
-			err=WSAStartup(0x0202,&wsadata);
-		#endif
-		initRandom();
-		pglobalOptions=new CACmdLnOptions();
-}
-
-/**do necessary cleanups of libraries etc.*/
-void cleanup()
-	{
-#ifdef PERFORMANCE_SERVER
-		if(pglobalOptions->isLastMix()) 
-		{
-			CAPerformanceServer::cleanup();
-		}
-#endif		
-//		delete pRTT;
-#ifndef ONLY_LOCAL_PROXY
-		if(pMix!=NULL)
-			delete pMix;
-		pMix=NULL;
-#endif
-		CAMsg::printMsg(LOG_CRIT,"Terminating Programm!\n");
-		CASocketAddrINet::cleanup();
-		#ifdef _WIN32
-			WSACleanup();
-		#endif
-		removePidFile();
-		delete pglobalOptions;
-		pglobalOptions=NULL;
-
-	//OpenSSL Cleanup
-		CRYPTO_set_locking_callback(NULL);
-		delete []pOpenSSLMutexes;
-		pOpenSSLMutexes=NULL;
-		//XML Cleanup
-		//Note: We have to destroy all XML Objects and all objects that uses XML Objects BEFORE
-		//we terminate the XML lib!
-		releaseDOMParser();
-#ifndef ONLY_LOCAL_PROXY
-		XMLPlatformUtils::Terminate();
-#endif
-
-#if defined _DEBUG && ! defined (ONLY_LOCAL_PROXY)
-			if(pThreadList != NULL)
-			{
-				int nrOfThreads = pThreadList->getSize();
-				CAMsg::printMsg(LOG_INFO,"After cleanup %d threads listed.\n", nrOfThreads);
-				if(nrOfThreads > 0)
-				{
-					pThreadList->showAll();
-				}
-				delete pThreadList;
-				pThreadList = NULL;
-			}
-#endif
-#ifdef SERVER_MONITORING
-		CAStatusManager::cleanup();
-#endif
-		CAMsg::cleanup();
-		
-	}
-
 ///Remark: terminate() might be already defined by the c lib -- do not use this name...
 void my_terminate(void)
 {	
-#ifndef ONLY_LOCAL_PROXY
 	if(!bTriedTermination && pMix!=NULL)
 	{
 		bTriedTermination = true;
@@ -223,19 +111,17 @@ void my_terminate(void)
 		{
 			msSleep(100);
 		}
-		delete pMix;
-		pMix=NULL;
-	}
-#endif
-	cleanup();
+		/*
+		CAMix* mix = pMix;
+		pMix = NULL;
+		delete mix;
+		*/
+	}	
 }
 
 
 void signal_segv( int ) 
 {
-	signal(SIGSEGV,SIG_DFL); //otherwise we might end up in endless loops...
-	
-	MONITORING_FIRE_SYS_EVENT(ev_sys_sigSegV);
 	CAMsg::printMsg(LOG_CRIT,"Oops ... caught SIG_SEGV! Exiting ...\n");
 #ifdef PRINT_THREAD_STACK_TRACE
 	CAThread::METHOD_STACK* stack = CAThread::getCurrentStack();
@@ -250,6 +136,7 @@ void signal_segv( int )
 	}
 #endif	
 	my_terminate();
+	removePidFile();
 	exit(1);
 }
 
@@ -258,21 +145,17 @@ void signal_segv( int )
 
 void signal_term( int )
 	{ 
-		MONITORING_FIRE_SYS_EVENT(ev_sys_sigTerm);
 		CAMsg::printMsg(LOG_INFO,"Hm.. Signal SIG_TERM received... exiting!\n");
 		my_terminate();
+		removePidFile();
 		exit(0);
 	}
 
 void signal_interrupt( int)
 	{
-		MONITORING_FIRE_SYS_EVENT(ev_sys_sigInt);
 		CAMsg::printMsg(LOG_INFO,"Hm.. Strg+C pressed... exiting!\n");
-#if defined _DEBUG && ! defined (ONLY_LOCAL_PROXY)
-		CAMsg::printMsg(LOG_INFO,"%d threads listed.\n",pThreadList->getSize());
-		pThreadList->showAll();
-#endif
 		my_terminate();
+		removePidFile();
 		exit(0);
 	}
 
@@ -283,6 +166,18 @@ void signal_hup(int)
 	}
 #endif
 
+///Callbackfunction for looking required by OpenSSL
+void openssl_locking_callback(int mode, int type, char * /*file*/, int /*line*/)
+	{
+		if (mode & CRYPTO_LOCK)
+			{
+				pOpenSSLMutexes[type].lock();
+			}
+		else
+			{
+				pOpenSSLMutexes[type].unlock();
+			}
+	}
 
 ///Check what the sizes of base types are as expected -- if not kill the programm
 void checkSizesOfBaseTypes()
@@ -329,6 +224,29 @@ void checkSizesOfBaseTypes()
 		#pragma warning( pop )
 	}
 
+/**do necessary initialisations of libraries etc.*/
+void init()
+	{
+#ifndef ONLY_LOCAL_PROXY
+		XMLPlatformUtils::Initialize();
+#endif
+		OpenSSL_add_all_algorithms();
+		pOpenSSLMutexes=new CAMutex[CRYPTO_num_locks()];
+		CRYPTO_set_locking_callback((void (*)(int,int,const char *,int))openssl_locking_callback);
+#ifndef ONLY_LOCAL_PROXY
+		SSL_library_init();
+#endif
+		CAMsg::init();
+		CASocketAddrINet::init();
+		//startup
+		#ifdef _WIN32
+			int err=0;
+			WSADATA wsadata;
+			err=WSAStartup(0x0202,&wsadata);
+		#endif
+		initRandom();
+		pglobalOptions=new CACmdLnOptions();
+	}
 
 /** \mainpage
 
@@ -538,16 +456,6 @@ int main(int argc, const char* argv[])
 		//readPasswd(buff1,500);
 		//printf("%s\n",buff1);
 		//printf("Len: %i\n",strlen((char*)buff1));
-
-		/*UINT32 size=0;
-		UINT8* fg=readFile((UINT8*)"test.xml",&size);
-		XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(fg,size);
-		delete[] fg;
-		doc->release();
-		cleanup();
-		exit(0);
-		*/
-	
 		checkSizesOfBaseTypes();
 #ifndef NEW_MIX_TYPE
 		if(MIXPACKET_SIZE!=sizeof(MIXPACKET))
@@ -611,46 +519,15 @@ int main(int argc, const char* argv[])
 #endif
 		UINT8 buff[255];
 #ifndef _WIN32
-		if(pglobalOptions->getDaemon()&&pglobalOptions->getAutoRestart()) //we need two forks...
+		if(pglobalOptions->getDaemon())
 			{
-				pid_t pid;
-				CAMsg::printMsg(LOG_DEBUG,"daemon - before fork()\n");
-				pid=fork();
-				if(pid!=0)
-					{
-						CAMsg::printMsg(LOG_DEBUG,"Exiting parent!\n");
-						exit(EXIT_SUCCESS);
-					}
-				setsid();
-				#ifndef DO_TRACE
-					chdir("/");
-					umask(0);
-				#endif
-			 // Close out the standard file descriptors 
-        close(STDIN_FILENO);
-        close(STDOUT_FILENO);
-        close(STDERR_FILENO);			
-			}
-		if(pglobalOptions->getDaemon()||pglobalOptions->getAutoRestart()) //if Autorestart is requested, when we fork a controlling process
-			                              //which is only responsible for restarting the Mix if it dies
-																		//unexpectly
-			{
-RESTART_MIX:
 				CAMsg::printMsg(LOG_DEBUG,"starting as daemon\n");
 				pid_t pid;
 				CAMsg::printMsg(LOG_DEBUG,"daemon - before fork()\n");
 				pid=fork();
 				if(pid!=0)
 					{
-						if(!pglobalOptions->getAutoRestart())
-							{
-								CAMsg::printMsg(LOG_DEBUG,"Exiting parent!\n");
-								exit(EXIT_SUCCESS);
-							}
-						int status=0;
-						pid_t ret=waitpid(pid,&status,0); //wait for process termination
-						if(ret==pid&&status!=0) //if unexpectly died --> restart
-							goto RESTART_MIX;
+						CAMsg::printMsg(LOG_DEBUG,"Exiting parent!\n");
 						exit(EXIT_SUCCESS);
 					}		
 				CAMsg::printMsg(LOG_DEBUG,"child after fork...\n");
@@ -665,10 +542,7 @@ RESTART_MIX:
         close(STDERR_FILENO);			
 			}
 #endif
-#ifdef SERVER_MONITORING
-		CAStatusManager::init();
-#endif
-			
+
 #ifndef WIN32
 		maxFiles=pglobalOptions->getMaxOpenFiles();
 		
@@ -703,12 +577,11 @@ RESTART_MIX:
 			CAMsg::printMsg(LOG_INFO,"Warning - Running as root!\n");
 #endif
 
-#ifndef ONLY_LOCAL_PROXY
+			
 		if(pglobalOptions->isSyslogEnabled())
 		{
 			CAMsg::setLogOptions(MSG_LOG);
 		}
-#endif
 		if(pglobalOptions->getLogDir((UINT8*)buff,255)==E_SUCCESS)
 			{
 				if(pglobalOptions->getCompressLogs())
@@ -777,9 +650,8 @@ RESTART_MIX:
 #endif
 		signal(SIGINT,signal_interrupt);
 		signal(SIGTERM,signal_term);
-#if !defined (_DEBUG) && !defined(NO_SIGSEV_CATCH)
 		signal(SIGSEGV,signal_segv);
-#endif
+
 		//Try to write pidfile....
 		UINT8 strPidFile[512];
 		if(pglobalOptions->getPidFile(strPidFile,512)==E_SUCCESS)
@@ -843,35 +715,26 @@ RESTART_MIX:
 				{
 				CASocket::setMaxNormalSockets(s32MaxSockets-10);
 				}
-				MONITORING_FIRE_SYS_EVENT(ev_sys_start);
 				if(pglobalOptions->isFirstMix())
-				{
-					CAMsg::printMsg(LOG_INFO,"I am the First MIX..\n");
-					#if !defined(NEW_MIX_TYPE)
-						pMix=new CAFirstMixA();
-					#else
-						pMix=new CAFirstMixB();
-					#endif					
-					MONITORING_FIRE_NET_EVENT(ev_net_firstMixInited);
-				}
+					{
+						CAMsg::printMsg(LOG_INFO,"I am the First MIX..\n");
+						#if !defined(NEW_MIX_TYPE)
+							pMix=new CAFirstMixA();
+						#else
+							pMix=new CAFirstMixB();
+						#endif
+					}
 				else if(pglobalOptions->isMiddleMix())
-				{
-					CAMsg::printMsg(LOG_INFO,"I am a Middle MIX..\n");
-					pMix=new CAMiddleMix();				
-					MONITORING_FIRE_NET_EVENT(ev_net_middleMixInited);
-				}
+					{
+						CAMsg::printMsg(LOG_INFO,"I am a Middle MIX..\n");
+						pMix=new CAMiddleMix();
+					}
 				else
-				{
-#ifdef PERFORMANCE_SERVER
-                        CAPerformanceServer::init();
-#endif
 						#if !defined(NEW_MIX_TYPE)
 							pMix=new CALastMixA();
 						#else
 							pMix=new CALastMixB();
-						#endif				
-						MONITORING_FIRE_NET_EVENT(ev_net_lastMixInited);
-				}
+						#endif
 #else
 				CAMsg::printMsg(LOG_ERR,"this Mix is compile to work only as local proxy!\n");
 				goto EXIT;
@@ -922,7 +785,30 @@ while(true)
 #endif //DYNAMIC_MIX
 #endif //ONLY_LOCAL_PROXY
 EXIT:
-		cleanup();
+//		delete pRTT;
+#ifndef ONLY_LOCAL_PROXY
+		if(pMix!=NULL)
+			delete pMix;
+#endif
+		CAMsg::printMsg(LOG_CRIT,"Terminating Programm!\n");
+		//		CASocketAddrINet::destroy();
+		#ifdef _WIN32
+			WSACleanup();
+		#endif
+		removePidFile();
+		delete pglobalOptions;
+		pglobalOptions=NULL;
+//OpenSSL Cleanup
+		CRYPTO_set_locking_callback(NULL);
+		delete []pOpenSSLMutexes;
+		CASocketAddrINet::cleanup();
+//XML Cleanup
+		//Note: We have to destroy all XML Objects and all objects that uses XML Objects BEFORE
+		//we terminate the XML lib!
+#ifndef ONLY_LOCAL_PROXY
+		XMLPlatformUtils::Terminate();
+#endif //ONLY_LOCAL_PROXY
+		CAMsg::cleanup();
 #if defined(HAVE_CRTDBG)
 		_CrtMemCheckpoint( &s2 );
 		if ( _CrtMemDifference( &s3, &s1, &s2 ) )

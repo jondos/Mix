@@ -40,15 +40,15 @@ CACertificate::CACertificate()
 		m_pCert=NULL;
 	}
 
-CACertificate* CACertificate::decode(const DOMNode* n,UINT32 type,const char* passwd)
+CACertificate* CACertificate::decode(const DOM_Node &n,UINT32 type,const char* passwd)
 	{
-		const DOMNode* node=n;
+		DOM_Node node=n;
 		switch(type)
 			{
 				case CERT_PKCS12:					
 					while(node!=NULL)
 						{
-							if(equals(node->getNodeName(),"X509PKCS12"))
+							if(node.getNodeName().equals("X509PKCS12"))
 								{
 									UINT32 strLen=4096;
 									UINT8* tmpStr=new UINT8[strLen];
@@ -65,13 +65,13 @@ CACertificate* CACertificate::decode(const DOMNode* n,UINT32 type,const char* pa
 									delete[] decBuff;
 									return cert;
 								}
-							node=node->getNextSibling();
+							node=node.getNextSibling();
 						}
 				break;
 				case	CERT_X509CERTIFICATE:
 					while(node!=NULL)
 						{
-							if(equals(node->getNodeName(),"X509Certificate"))
+							if(node.getNodeName().equals("X509Certificate"))
 								{
 									UINT32 strLen=4096;
 									UINT8* tmpStr=new UINT8[strLen];
@@ -88,7 +88,7 @@ CACertificate* CACertificate::decode(const DOMNode* n,UINT32 type,const char* pa
 									delete[] decBuff;
 									return cert;
 								}
-							node=node->getNextSibling();
+							node=node.getNextSibling();
 						}
 
 			}
@@ -101,6 +101,7 @@ CACertificate* CACertificate::decode(const UINT8* buff,UINT32 bufflen,UINT32 typ
 			return NULL;
 		X509* tmpCert=NULL;
 		const UINT8* tmp;
+		PKCS12* tmpPKCS12;
 		switch(type)
 			{
 				case CERT_DER:
@@ -112,30 +113,22 @@ CACertificate* CACertificate::decode(const UINT8* buff,UINT32 bufflen,UINT32 typ
 					#endif
 				break;
 				case CERT_PKCS12:
-					PKCS12* tmpPKCS12;
 					#if OPENSSL_VERSION_NUMBER	> 0x009070CfL
 						tmpPKCS12=d2i_PKCS12(NULL,&buff,bufflen);	
 					#else
 						tmpPKCS12=d2i_PKCS12(NULL,(UINT8**)&buff,bufflen);	
 					#endif
 					if(PKCS12_parse(tmpPKCS12,passwd,NULL,&tmpCert,NULL)!=1)
-						{
-							PKCS12_free(tmpPKCS12);
-							return NULL;
-						}
-					PKCS12_free(tmpPKCS12);
+						return NULL;
 				break;
 				case CERT_XML_X509CERTIFICATE:
-					XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(buff,bufflen);
-					if(doc == NULL)
-					{
+					MemBufInputSource oInput(buff,bufflen,"certxml");
+					DOMParser oParser;
+					oParser.parse(oInput);
+					DOM_Document doc=oParser.getDocument();
+					DOM_Element root=doc.getDocumentElement();
+					if(root.isNull()||!root.getNodeName().equals("X509Certificate"))
 						return NULL;
-					}
-					DOMElement* root=doc->getDocumentElement();
-					if(root==NULL||!equals(root->getNodeName(),"X509Certificate"))
-					{
-						return NULL;
-					}
 					UINT8* tmpBuff=new UINT8[bufflen];
 					UINT32 tmpBuffSize=bufflen;
 					getDOMElementValue(root,tmpBuff,&tmpBuffSize);
@@ -147,7 +140,7 @@ CACertificate* CACertificate::decode(const UINT8* buff,UINT32 bufflen,UINT32 typ
 						tmpCert=d2i_X509(NULL,(UINT8**)&tmp,tmpBuffSize);
 					#endif
 					delete[] tmpBuff;
-					break;
+				break;
 			}
 		if(tmpCert==NULL)
 			return NULL;
@@ -189,16 +182,18 @@ SINT32 CACertificate::encode(UINT8* buff,UINT32* bufflen,UINT32 type)
 		return E_SUCCESS;
 	}
 
-SINT32 CACertificate::encode(DOMElement* & elemRoot,XERCES_CPP_NAMESPACE::DOMDocument* doc)
+SINT32 CACertificate::encode(DOM_DocumentFragment& docFrag,DOM_Document& doc)
 	{
-		elemRoot=createDOMElement(doc,"X509Certificate");
+		docFrag=doc.createDocumentFragment();
+		DOM_Element elemCert=doc.createElement("X509Certificate");
+		docFrag.appendChild(elemCert);
 		UINT8 buff[2048]; //TODO: Very bad --> looks like easy buffer overflow... [donn't care at the moment...]
 		UINT8* tmp=buff;
 		int i=i2d_X509(m_pCert,&tmp); //now we need DER
 		UINT32 bufflen=2048;
 		CABase64::encode(buff,i,buff,&bufflen); //now we have it converted to Base64
 		buff[bufflen]=0;
-		setDOMElementValue(elemRoot,buff);
+		setDOMElementValue(elemCert,buff);
 		return E_SUCCESS;
 	}
 
@@ -215,14 +210,14 @@ SINT32 CACertificate::getSubjectKeyIdentifier(UINT8* r_ski, UINT32 *r_skiLen)
     // FIXME Do we have a memory leak here? Maybe we need to ASN1_OCTET_STRING_free pSkid?
     ASN1_OCTET_STRING *pSki = NULL;
     pSki = (ASN1_OCTET_STRING*)X509_get_ext_d2i(m_pCert, NID_subject_key_identifier, NULL, NULL );
-    if ( pSki==NULL )
+    if ( !pSki )
     {
 #ifdef DEBUG
         CAMsg::printMsg( LOG_ERR, "Unable to get SKI from Certificate, trying to recover\n");
 #endif
         setSubjectKeyIdentifier();
         pSki = (ASN1_OCTET_STRING*)X509_get_ext_d2i(m_pCert, NID_subject_key_identifier, NULL, NULL );
-        if( pSki==NULL ) 
+        if( ! pSki ) 
         {
             CAMsg::printMsg( LOG_ERR, "Unable to retrieve SKI from Certificate\n");
             return E_UNKNOWN;
@@ -236,8 +231,7 @@ SINT32 CACertificate::getSubjectKeyIdentifier(UINT8* r_ski, UINT32 *r_skiLen)
     }
     // Get the ASCII string format of the subject key identifier
     UINT8* cSki = (UINT8*)i2s_ASN1_OCTET_STRING( NULL, pSki );
-		ASN1_OCTET_STRING_free(pSki);
-    if ( cSki==NULL )
+    if ( !cSki )
     {
         CAMsg::printMsg( LOG_ERR, "Unable to convert SKI\n");
         return E_UNKNOWN;
@@ -246,7 +240,6 @@ SINT32 CACertificate::getSubjectKeyIdentifier(UINT8* r_ski, UINT32 *r_skiLen)
     CAMsg::printMsg( LOG_ERR, "getSubjectKeyIdentifier: SKI is %s\n", cSki);
 #endif
     removeColons(cSki, strlen((const char*)cSki), r_ski, r_skiLen);
-		OPENSSL_free(cSki);
     return E_SUCCESS;
 }
 

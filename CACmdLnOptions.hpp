@@ -170,8 +170,7 @@ class CACmdLnOptions
 					}
 					return NULL;
 				}
-
-#ifdef PAYMENT
+				
 			CAXMLPriceCert* getPriceCertificate() const
 			{
 				if(m_pPriceCertificate != NULL)
@@ -180,11 +179,8 @@ class CACmdLnOptions
 				}	
 				return NULL;
 			}
-#endif				
 				
-#ifdef COUNTRY_STATS
-			SINT32 getCountryStatsDBConnectionLoginData(char** db_host,char**db_user,char**db_passwd);
-#endif
+				
 			/** Returns a COPY of the Operator Certificate that mix.
 				* @return opCerts
 				*/
@@ -253,20 +249,20 @@ class CACmdLnOptions
 					return NULL;
 				}
 
-			DOMElement* getCascadeXML()
+			DOM_Element& getCascadeXML()
 			{
-					return m_pCascadeXML;
+					return m_oCascadeXML;
 			}
 
-			SINT32 getCascadeName(UINT8* name,UINT32 len) const;
+			SINT32 getCascadeName(UINT8* name,UINT32 len);
     
 			// added by ronin <ronin2@web.de>
-			SINT32 setCascadeName(const UINT8* name)
+			SINT32 setCascadeName(char* name)
 			{
     		if(m_strCascadeName!=NULL)
-					delete[] m_strCascadeName;
-				m_strCascadeName = new UINT8[strlen((const char*)name)+1];
-				strcpy((char*)m_strCascadeName,(const char*)name);
+					delete m_strCascadeName;
+				m_strCascadeName = new char[strlen(name)+1];
+				strcpy(m_strCascadeName,name);
 				return E_SUCCESS;
 			}
 
@@ -277,7 +273,7 @@ class CACmdLnOptions
 
 		/** Get the XML describing the Mix. this is not a string!*/
 			//SINT32 getMixXml(UINT8* strxml,UINT32* len);
-			SINT32 getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo);
+			SINT32 getMixXml(DOM_Document &docMixInfo);
 			
 			UINT32 getKeepAliveSendInterval()
 				{
@@ -299,25 +295,14 @@ class CACmdLnOptions
 				}
 			SINT32 getLogDir(UINT8* name,UINT32 len);
 			SINT32 setLogDir(const UINT8* name,UINT32 len);
-			SINT64 getMaxLogFileSize()
-				{
-					return m_maxLogFileSize;
-				}
-
 			SINT32 getUser(UINT8* user,UINT32 len);
 			SINT32 getPidFile(UINT8* pidfile,UINT32 len);
 
-#ifdef SERVER_MONITORING
-			char *getMonitoringListenerHost();
-			UINT16 getMonitoringListenerPort();
-#endif /* SERVER_MONITORING */
-			
+			UINT32 getMaxNrOfUsers()
+			{
+				return m_maxNrOfUsers;
+			}
 
-#ifdef PERFORMANCE_SERVER
-			UINT8* getPerformanceServerListenerHost();
-			UINT16 getPerformanceServerListenerPort();
-#endif /* PERFORMANCE_SERVER */	
-			
 			bool isLocalProxy();
 			bool isFirstMix();
 			bool isMiddleMix();
@@ -331,11 +316,6 @@ class CACmdLnOptions
 			bool getAutoReconnect()
 				{
 					return m_bAutoReconnect;
-				}
-
-			bool getAutoRestart()
-				{
-					return m_bAutoRestart;
 				}
 #ifdef LOG_CRIME
 			regex_t* getCrimeRegExpsURL(UINT32* len)
@@ -394,20 +374,15 @@ class CACmdLnOptions
 #ifndef ONLY_LOCAL_PROXY
 			// added by ronin <ronin2@web.de>
     // needed for autoconfiguration
-			SINT32 setNextMix(XERCES_CPP_NAMESPACE::DOMDocument* pDoc);
-			SINT32 setPrevMix(XERCES_CPP_NAMESPACE::DOMDocument* pDoc);
+			SINT32 setNextMix(DOM_Document&);
+			SINT32 setPrevMix(DOM_Document&);
 			bool acceptReconfiguration() { return m_bAcceptReconfiguration; }
 
 			friend THREAD_RETURN threadReConfigure(void *param);
 			
 			/** Writes a default configuration file into the file named by filename*/
 			static SINT32 createMixOnCDConfiguration(const UINT8* strFileName);
-		static SINT32 saveToFile(XERCES_CPP_NAMESPACE::DOMDocument* a_doc, const UINT8* a_strFileName);
-		UINT32 getMaxNrOfUsers()
-			{
-				return m_maxNrOfUsers;
-			}
-
+		static SINT32 saveToFile(DOM_Document a_doc, const UINT8* a_strFileName);
 #ifdef DYNAMIC_MIX
 			/* LERNGRUPPE (refactoring + new) */
 			//SINT32 createMixOnCDConfiguration(const UINT8* strFileName);
@@ -458,9 +433,9 @@ class CACmdLnOptions
 			SINT32 checkCertificates();
 #endif //DYNAMIC_MIX
 			bool m_bDynamic;
-			SINT32 parseInfoServices(DOMElement* a_infoServiceNode);
+			SINT32 parseInfoServices(DOM_Element a_infoServiceNode);
 			/* END LERNGRUPPE */
-			static SINT32 buildDefaultConfig(XERCES_CPP_NAMESPACE::DOMDocument* a_doc,bool bForLastMix);
+			static SINT32 buildDefaultConfig(DOM_Document a_doc,bool bForLastMix);
 #endif //only_LOCAL_PROXY
 			UINT8*	m_strConfigFile; //the filename of the config file
 			bool		m_bDaemon;
@@ -478,10 +453,8 @@ class CACmdLnOptions
 
 			CASignature*		m_pSignKey;
 			CACertificate*	m_pOwnCertificate;
-#ifdef PAYMENT
 			CAXMLPriceCert*	m_pPriceCertificate;
-#endif
-
+			
 			CACertificate** m_OpCerts;
 			UINT32 m_OpCertsLength;
 
@@ -492,10 +465,10 @@ class CACmdLnOptions
 			UINT32 m_maxNrOfUsers;
 
 			// added by ronin <ronin2@web.de>
-			DOMElement* m_pCascadeXML;
+			DOM_Element m_oCascadeXML;
 			bool m_bAcceptReconfiguration;
-			XERCES_CPP_NAMESPACE::DOMDocument* m_docMixInfo;
-			XERCES_CPP_NAMESPACE::DOMDocument* m_docMixXml;
+			DOM_Document m_docMixInfo;
+			DOM_Document m_docMixXml;
 			
 			UINT32 m_u32KeepAliveSendInterval;
 			UINT32 m_u32KeepAliveRecvInterval;
@@ -503,10 +476,8 @@ class CACmdLnOptions
 
 			bool		m_bLocalProxy,m_bFirstMix,m_bMiddleMix,m_bLastMix;
 			bool		m_bAutoReconnect; //auto reconnect if connection to first mix lost ??
-			bool		m_bAutoRestart; //auto restart if Mix dies unexpectly?
-			UINT8*	m_strCascadeName;
+			char*		m_strCascadeName;
 			char*		m_strLogDir;
-			SINT64	m_maxLogFileSize;
 			char*		m_strEncryptedLogDir;
 			bool		m_bCompressedLogs;
 			bool 		m_bSocksSupport;
@@ -560,31 +531,16 @@ class CACmdLnOptions
 			UINT32 m_iPrepaidInterval; 
 			UINT32 m_iPaymentSettleInterval;
 #endif
-#ifdef SERVER_MONITORING
-		private:
-			char *m_strMonitoringListenerHost;
-			UINT16 m_iMonitoringListenerPort;
-#endif
-#ifdef PERFORMANCE_SERVER
-		private:
-			UINT8* m_strPerformanceServerListenerHost;
-			UINT16 m_iPerformanceServerListenerPort;
-#endif
-			
+
 		private:
 			SINT32 setNewValues(CACmdLnOptions& newOptions);
 #ifndef ONLY_LOCAL_PROXY
-			SINT32 readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* & docConfig,const UINT8* const configFileName);
-			SINT32 readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* & docConfig,const UINT8* const buf, UINT32 len);
-			SINT32 processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* docConfig);
+			SINT32 readXmlConfiguration(DOM_Document& docConfig,const UINT8* const configFileName);
+			SINT32 readXmlConfiguration(DOM_Document& docConfig,const UINT8* const buf, UINT32 len);
+			SINT32 processXmlConfiguration(DOM_Document& docConfig);
 			SINT32 clearVisibleAddresses();
-			SINT32 addVisibleAddresses(DOMNode* nodeProxy);
-#ifdef COUNTRY_STATS
-			char* m_dbCountryStatsHost;
-			char* m_dbCountryStatsUser;
-			char* m_dbCountryStatsPasswd;
-#endif //COUNTRY_STATS
-#endif //ONLY_LOCAL_PROXY
+			SINT32 addVisibleAddresses(DOM_Node& nodeProxy);
+#endif
 			SINT32 clearTargetInterfaces();
 			SINT32 clearListenerInterfaces();
 	};

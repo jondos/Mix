@@ -33,6 +33,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 class CASignature;
 class CAInfoService;
 //class DOM_Element;
+#ifdef REPLAY_DETECTION
+	#include "CAReplayCtrlChannelMsgProc.hpp"
+#endif	
 class CAControlChannelDispatcher;
 
 
@@ -78,7 +81,7 @@ class CAMix
     		* @param docMixCascadeInfo where the XML struct would be stored
     		* @retval E_SUCCESS
     		*/
-			SINT32 getMixCascadeInfo(XERCES_CPP_NAMESPACE::DOMDocument* & docMixCascadeInfo)
+			SINT32 getMixCascadeInfo(DOM_Document& docMixCascadeInfo)
 			{
 					if(m_docMixCascadeInfo != NULL)
 					{
@@ -120,7 +123,7 @@ class CAMix
 			virtual SINT32 init()=0;
 			virtual SINT32 loop()=0;
 
-			SINT32 addMixInfo(DOMNode* a_element, bool a_bForceFirstNode);
+			SINT32 addMixInfo(DOM_Node& a_element, bool a_bForceFirstNode);
 		
 
 			// added by ronin <ronin2@web.de>
@@ -130,9 +133,9 @@ class CAMix
 			}
 			
 			// added by ronin <ronin2@web.de>
-			virtual SINT32 initMixCascadeInfo(DOMElement* elemMixes);
+			virtual SINT32 initMixCascadeInfo(DOM_Element& elemMixes);
 
-			SINT32 signXML(DOMNode* a_element);
+			SINT32 signXML(DOM_Node& a_element);
 
 			CASignature* m_pSignature;
 			CAInfoService* m_pInfoService;
@@ -143,8 +146,10 @@ class CAMix
 	    bool m_acceptReconfiguration;
 
 			// added by ronin <ronin2@web.de>
-			XERCES_CPP_NAMESPACE::DOMDocument* m_docMixCascadeInfo;
-
+			DOM_Document m_docMixCascadeInfo;
+#ifdef REPLAY_DETECTION
+			CAReplayCtrlChannelMsgProc* m_pReplayMsgProc;
+#endif
 			CAControlChannelDispatcher* m_pMuxOutControlChannelDispatcher;
 			CAControlChannelDispatcher* m_pMuxInControlChannelDispatcher;
 		private:
