@@ -997,7 +997,7 @@ NEXT_USER_WRITING:
 //ERR:
 		CAMsg::printMsg(LOG_CRIT,"Seems that we are restarting now!!\n");
 		m_bRunLog=false;
-		clean();
+		//clean();
 		delete pQueueEntry;
 		delete []tmpBuff;
 #ifdef _DEBUG
