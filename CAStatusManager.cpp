@@ -179,11 +179,7 @@ CAStatusManager::~CAStatusManager()
 				m_pStatusSocket->close();
 			}
 		}
-		/*CAMsg::printMsg(LOG_INFO, 
-					"CAStatusManager: wait for monitoring thread\n");
-		m_pMonitoringThread->join();
-		CAMsg::printMsg(LOG_INFO, 
-				"CAStatusManager: monitoring thread joined\n");*/
+		
 		delete m_pMonitoringThread;
 #ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG, 
@@ -216,13 +212,9 @@ CAStatusManager::~CAStatusManager()
 		m_pListenAddr = NULL;
 	}
 	if(m_pPreparedStatusMessage != NULL)
-	{
-		CAMsg::printMsg(LOG_INFO, 
-						"CAStatusManager: before XML release.\n");
+	{	
 		m_pPreparedStatusMessage->release();
 		m_pPreparedStatusMessage = NULL;
-		CAMsg::printMsg(LOG_INFO, 
-						"CAStatusManager: after XML release.\n");
 	}
 }
 SINT32 CAStatusManager::initSocket()
