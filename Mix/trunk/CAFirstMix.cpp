@@ -1061,9 +1061,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			((CASocket*)pNewUser)->setKeepAlive(true);
 		#endif
 		
-		//#ifdef DEBUG
+		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"User login: start\n");
-		//#endif	
+		#endif	
 		
 		SAVE_STACK("CAFirstMix::doUserLogin", "after setting keep alive");
 		
