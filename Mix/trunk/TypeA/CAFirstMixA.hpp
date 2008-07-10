@@ -40,8 +40,11 @@ class CAFirstMixA:public CAFirstMix
 		{
 			//clean();
 			delete m_pmutexUser;
+			m_pmutexUser = NULL;
 			delete m_pmutexMixedPackets;
+			m_pmutexMixedPackets = NULL;
 			delete m_pmutexLoginThreads;
+			m_pmutexLoginThreads = NULL;
 		}
 		virtual SINT32 clean();
 

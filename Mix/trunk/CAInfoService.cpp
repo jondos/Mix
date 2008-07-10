@@ -296,6 +296,7 @@ bool CAInfoService::newCascadeAvailable()
 	ret = true;
 EXIT:
 	delete address;
+	address = NULL;
 	return ret;	
 }
 
@@ -330,8 +331,8 @@ SINT32 CAInfoService::dynamicCascadeConfiguration()
 		m_pMix->dynaReconfigure(false);
 	}	
 	m_bReconfig = false;
-	if(configurator != NULL)
-		delete configurator;
+	delete configurator;
+	configurator = NULL;
 	
 	return ret;
 }
@@ -470,6 +471,7 @@ SINT32 CAInfoService::sendStatus(bool bIncludeCerts)
 	
 	ret = sendHelo(strStatusXML, len, TCascadeStatus, (UINT8*)"Status Thread", REQUEST_COMMAND_STATUS);
 	delete[] strStatusXML;
+	strStatusXML = NULL;
 	return ret;
 }
 
@@ -530,11 +532,14 @@ UINT8* CAInfoService::getStatusXMLAsString(bool bIncludeCerts,UINT32& len)
 			ptmpCertStore=NULL;
 		}
 		if(m_pSignature->signXML(tmpBuff,strlen((char*)tmpBuff),buff,&buffLen,ptmpCertStore)!=E_SUCCESS)
-			{
-				delete[] buff;
-				return NULL;
-			}
-		len=buffLen;
+		{
+			delete[] buff;
+			buff = NULL;
+		}
+		else
+		{
+			len=buffLen;
+		}
 		return buff;
 	}
 
@@ -615,6 +620,7 @@ SINT32 CAInfoService::sendMixHelo(SINT32 requestCommand,const UINT8* param)
 	
 	ret = sendHelo(strMixHeloXML, len, TMixHelo, (UINT8*)"Mix Helo Thread", requestCommand, param);
 	delete[] strMixHeloXML;
+	strMixHeloXML = NULL;
 	return ret;
 }
 
@@ -642,8 +648,8 @@ UINT8* CAInfoService::getMixHeloXMLAsString(UINT32& a_len)
 		return sendBuff;	
 			
 ERR:
-		if(sendBuff!=NULL)
-			delete []sendBuff;
+		delete []sendBuff;
+		sendBuff = NULL;
 		return NULL;
 	}
 
@@ -843,12 +849,17 @@ SINT32 CAInfoService::sendHelo(UINT8* a_strXML, UINT32 a_len, THREAD_RETURN (*a_
 			returnValue = E_SUCCESS;
 		}
 		delete messages[i]->addr;
+		messages[i]->addr = NULL;
 		delete messages[i];
+		messages[i] = NULL;
 		delete threads[i];
+		threads[i] = NULL;
 	}
 	
 	delete[] messages;
+	messages = NULL;
 	delete[] threads;
+	threads = NULL;
 	
 	return returnValue;
 }
@@ -872,6 +883,7 @@ SINT32 CAInfoService::sendCascadeHelo()
 	
 	ret = sendHelo(strCascadeHeloXML, len, TCascadeHelo, (UINT8*)"Cascade Helo Thread", REQUEST_COMMAND_CASCADE);
 	delete[] strCascadeHeloXML;
+	strCascadeHeloXML = NULL;
 	return ret;
 }
 
@@ -921,8 +933,8 @@ UINT8* CAInfoService::getCascadeHeloXMLAsString(UINT32& a_len)
 		a_len=sendBuffLen;
 		return sendBuff;		
 ERR:
-		if(sendBuff!=NULL)
-			delete []sendBuff;
+		delete []sendBuff;
+		sendBuff = NULL;
 		return NULL;
 	}
 
@@ -1157,12 +1169,14 @@ SINT32 CAInfoService::getPaymentInstance(const UINT8* a_pstrPIID,CAXMLBI** a_pXM
 		if(httpClient.getContent(content, &contentLength)!=E_SUCCESS)
 			{
 				delete []content;
+				content = NULL;
 				return E_UNKNOWN;
 			}
 		socket.close();
 		//Parse XML
 		XERCES_CPP_NAMESPACE::DOMDocument* doc = parseDOMDocument(content,contentLength);
 		delete []content;
+		content = NULL;
 		if(doc==NULL)
 			return E_UNKNOWN;
 		DOMElement* elemRoot=doc->getDocumentElement();

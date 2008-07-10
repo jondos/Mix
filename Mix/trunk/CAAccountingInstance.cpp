@@ -144,6 +144,7 @@ CAAccountingInstance::~CAAccountingInstance()
 			CAMsg::printMsg( LOG_DEBUG, "deleting m_pSettleThread\n" );
 			//m_pSettleThread->settle();
 			delete m_pSettleThread;
+			m_pSettleThread = NULL;
 		}
 		m_pSettleThread = NULL;
 		
@@ -151,6 +152,7 @@ CAAccountingInstance::~CAAccountingInstance()
 		{
 			CAMsg::printMsg( LOG_DEBUG, "deleting m_aiThreadPool\n" );
 			delete m_aiThreadPool;
+			m_aiThreadPool = NULL;
 		}
 		m_aiThreadPool = NULL;
 		
@@ -189,6 +191,7 @@ CAAccountingInstance::~CAAccountingInstance()
 			CAMsg::printMsg( LOG_DEBUG, "CAAccountingInstance: Deleting accounts hashtable...\n" );
 			m_currentAccountsHashtable->getMutex()->unlock();
 			delete m_currentAccountsHashtable;
+			m_currentAccountsHashtable = NULL;
 		}
 		m_currentAccountsHashtable = NULL;
 		CAMsg::printMsg( LOG_DEBUG, "CAAccountingInstance: Accounts hashtable deleted.\n" );
@@ -304,11 +307,15 @@ THREAD_RETURN CAAccountingInstance::processThread(void* a_param)
 	if (bDelete)
 	{
 		delete item->pAccInfo->mutex;
+		item->pAccInfo->mutex = NULL;
 		delete item->pAccInfo;
+		item->pAccInfo = NULL;
 	}
 
 	delete item->pDomDoc;
+	item->pDomDoc = NULL;
 	delete item;
+	item = NULL;
 	
 	FINISH_STACK("CAAccountingInstance::processThread");
 		
@@ -835,9 +842,14 @@ SINT32 CAAccountingInstance::returnPrepareKickout(tAiAccountingInfo* pAccInfo, C
 		XERCES_CPP_NAMESPACE::DOMDocument* doc=NULL;												
 		a_error->toXmlDocument(doc);			
 		delete a_error;
+		a_error = NULL;
 		//pAccInfo->sessionPackets = 0; // allow some pakets to pass by to send the control message
 		pAccInfo->pControlChannel->sendXMLMessage(doc);
-		doc->release();
+		if (doc != NULL)
+		{
+			doc->release();
+			doc = NULL;
+		}
 	}
 	else
 	{
@@ -886,8 +898,11 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
 	//FINISH_STACK("CAAccountingInstance::sendCCRequest");
 	
 	SINT32 ret = pAccInfo->pControlChannel->sendXMLMessage(doc);
-	doc->release();
-	doc = NULL;
+	if (doc != NULL)
+	{
+		doc->release();
+		doc = NULL;
+	}
 	return ret;
 }
 
@@ -987,6 +1002,7 @@ SINT32 CAAccountingInstance::prepareCCRequest(CAMix* callingMix, UINT8* a_AiName
 #endif				
 			SHA1(out,outlen,digest);	
 			delete[] out;
+			out = NULL;
 			
 			UINT8* tmpBuff = new UINT8[1024];
 			UINT32 len=1024;
@@ -1053,8 +1069,10 @@ SINT32 CAAccountingInstance::prepareCCRequest(CAMix* callingMix, UINT8* a_AiName
 #endif		
 
 	delete[] mixNodes;
+	mixNodes = NULL;
 	//delete[] allHashes;
 	delete[] allSkis;	
+	allSkis = NULL;
 	return E_SUCCESS;
 
 }
@@ -1104,7 +1122,11 @@ SINT32 CAAccountingInstance::sendAILoginConfirmation(tAiAccountingInfo* pAccInfo
 		CAMsg::printMsg(LOG_DEBUG, "the AILogin Confirmation sent looks like this: %s \n",debugout);
 #endif		
 		sendSuccess = pAccInfo->pControlChannel->sendXMLMessage(doc);
-		doc->release();
+		if (doc != NULL)
+		{
+			doc->release();
+			doc = NULL;
+		}
 		return sendSuccess;
 	}
 
@@ -1277,6 +1299,7 @@ void CAAccountingInstance::processJapMessageLoginHelper(fmHashTableEntry *pHashE
 				if(errDoc != NULL)
 				{
 					errDoc->release();
+					errDoc = NULL;
 				}
 				/*sendAILoginConfirmation(pHashEntry->pAccountingInfo,
 										CAXMLErrorMessage::ERR_BLOCKED, 
@@ -1406,6 +1429,7 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 		if(errDoc != NULL)
 		{
 			errDoc->release();
+			errDoc = NULL;
 		}
 		/*sendAILoginConfirmation(pAccInfo, 
 								CAXMLErrorMessage::ERR_BLOCKED, 
@@ -1484,7 +1508,11 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 			XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
 			err.toXmlDocument(errDoc);
 			pAccInfo->pControlChannel->sendXMLMessage(errDoc);
-			errDoc->release();
+			if (errDoc != NULL)
+			{
+				errDoc->release();
+				errDoc = NULL;
+			}
 			pAccInfo->mutex->unlock();
 			return CAXMLErrorMessage::ERR_BAD_REQUEST;
 		}
@@ -1498,7 +1526,11 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 			XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
 			err.toXmlDocument(errDoc);
 			pAccInfo->pControlChannel->sendXMLMessage(errDoc);
-			errDoc->release();
+			if (errDoc != NULL)
+			{
+				errDoc->release();
+				errDoc = NULL;
+			}
 			pAccInfo->mutex->unlock();
 			return CAXMLErrorMessage::ERR_WRONG_FORMAT;
 		}		
@@ -1510,13 +1542,17 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 			 getDOMElementValue( elGeneral,pAccInfo->pstrBIID, &len ) != E_SUCCESS)
 			{
 				delete[] pAccInfo->pstrBIID;
-				pAccInfo->pstrBIID=NULL;
+				pAccInfo->pstrBIID = NULL;
 				CAMsg::printMsg( LOG_ERR, "AccountCertificate has no Payment Instance ID. Ignoring...\n");
 				CAXMLErrorMessage err(CAXMLErrorMessage::ERR_WRONG_FORMAT);
 				XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
 				err.toXmlDocument(errDoc);
 				pAccInfo->pControlChannel->sendXMLMessage(errDoc);
-				errDoc->release();
+				if (errDoc != NULL)
+				{
+					errDoc->release();
+					errDoc = NULL;
+				}
 				pAccInfo->mutex->unlock();
 				return CAXMLErrorMessage::ERR_WRONG_FORMAT;
 			}
@@ -1533,7 +1569,11 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 			XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
 			err.toXmlDocument(errDoc);
 			pAccInfo->pControlChannel->sendXMLMessage(errDoc);
-			errDoc->release();
+			if (errDoc != NULL)
+			{
+				errDoc->release();
+				errDoc = NULL;
+			}
 			pAccInfo->mutex->unlock();
 			return CAXMLErrorMessage::ERR_KEY_NOT_FOUND;
 		}
@@ -1544,6 +1584,7 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 		aij[aijsize-1]=0;
 		CAMsg::printMsg( LOG_DEBUG, "Setting user public key %s>\n", aij );
 		delete[] aij;
+		aij = NULL;
 	#endif
 	pAccInfo->pPublicKey = new CASignature();
 	if ( pAccInfo->pPublicKey->setVerifyKey( elGeneral ) != E_SUCCESS )
@@ -1552,7 +1593,11 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 		XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
 		err.toXmlDocument(errDoc);
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
-		errDoc->release();
+		if (errDoc != NULL)
+		{
+			errDoc->release();
+			errDoc = NULL;
+		}
 		pAccInfo->mutex->unlock();
 		return CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR;
 	}
@@ -1611,7 +1656,11 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 
 	// send XML struct to Jap & set auth flags
 	pAccInfo->pControlChannel->sendXMLMessage(doc);
-	doc->release();
+	if (doc != NULL)
+	{
+		doc->release();
+		doc = NULL;
+	}
 	pAccInfo->authFlags |= AUTH_CHALLENGE_SENT | AUTH_GOT_ACCOUNTCERT | AUTH_TIMEOUT_STARTED;	
 	pAccInfo->challengeSentSeconds = time(NULL);
 	//CAMsg::printMsg("Last Account Certificate request seconds: for IP %u%u%u%u", (UINT8)pHashEntry->peerIP[0], (UINT8)pHashEntry->peerIP[1],(UINT8) pHashEntry->peerIP[2], (UINT8)pHashEntry->peerIP[3]);
@@ -1991,10 +2040,10 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 		}
 	}
 	
-	if(pCC != NULL)
-	{
-		delete pCC;
-	}
+
+	delete pCC;
+	pCC = NULL;
+	
 	
 	if ( pAccInfo->pChallenge != NULL ) // free mem
 	{
@@ -2069,8 +2118,13 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 		XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
 		err.toXmlDocument(errDoc);
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
-		errDoc->release();
+		if (errDoc != NULL)
+		{
+			errDoc->release();
+			errDoc = NULL;
+		}
 		delete pCC;
+		pCC = NULL;
 		pAccInfo->mutex->unlock();
 		return CAXMLErrorMessage::ERR_BAD_SIGNATURE;
 	}
@@ -2090,8 +2144,13 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 		XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
 		err.toXmlDocument(errDoc);
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
-		errDoc->release();
+		if (errDoc != NULL)
+		{
+			errDoc->release();
+			errDoc = NULL;
+		}
 		delete pCC;
+		pCC = NULL;
 		pAccInfo->mutex->unlock();
 		return CAXMLErrorMessage::ERR_WRONG_FORMAT;
 	}
@@ -2135,8 +2194,13 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 		XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
 		err.toXmlDocument(errDoc);
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
-		errDoc->release();
+		if (errDoc != NULL)
+		{
+			errDoc->release();
+			errDoc = NULL;
+		}
 		delete pCC;
+		pCC = NULL;
 		pAccInfo->mutex->unlock();
 		return CAXMLErrorMessage::ERR_WRONG_DATA;
 	}
@@ -2164,6 +2228,7 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 		//@todo: perhaps we should use another flag to indicate that this user should be kicked out.
 		pAccInfo->authFlags |= AUTH_FAKE;
 		delete pCC;
+		pCC = NULL;
 		pAccInfo->mutex->unlock();
 		return CAXMLErrorMessage::ERR_WRONG_DATA;
 		
@@ -2234,6 +2299,7 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 								pCC->getTransferredBytes(),  
 								pAccInfo->bytesToConfirm);
 		delete pCC;
+		pCC = NULL;
 		pAccInfo->mutex->unlock();
 		pAccInfo->authFlags |= AUTH_FAKE;
 		return CAXMLErrorMessage::ERR_WRONG_DATA;
@@ -2245,6 +2311,7 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 	pAccInfo->authFlags &= ~AUTH_SENT_CC_REQUEST;
 		
 	delete pCC;
+	pCC = NULL;
 	pAccInfo->mutex->unlock();
 	
 	return CAXMLErrorMessage::ERR_OK;
@@ -2392,6 +2459,7 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 						// this is the last active user connection; delete the entry
 						ms_pInstance->m_currentAccountsHashtable->remove(&(pAccInfo->accountNumber));
 						delete loginEntry;
+						loginEntry = NULL;
 					}
 					else
 					{
@@ -2416,14 +2484,19 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 		{
 			delete pAccInfo->pPublicKey;
 		}
+		pAccInfo->pPublicKey = NULL;
+		
 		if ( pAccInfo->pChallenge!=NULL )
 		{
 			delete [] pAccInfo->pChallenge;
 		}
+		pAccInfo->pChallenge = NULL;
+		
 		if ( pAccInfo->pstrBIID!=NULL )
 		{
 			delete [] pAccInfo->pstrBIID;
 		}
+		pAccInfo->pstrBIID = NULL;
 					
 		
 		pHashEntry->pAccountingInfo=NULL;	

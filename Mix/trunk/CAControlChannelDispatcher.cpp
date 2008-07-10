@@ -58,7 +58,7 @@ void CAControlChannelDispatcher::deleteAllControlChannels()
 		m_pcsRegisterChannel->lock();
 		for(UINT32 i=0;i<256;i++)
 			{
-				if(m_arControlChannels[i]!=NULL)
+				if(m_arControlChannels[i]!=NULL)				
 					delete m_arControlChannels[i];
 				m_arControlChannels[i]=NULL;			
 			}

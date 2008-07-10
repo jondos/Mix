@@ -55,8 +55,8 @@ CAXMLPriceCert::~CAXMLPriceCert()
 			//CAMsg::printMsg(LOG_DEBUG, "cleaning up internal PriceCert document 0x%x.\n",
 			//					m_domDocument);
 			m_domDocument->release();
-		}
-		m_domDocument=NULL;	
+			m_domDocument=NULL;	
+		}		
 	}
 
 CAXMLPriceCert* CAXMLPriceCert::getInstance(const UINT8 * strXmlData,UINT32 strXmlDataLen)
@@ -69,7 +69,7 @@ CAXMLPriceCert* CAXMLPriceCert::getInstance(const UINT8 * strXmlData,UINT32 strX
 	if(pPC->setValues()!=E_SUCCESS)
 		{
 			delete pPC;
-			return NULL;
+			pPC = NULL;
 		}
 	return pPC;	
 }
@@ -87,8 +87,8 @@ CAXMLPriceCert* CAXMLPriceCert::getInstance(DOMElement* elemRoot)
 		if(pPC->setValues()!=E_SUCCESS)
 			{
 				delete pPC;
+				pPC = NULL;
 				CAMsg::printMsg(LOG_DEBUG,"CAXMLPriceCert::getInstance.setValues() FAILED \n");
-				return NULL;
 			}
 		return pPC;	
 	}
@@ -146,8 +146,7 @@ SINT32 CAXMLPriceCert::setValues()
 	UINT8 strGeneral[512];
 	UINT32 strGeneralLen = 512;
 	// parse subjectkeyidentifier(UINT8*)
-	if(m_StrSubjectKeyIdentifier!=NULL)
-		delete[] m_StrSubjectKeyIdentifier;
+	delete[] m_StrSubjectKeyIdentifier;
 	m_StrSubjectKeyIdentifier=NULL;
 
 	getDOMChildByName(elemRoot, "SubjectKeyIdentifier", elem, false);
@@ -176,8 +175,7 @@ SINT32 CAXMLPriceCert::setValues()
 
 
 	// parse creation time (UINT8*)
-	if(m_StrSignatureTime!=NULL)
-		delete[] m_StrSignatureTime;
+	delete[] m_StrSignatureTime;
 	m_StrSignatureTime=NULL;
 	getDOMChildByName(elemRoot, "SignatureTime", elem, false);
 	
@@ -199,8 +197,7 @@ SINT32 CAXMLPriceCert::setValues()
 	UINT32 strGeneralLen2 = 512;	
 	
 	// parse BiID (UINT8*)
-	if(m_StrBiID!=NULL)
-		delete[] m_StrBiID;
+	delete[] m_StrBiID;
 	m_StrBiID=NULL;
 	getDOMChildByName(elemRoot, "BiID", elem, false);
 	if(getDOMElementValue(elem, strGeneral2, &strGeneralLen2)==E_SUCCESS)
