@@ -656,7 +656,11 @@ SINT32 setDOMElementValue(DOMElement* pElem,const UINT8* value)
 				if(pChild->getNodeType()==DOMNode::TEXT_NODE)
 					{
 						DOMNode* n=pElem->removeChild(pChild);
-						n->release();
+						if (n != NULL)
+						{
+							n->release();
+							n = NULL;
+						}
 						//delete n;
 					}
 				pChild=pChild->getNextSibling();
@@ -877,7 +881,11 @@ SINT32 decodeXMLEncryptedKey(UINT8* key,UINT32* keylen, const UINT8* const xml, 
 			return E_UNKNOWN;
 		}
 		SINT32 ret=decodeXMLEncryptedKey(key,keylen,root,pRSA);
-		pDoc->release();
+		if (pDoc != NULL)
+		{
+			pDoc->release();
+			pDoc = NULL;
+		}
 		return ret;
 	}
 
@@ -959,7 +967,9 @@ SINT32 encryptXMLElement(DOMNode* node, CAASymCipher* pRSA)
 		pOutBuff[outbufflen]=0;
 		setDOMElementValue(elemCipherValue,pOutBuff);
 		delete[] pOutBuff;
+		pOutBuff = NULL;
 		delete[] pBuff;
+		pBuff = NULL;
 		CASymCipher *pSymCipher=new CASymCipher();
 		pSymCipher->setKey(key,true);
 		pSymCipher->setIVs(key+16);
@@ -972,23 +982,34 @@ SINT32 encryptXMLElement(DOMNode* node, CAASymCipher* pRSA)
 		pOutBuff=new UINT8[outbufflen];
 		pSymCipher->encrypt1CBCwithPKCS7(b,bufflen,pOutBuff,&outbufflen);
 		delete[] b;
+		b = NULL;
 		bufflen=outbufflen*3/2+1000;
 		pBuff=new UINT8[bufflen];
 		CABase64::encode(pOutBuff,outbufflen,pBuff,&bufflen);
 		pBuff[bufflen]=0;
 		setDOMElementValue(elemCipherValue,pBuff);
 		delete[] pOutBuff;
+		pOutBuff = NULL;
 		delete[] pBuff;
+		pBuff = NULL;
 		if(parent->getNodeType()==DOMNode::DOCUMENT_NODE)
 			{
 				DOMNode* n=parent->removeChild(node);
-				n->release();
+				if (n != NULL)
+				{
+					n->release();
+					n = NULL;
+				}
 				parent->appendChild(elemRoot);
 			}
 		else
 			{
 				DOMNode* n=parent->replaceChild(elemRoot,node);
-				n->release();
+				if (n != NULL)
+				{
+					n->release();
+					n = NULL;
+				}
 			}
 		return E_SUCCESS;
 	}
@@ -1032,16 +1053,19 @@ UINT8* encryptXMLElement(UINT8* inbuff,UINT32 inlen,UINT32& outlen,CAASymCipher*
 		UINT8* msgoutbuff=new UINT8[msgoutbufflen];
 		pSymCipher->encrypt1CBCwithPKCS7(inbuff,inlen,msgoutbuff,&msgoutbufflen);
 		delete pSymCipher;
+		pSymCipher = NULL;
 		UINT32 encmsgoutbufflen=msgoutbufflen*3/2+1000;
 		UINT8* encmsgoutbuff=new UINT8[encmsgoutbufflen];
 		CABase64::encode(msgoutbuff,msgoutbufflen,encmsgoutbuff,&encmsgoutbufflen);
 		delete[] msgoutbuff;
+		msgoutbuff = NULL;
 		encmsgoutbuff[encmsgoutbufflen]=0;
 		msgoutbufflen=encmsgoutbufflen+1000;
 		msgoutbuff=new UINT8[msgoutbufflen];
 		sprintf((char*)msgoutbuff,XML_ENC_TEMPLATE,keyoutbuff,encmsgoutbuff);
 		outlen=strlen((char*)msgoutbuff);
 		delete[] encmsgoutbuff;
+		encmsgoutbuff = NULL;
 		return msgoutbuff;
 	}
 
@@ -1062,6 +1086,7 @@ SINT32 decryptXMLElement(DOMNode* node, CAASymCipher* pRSA)
 		if(getDOMElementValue(elemCipherValue,cipherValue,&len)!=E_SUCCESS)
 			{
 				delete[] cipherValue;
+				cipherValue = NULL;
 				return E_UNKNOWN;
 			}
 		CABase64::decode(cipherValue,len,cipherValue,&len);
@@ -1069,6 +1094,7 @@ SINT32 decryptXMLElement(DOMNode* node, CAASymCipher* pRSA)
 				len!=32)
 			{
 				delete[] cipherValue;
+				cipherValue = NULL;
 				return E_UNKNOWN;
 			}
 		CASymCipher *pSymCipher=new CASymCipher();
@@ -1082,31 +1108,42 @@ SINT32 decryptXMLElement(DOMNode* node, CAASymCipher* pRSA)
 		if(getDOMElementValue(elemCipherValue,cipherValue,&len)!=E_SUCCESS)
 			{
 				delete pSymCipher;
+				pSymCipher = NULL;
 				delete[] cipherValue;
+				cipherValue = NULL;
 				return E_UNKNOWN;
 			}
 		if(CABase64::decode(cipherValue,len,cipherValue,&len)!=E_SUCCESS)
 			{
 				delete pSymCipher;
+				pSymCipher = NULL;
 				delete[] cipherValue;
+				cipherValue = NULL;
 				return E_UNKNOWN;
 			}
 		SINT32 ret=pSymCipher->decrypt1CBCwithPKCS7(cipherValue,cipherValue,&len);
 		delete pSymCipher;
+		pSymCipher = NULL;
 		if(ret!=E_SUCCESS)
 			{
 				delete[] cipherValue;
+				cipherValue = NULL;
 				return E_UNKNOWN;
 			}
 		//now the need to parse the plaintext...
 		XERCES_CPP_NAMESPACE::DOMDocument* docPlain=parseDOMDocument(cipherValue,len);
-		delete[] cipherValue;		
+		delete[] cipherValue;	
+		cipherValue = NULL;	
 		DOMNode* elemPlainRoot=NULL;
 		if(docPlain==NULL)
 			return E_UNKNOWN;
 		if((elemPlainRoot=docPlain->getDocumentElement())==NULL)
 			{
-				docPlain->release();
+				if (docPlain != NULL)
+				{
+					docPlain->release();
+					docPlain = NULL;
+				}
 				return E_UNKNOWN;
 			}
 		elemPlainRoot=doc->importNode(elemPlainRoot,true);	
@@ -1114,15 +1151,27 @@ SINT32 decryptXMLElement(DOMNode* node, CAASymCipher* pRSA)
 		if(parent->getNodeType()==DOMNode::DOCUMENT_NODE)
 			{
 				DOMNode* n=parent->removeChild(node);
-				n->release();
+				if (n != NULL)
+				{
+					n->release();
+					n = NULL;
+				}
 				parent->appendChild(elemPlainRoot);
 			}
 		else	
 			{
-				DOMNode* n=parent->replaceChild(elemPlainRoot,node);	
-				n->release();
+				DOMNode* n=parent->replaceChild(elemPlainRoot,node);
+				if (n != NULL)
+				{	
+					n->release();
+					n = NULL;
+				}
 			}
-		docPlain->release();
+		if (docPlain != NULL)
+		{	
+			docPlain->release();
+			docPlain = NULL;
+		}
 		return E_SUCCESS;
 	}
 #endif //ONLY_LOCAL_PROXY

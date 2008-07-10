@@ -203,18 +203,23 @@ SINT32 CAFirstMixA::clean()
 					{
 						CAMuxSocket * pMuxSocket=pHashEntry->pMuxSocket;
 						delete pHashEntry->pQueueSend;
+						pHashEntry->pQueueSend = NULL;
 						delete pHashEntry->pSymCipher; 
+						pHashEntry->pSymCipher = NULL;
 
 						fmChannelListEntry* pEntry=m_pChannelList->getFirstChannelForSocket(pHashEntry->pMuxSocket);
 						while(pEntry!=NULL)
 							{
 								delete pEntry->pCipher;
+								pEntry->pCipher = NULL;
 								pEntry=m_pChannelList->getNextChannel(pEntry);
 							}
 						m_pChannelList->remove(pHashEntry->pMuxSocket);
 						//CAMsg::printMsg	(LOG_CRIT,"pMuxSocket ref %0x%x\n", (UINT32) pMuxSocket);	
 						pMuxSocket->close();
 						delete pMuxSocket;
+						pMuxSocket = NULL;
+						pHashEntry->pMuxSocket = NULL;
 						pHashEntry=m_pChannelList->getNext();
 					}
 			}
@@ -250,6 +255,7 @@ SINT32 CAFirstMixA::clean()
 				for(UINT32 i=0;i<m_u32MixCount-1;i++)
 					{
 						delete[] m_arMixParameters[i].m_strMixID;
+						m_arMixParameters[i].m_strMixID = NULL;
 					}
 				delete[] m_arMixParameters;
 			}
@@ -333,11 +339,14 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 		#endif
 		m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));
 		delete pEntry->pCipher;
+		pEntry->pCipher = NULL;
 		pEntry=m_pChannelList->getNextChannel(pEntry);
 	}
 	ASSERT(pHashEntry->pQueueSend!=NULL,"Send queue is NULL");
 	delete pHashEntry->pQueueSend;
+	pHashEntry->pQueueSend = NULL;
 	delete pHashEntry->pSymCipher;
+	pHashEntry->pSymCipher = NULL;
 	
 	#ifdef COUNTRY_STATS
 		decUsers(pHashEntry);
@@ -348,9 +357,12 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 	CAMuxSocket* pMuxSocket = pHashEntry->pMuxSocket;
 	// Save the socket - its pointer will be deleted in this method!!! Crazy mad programming...
 	m_pChannelList->remove(pHashEntry->pMuxSocket);
-	delete pMuxSocket;	
+	delete pMuxSocket;
+	pMuxSocket = NULL;
+	pHashEntry->pMuxSocket = NULL; // not needed now, but maybe in the future...
 	
 	delete pQueueEntry;
+	pQueueEntry = NULL;
 	
 	FINISH_STACK("CAFirstMixA::closeConnection");
 	
@@ -634,6 +646,7 @@ SINT32 CAFirstMixA::loop()
 														if(m_pChannelList->addChannel(pMuxSocket,pMixPacket->channel,pCipher,&pMixPacket->channel)!=E_SUCCESS)
 														{ //todo move up ?
 															delete pCipher;
+															pCipher = NULL;
 														}
 														else
 														{
@@ -736,6 +749,7 @@ NEXT_USER:
 	
 										#ifndef SSL_HACK	
 											delete pEntry->pCipher;              // forget the symetric key of this connection
+											pEntry->pCipher = NULL;
 											m_pChannelList->removeChannel(pEntry->pHead->pMuxSocket, pEntry->channelIn);
 										/* a hack to solve the SSL problem: 
 										 * remove channel after the close packet is enqueued
@@ -897,6 +911,7 @@ NEXT_USER:
 											if(pfmHashEntry->oQueueEntry.packet.flags == CHANNEL_CLOSE)
 											{
 												delete cListEntry->pCipher;
+												cListEntry->pCipher = NULL;
 												m_pChannelList->removeChannel(pfmHashEntry->pMuxSocket, cListEntry->channelIn); 
 											}
 										}
@@ -1013,10 +1028,13 @@ NEXT_USER_WRITING:
 		m_bRunLog=false;
 		//clean();
 		delete pQueueEntry;
+		pQueueEntry = NULL;
 		delete []tmpBuff;
+		tmpBuff = NULL;
 #ifdef _DEBUG
 		pLogThread->join();
-		delete pLogThread; 
+		delete pLogThread;
+		pLogThread = NULL; 
 #endif		
 		CAMsg::printMsg(LOG_CRIT,"Main Loop exited!!\n");
 #endif//NEW_MIX_TYPE

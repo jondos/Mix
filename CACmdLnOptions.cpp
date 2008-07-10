@@ -132,8 +132,12 @@ SINT32 CACmdLnOptions::clearTargetInterfaces()
 		if(m_arTargetInterfaces!=NULL)
 			{
 				for(UINT32 i=0;i<m_cnTargets;i++)
+				{
 					delete m_arTargetInterfaces[i].addr;
+					m_arTargetInterfaces[i].addr = NULL;
+				}
 				delete[] m_arTargetInterfaces;
+				m_arTargetInterfaces = NULL;
 			}
 		m_cnTargets=0;
 		m_arTargetInterfaces=NULL;
@@ -147,9 +151,10 @@ SINT32 CACmdLnOptions::clearListenerInterfaces()
 		if(m_arListenerInterfaces!=NULL)
 			{
 				for(UINT32 i=0;i<m_cnListenerInterfaces;i++)
-					{
-						delete m_arListenerInterfaces[i];
-					}
+				{
+					delete m_arListenerInterfaces[i];
+					m_arListenerInterfaces[i] = NULL;
+				}
 				delete[] m_arListenerInterfaces;
 			}
 		m_cnListenerInterfaces=0;
@@ -165,7 +170,10 @@ SINT32 CACmdLnOptions::clearVisibleAddresses()
 		if(m_arStrVisibleAddresses!=NULL)
 			{
 				for(UINT32 i=0;i<m_cnVisibleAddresses;i++)
+				{
 					delete[] m_arStrVisibleAddresses[i];
+					m_arStrVisibleAddresses[i] = NULL;
+				}
 				delete[] m_arStrVisibleAddresses;
 			}
 		m_cnVisibleAddresses=0;
@@ -213,6 +221,7 @@ SINT32 CACmdLnOptions::addVisibleAddresses(DOMNode* nodeProxy)
 											{
 												memcpy(tmpAr,m_arStrVisibleAddresses,m_cnVisibleAddresses*sizeof(UINT8*));
 												delete[] m_arStrVisibleAddresses;
+												m_arStrVisibleAddresses = NULL;
 											}
 										tmpAr[m_cnVisibleAddresses]=new UINT8[len+1];
 										memcpy(tmpAr[m_cnVisibleAddresses],tmp,len+1);
@@ -265,9 +274,10 @@ void CACmdLnOptions::clean()
 	    	for (UINT32 i = 0; i < m_addrInfoServicesSize; i++)
 	    		{
 	    			delete m_addrInfoServices[i];
+	    			m_addrInfoServices[i] = NULL;
 	    		}
 	    	delete[] m_addrInfoServices;
-				m_addrInfoServices=NULL;
+			m_addrInfoServices=NULL;
 	    	m_addrInfoServicesSize = 0;
 	    }
 #endif //ONLY_LOCAL_PROXY
@@ -310,6 +320,7 @@ void CACmdLnOptions::clean()
 				for (UINT32 i = 0; i < m_OpCertsLength; i++)
 				{
 					delete m_OpCerts[i];
+					m_OpCerts[i] = NULL;
 				}
 			}
 			delete[] m_OpCerts;
@@ -333,8 +344,11 @@ void CACmdLnOptions::clean()
 
 #ifdef COUNTRY_STATS
 		delete[] m_dbCountryStatsHost;
+		m_dbCountryStatsHost = NULL;
 		delete[] m_dbCountryStatsUser;
+		m_dbCountryStatsUser = NULL;
 		delete[] m_dbCountryStatsPasswd;
+		m_dbCountryStatsPasswd = NULL;
 #endif
 
 #endif //ONLY_LOCAL_PROXY
@@ -342,12 +356,14 @@ void CACmdLnOptions::clean()
 		if(m_strMonitoringListenerHost != NULL)
 		{
 			delete[] m_strMonitoringListenerHost;
+			m_strMonitoringListenerHost = NULL;
 		}
 #endif
 #ifdef PERFORMANCE_SERVER
 		if(m_strPerformanceServerListenerHost != NULL)
 		{
 			delete[] m_strPerformanceServerListenerHost;
+			m_strPerformanceServerListenerHost = NULL;
 		}
 #endif
 }
@@ -568,6 +584,7 @@ SINT32 CACmdLnOptions::parse(int argc,const char** argv)
 						}
 						m_arListenerInterfaces[0]=CAListenerInterface::getInstance(RAW_TCP,(UINT8*)strServerHost,(UINT16)iServerPort);
 					delete [] strServerHost;
+					strServerHost = NULL;
 				}
 			free(serverPort);
 			if(m_arListenerInterfaces[0]!=0)
@@ -892,10 +909,12 @@ SINT32 CACmdLnOptions::setNextMix(DOM_Document& doc)
 			m_arTargetInterfaces[m_cnTargets].target_type=targetInterfaceNextMix->target_type;
 			m_arTargetInterfaces[m_cnTargets++].addr=targetInterfaceNextMix->addr;
 			delete targetInterfaceNextMix;
+			targetInterfaceNextMix = NULL;
 		}
 
 	SKIP_NEXT_MIX:
 			delete addr;
+			addr = NULL;
 }
 
 	CAMsg::printMsg(LOG_DEBUG,"setNextMix() - end\n");
@@ -1313,9 +1332,10 @@ SINT32 CACmdLnOptions::getLogDir(UINT8* name,UINT32 len)
 SINT32 CACmdLnOptions::setLogDir(const UINT8* name,UINT32 len)
   {
 		if(m_strLogDir!=NULL)
-			{
-				delete[] m_strLogDir;
-			}
+		{
+			delete[] m_strLogDir;
+			m_strLogDir = NULL
+		}
 		m_strLogDir=new char[len+1];
 		memcpy(m_strLogDir,name,len);
 		m_strLogDir[len]=0;
@@ -1441,6 +1461,7 @@ SINT32 CACmdLnOptions::readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* &
 			return E_FILE_READ;
     SINT32 retVal = readXmlConfiguration(docConfig, tmpChar, len);
     delete[] tmpChar;
+    tmpChar = NULL;
     return retVal;
 }
 
@@ -2105,6 +2126,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				m_cnTargets=1;
 SKIP_NEXT_MIX:
 				delete addr;
+				addr = NULL;
 			}
 
 #ifdef SERVER_MONITORING
@@ -2331,6 +2353,7 @@ SKIP_NEXT_MIX:
 				m_arTargetInterfaces[m_cnTargets].target_type=targetInterfaceNextMix->target_type;
 				m_arTargetInterfaces[m_cnTargets++].addr=targetInterfaceNextMix->addr;
 				delete targetInterfaceNextMix;
+				targetInterfaceNextMix = NULL;
 			}
 		
 		//-----------------------------------------------------------------------------	
@@ -2668,6 +2691,7 @@ SINT32 CACmdLnOptions::parseInfoServices(DOMElement* a_infoServiceNode)
 		for(UINT32 i=0;i<m_addrInfoServicesSize;i++)
 		{
 			delete m_addrInfoServices[i];
+			m_addrInfoServices[i] = NULL;
 		}
 		delete[] m_addrInfoServices;
 	}
@@ -2693,6 +2717,7 @@ SINT32 CACmdLnOptions::parseInfoServices(DOMElement* a_infoServiceNode)
 			{
 				// the other interfaces are not needed...
 				delete isListenerInterfaces[j];
+				isListenerInterfaces[j] = NULL;
 			}
 		}
 	}
@@ -2849,7 +2874,9 @@ SINT32 CACmdLnOptions::buildDefaultConfig(XERCES_CPP_NAMESPACE::DOMDocument* doc
 
     /** @todo Add Description section because InfoService doesn't accept MixInfos without Location or Operator */
     delete pCert;
+    pCert = NULL;
     delete pSignature;
+    pSignature = NULL;
     return E_SUCCESS;
 }
 
@@ -2878,6 +2905,7 @@ SINT32 CACmdLnOptions::saveToFile(XERCES_CPP_NAMESPACE::DOMDocument* p_doc, cons
         fflush(stdout);
     }
     delete[] buff;
+    buff = NULL;
     return E_SUCCESS;
 }
 
@@ -3001,6 +3029,7 @@ SINT32 CACmdLnOptions::checkListenerInterfaces()
     }
 error:
     delete dyn;
+    dyn = NULL;
     return result;
 }
 
