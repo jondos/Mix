@@ -166,8 +166,8 @@ void cleanup()
 #endif		
 //		delete pRTT;
 #ifndef ONLY_LOCAL_PROXY
-		if(pMix!=NULL)
-			delete pMix;
+
+		delete pMix;
 		pMix=NULL;
 #endif
 		CAMsg::printMsg(LOG_CRIT,"Terminating Programm!\n");

@@ -103,7 +103,7 @@ SINT32 CAMiddleMixChannelList::remove(HCHANNEL channelIn)
 				if(pEntry->channelIn==channelIn)
 					{
 						delete pEntry->pCipher;
-						pEntry->pCipher; = NULL;
+						pEntry->pCipher = NULL;
 						if(pEntry->list_HashTableIn.prev==NULL)
 							{
 								if(pEntry->list_HashTableIn.next==NULL)
@@ -153,6 +153,7 @@ SINT32 CAMiddleMixChannelList::remove(HCHANNEL channelIn)
 									}								
 							}
 						delete pEntry;
+						pEntry = NULL;
 						m_Mutex.unlock();
 						return E_SUCCESS;
 					}

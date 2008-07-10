@@ -168,14 +168,14 @@ SINT32 CACmdLnOptions::clearListenerInterfaces()
 SINT32 CACmdLnOptions::clearVisibleAddresses()
 	{
 		if(m_arStrVisibleAddresses!=NULL)
+		{
+			for(UINT32 i=0;i<m_cnVisibleAddresses;i++)
 			{
-				for(UINT32 i=0;i<m_cnVisibleAddresses;i++)
-				{
-					delete[] m_arStrVisibleAddresses[i];
-					m_arStrVisibleAddresses[i] = NULL;
-				}
-				delete[] m_arStrVisibleAddresses;
+				delete[] m_arStrVisibleAddresses[i];
+				m_arStrVisibleAddresses[i] = NULL;
 			}
+			delete[] m_arStrVisibleAddresses;
+		}
 		m_cnVisibleAddresses=0;
 		m_arStrVisibleAddresses=NULL;
 		return E_SUCCESS;
@@ -253,64 +253,65 @@ SINT32 CACmdLnOptions::getVisibleAddress(UINT8* strAddressBuff, UINT32 len,UINT3
 /** Deletes all resssource allocated by objects of this class EXPECT the locks necessary to controll access to the properties of this class*/
 void CACmdLnOptions::clean()
   {
-		if(m_strConfigFile!=NULL)
-			{
-				delete[] m_strConfigFile;
-				m_strConfigFile=NULL;
-			}
-		if(m_strTargetHost!=NULL)
-			{
-				delete[] m_strTargetHost;
-	    }
+		delete[] m_strConfigFile;
+		m_strConfigFile=NULL;
+		
+
+		delete[] m_strTargetHost;
 		m_strTargetHost=NULL;
-		if(m_strSOCKSHost!=NULL)
-			{
-				delete[] m_strSOCKSHost;
-	    }
+	    
+		delete[] m_strSOCKSHost;
 		m_strSOCKSHost=NULL;
+		
 #ifndef ONLY_LOCAL_PROXY
 		if (m_addrInfoServices != NULL)
 			{
 	    	for (UINT32 i = 0; i < m_addrInfoServicesSize; i++)
-	    		{
-	    			delete m_addrInfoServices[i];
-	    			m_addrInfoServices[i] = NULL;
-	    		}
+    		{
+    			delete m_addrInfoServices[i];
+    			m_addrInfoServices[i] = NULL;
+    		}
 	    	delete[] m_addrInfoServices;
 			m_addrInfoServices=NULL;
 	    	m_addrInfoServicesSize = 0;
 	    }
 #endif //ONLY_LOCAL_PROXY
 
-		if(m_strCascadeName!=NULL)
-			delete[] m_strCascadeName;
+
+		delete[] m_strCascadeName;
 		m_strCascadeName=NULL;
-		if(m_strLogDir!=NULL)
-			delete[] m_strLogDir;
+		
+
+		delete[] m_strLogDir;
 		m_strLogDir=NULL;
-		if(m_strPidFile!=NULL)
-			delete[] m_strPidFile;
+		
+	
+		delete[] m_strPidFile;
 		m_strPidFile=NULL;
-		if(m_strEncryptedLogDir!=NULL)
-			delete[] m_strEncryptedLogDir;
+		
+	
+		delete[] m_strEncryptedLogDir;
 		m_strEncryptedLogDir=NULL;
-		if(m_strUser!=NULL)
-			delete[] m_strUser;
+		
+	
+		delete[] m_strUser;
 		m_strUser=NULL;
-		if(m_strMixID!=NULL)
-			delete[] m_strMixID;
+		
+	
+		delete[] m_strMixID;
 		m_strMixID=NULL;
+		
 		clearTargetInterfaces();
 		clearListenerInterfaces();
 #ifndef ONLY_LOCAL_PROXY
 		if(m_docMixInfo!=NULL)
 			m_docMixInfo=NULL;
 		clearVisibleAddresses();
-		if(m_pSignKey!=NULL)
-			delete m_pSignKey;
+
+		delete m_pSignKey;
 		m_pSignKey=NULL;
-		if(m_pOwnCertificate!=NULL)
-			delete m_pOwnCertificate;
+		
+		delete m_pOwnCertificate;
 		m_pOwnCertificate=NULL;
 		// deleting whole array and array elements
 		if (m_OpCerts != NULL)
@@ -326,21 +327,27 @@ void CACmdLnOptions::clean()
 			delete[] m_OpCerts;
 		}
 		m_OpCerts=NULL;
-		if(m_pNextMixCertificate!=NULL)
-			delete m_pNextMixCertificate;
+		
+		delete m_pNextMixCertificate;
 		m_pNextMixCertificate=NULL;
-		if(m_pPrevMixCertificate!=NULL)
-			delete m_pPrevMixCertificate;
+		
+		delete m_pPrevMixCertificate;
 		m_pPrevMixCertificate=NULL;
-		if(m_pLogEncryptionCertificate!=NULL)
-			delete m_pLogEncryptionCertificate;
+		
+		delete m_pLogEncryptionCertificate;
 		m_pLogEncryptionCertificate=NULL;
+		
 		if(m_docMixInfo!=NULL)
+		{
 			m_docMixInfo->release();
-		m_docMixInfo=NULL;
+			m_docMixInfo=NULL;
+		}
+		
 		if(m_docMixXml!=NULL)
+		{
 			m_docMixXml->release();
-		m_docMixXml=NULL;
+			m_docMixXml=NULL;
+		}
 
 #ifdef COUNTRY_STATS
 		delete[] m_dbCountryStatsHost;
@@ -2249,8 +2256,8 @@ SKIP_NEXT_MIX:
 						UINT16 port;
 						for(UINT32 i=0;i<nlTargetInterfaces->getLength();i++)
 							{
-								if(addr!=NULL)
-									delete addr;
+								
+								delete addr;
 								addr=NULL;
 								DOMNode* elemTargetInterface=NULL;
 								elemTargetInterface=nlTargetInterfaces->item(i);

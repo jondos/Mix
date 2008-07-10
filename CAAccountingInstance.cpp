@@ -164,23 +164,17 @@ CAAccountingInstance::~CAAccountingInstance()
 		}
 		m_dbInterface = NULL;*/
 		
-		if(m_pPiInterface != NULL)
-		{
-			delete m_pPiInterface;
-		}
+
+		delete m_pPiInterface;
 		m_pPiInterface = NULL;
 		
-		if(m_pSettlementMutex != NULL)
-		{
-			delete m_pSettlementMutex;
-		}
+		delete m_pSettlementMutex;
 		m_pSettlementMutex = NULL;
 		//delete m_pIPBlockList;
 		//m_pIPBlockList = NULL;
-		if (m_AiName)
-		{
-			delete[] m_AiName;
-		}
+		
+
+		delete[] m_AiName;
 		m_AiName = NULL;
 		
 		if (m_currentAccountsHashtable)
@@ -196,10 +190,7 @@ CAAccountingInstance::~CAAccountingInstance()
 		m_currentAccountsHashtable = NULL;
 		CAMsg::printMsg( LOG_DEBUG, "CAAccountingInstance: Accounts hashtable deleted.\n" );
 		
-		if (m_currentCascade)
-		{
-			delete[] m_currentCascade;
-		}
+		delete[] m_currentCascade;
 		m_currentCascade = NULL;
 		
 		if(m_certHashCC != NULL)
@@ -1623,8 +1614,8 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 	arbChallenge = new UINT8[222];
 	getRandom( arbChallenge, 222 );
 	CABase64::encode( arbChallenge, 222, b64Challenge, &b64Len );
-	if ( pAccInfo->pChallenge != NULL )
-		delete[] pAccInfo->pChallenge;
+	
+	delete[] pAccInfo->pChallenge;
 	pAccInfo->pChallenge = arbChallenge; // store challenge for later..
 
 	// generate XML challenge structure
@@ -2480,25 +2471,17 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 		}
 		
 		//free memory of pAccInfo
-		if ( pAccInfo->pPublicKey!=NULL )
-		{
-			delete pAccInfo->pPublicKey;
-		}
+
+		delete pAccInfo->pPublicKey;
 		pAccInfo->pPublicKey = NULL;
 		
-		if ( pAccInfo->pChallenge!=NULL )
-		{
-			delete [] pAccInfo->pChallenge;
-		}
+	
+		delete [] pAccInfo->pChallenge;
 		pAccInfo->pChallenge = NULL;
 		
-		if ( pAccInfo->pstrBIID!=NULL )
-		{
-			delete [] pAccInfo->pstrBIID;
-		}
+		delete [] pAccInfo->pstrBIID;
 		pAccInfo->pstrBIID = NULL;
 					
-		
 		pHashEntry->pAccountingInfo=NULL;	
 		
 		if (pAccInfo->nrInQueue > 0)

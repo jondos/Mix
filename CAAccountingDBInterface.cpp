@@ -243,7 +243,7 @@ SINT32 CAAccountingDBInterface::__getCostConfirmation(UINT64 accountNumber, UINT
 		result = monitored_PQexec(m_dbConn, (char *)query);
 		
 		delete[] query;
-		response = NULL;
+		query = NULL;
 		if(PQresultStatus(result)!=PGRES_TUPLES_OK) 
 		{
 			CAMsg::printMsg(LOG_ERR, "CAAccountingDBInterface: Could not read XMLCC. Reason: %s\n", 

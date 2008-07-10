@@ -230,6 +230,7 @@ static THREAD_RETURN ConnectivityLoop(void *p)
 #endif
     socket.send( (const UINT8*)pechoRequest, rLen);
     delete pechoRequest;
+    pechoRequest = NULL;
 EXIT:
 	FINISH_STACK("CADynaNetworking::ConnectivityLoop");
 

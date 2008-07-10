@@ -1802,14 +1802,14 @@ SINT32 CAFirstMix::deleteCountryStats()
 				mysql_close(m_mysqlCon);
 				m_mysqlCon=NULL;
 			}
-		if(m_CountryStats!=NULL)
-			delete[] m_CountryStats;
+	
+		delete[] m_CountryStats;
 		m_CountryStats=NULL;
-		if(m_PacketsPerCountryIN!=NULL)
-			delete[] m_PacketsPerCountryIN;
+	
+		delete[] m_PacketsPerCountryIN;
 		m_PacketsPerCountryIN=NULL;
-		if(m_PacketsPerCountryOUT!=NULL)
-			delete[] m_PacketsPerCountryOUT;
+		
+		delete[] m_PacketsPerCountryOUT;
 		m_PacketsPerCountryOUT=NULL;
 		return E_SUCCESS;
 	}

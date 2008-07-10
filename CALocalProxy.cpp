@@ -510,12 +510,13 @@ SINT32 CALocalProxy::clean()
 		m_socketIn.close();
 		m_socketSOCKSIn.close();
 		m_muxOut.close();
-		if(m_arRSA!=NULL)
-			delete[] m_arRSA;
+	
+		delete[] m_arRSA;
 		m_arRSA=NULL;
-		if(m_pSymCipher!=NULL)
-			delete m_pSymCipher;
+		
+		delete m_pSymCipher;
 		m_pSymCipher=NULL;
+		
 		return E_SUCCESS;
 	}
 

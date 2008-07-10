@@ -465,7 +465,6 @@ SINT32 CADynamicCascadeConfigurator::addProposal(DOM_Element a_elem)
 				char *tmp = new char[strlen(tmpProposal)+1];
 				strncpy(tmp, tmpProposal, strlen(tmpProposal)+1);
 				delete tmpProposal;
-				tmpProposal = NULL;
 				tmpProposal = new char[ strlen(mixId) + strlen(tmp) + 1];
 				strncpy(tmpProposal, tmp, strlen(tmp) + 1);
 				delete tmp;

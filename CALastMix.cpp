@@ -848,9 +848,12 @@ SINT32 CALastMix::clean()
 						pChannelListEntry->pCipher = NULL;
 						delete pChannelListEntry->pQueueSend;
 						pChannelListEntry->pQueueSend = NULL;
-						pChannelListEntry->pSocket->close();
-						delete pChannelListEntry->pSocket;
-						pChannelListEntry->pSocket = NULL;
+						if (pChannelListEntry->pSocket != NULL)
+						{
+							pChannelListEntry->pSocket->close();
+							delete pChannelListEntry->pSocket;
+							pChannelListEntry->pSocket = NULL;
+						}
 						pChannelListEntry=m_pChannelList->getNextSocket();
 					}
 			}	
@@ -862,12 +865,13 @@ SINT32 CALastMix::clean()
       /* TypeB mixes are using an own implementation */
 		delete m_pChannelList;
 		m_pChannelList = NULL;
-		if(m_pMuxIn!=NULL)
-			{
-				m_pMuxIn->close();
-				delete m_pMuxIn;
-			}
-		m_pMuxIn=NULL;
+		if(m_pMuxIn != NULL)
+		{
+			m_pMuxIn->close();
+			delete m_pMuxIn;
+			m_pMuxIn=NULL;
+		}
+		
 		delete m_pRSA;
 		m_pRSA = NULL;
     #endif
