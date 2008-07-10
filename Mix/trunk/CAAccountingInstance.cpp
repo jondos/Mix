@@ -146,7 +146,6 @@ CAAccountingInstance::~CAAccountingInstance()
 			delete m_pSettleThread;
 			m_pSettleThread = NULL;
 		}
-		m_pSettleThread = NULL;
 		
 		if (m_aiThreadPool)
 		{
@@ -154,7 +153,6 @@ CAAccountingInstance::~CAAccountingInstance()
 			delete m_aiThreadPool;
 			m_aiThreadPool = NULL;
 		}
-		m_aiThreadPool = NULL;
 		
 		/*if (m_dbInterface)
 		{

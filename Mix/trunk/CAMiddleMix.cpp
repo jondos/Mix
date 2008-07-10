@@ -566,10 +566,11 @@ THREAD_RETURN mm_loopSendToMixAfter(void* param)
 				if(!(pMiddleMix->m_bRun))
 				{
 					CAMsg::printMsg(LOG_INFO,"SendToMixAfter thread: was interrupted.\n");
+					MONITORING_FIRE_NET_EVENT(ev_net_nextConnectionClosed);
 					break;
 				}
 				if(ret==E_TIMEDOUT)
-					{//send a dummy as keep-alvie-traffic
+					{//send a dummy as keep-alive-traffic
 						pMixPacket->flags=CHANNEL_DUMMY;
 						pMixPacket->channel=DUMMY_CHANNEL;
 						getRandom(pMixPacket->data,DATA_SIZE);
@@ -629,7 +630,7 @@ THREAD_RETURN mm_loopSendToMixBefore(void* param)
 					break;
 				}
 				if(ret==E_TIMEDOUT)
-					{//send a dummy as keep-alvie-traffic
+					{//send a dummy as keep-alive-traffic
 						pMixPacket->flags=CHANNEL_DUMMY;
 						pMixPacket->channel=DUMMY_CHANNEL;
 						getRandom(pMixPacket->data,DATA_SIZE);
