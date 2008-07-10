@@ -356,7 +356,7 @@ SINT32 CALastMix::processKeyExchange()
 			)
 			{
 				CAMsg::printMsg(LOG_CRIT,"Could not verify the Nonce!\n");	
-				if (doc != NULL
+				if (doc != NULL)
 				{	
 					doc->release();
 					doc = NULL;

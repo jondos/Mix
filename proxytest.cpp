@@ -166,8 +166,8 @@ void cleanup()
 #endif		
 //		delete pRTT;
 #ifndef ONLY_LOCAL_PROXY
-
-		delete pMix;
+		if(pMix!=NULL)
+			delete pMix;
 		pMix=NULL;
 #endif
 		CAMsg::printMsg(LOG_CRIT,"Terminating Programm!\n");
@@ -821,8 +821,8 @@ RESTART_MIX:
 					CAMsg::printMsg(LOG_INFO,"Starting LocalProxy...\n");
 					if(pProxy->start()!=E_SUCCESS)
 						CAMsg::printMsg(LOG_CRIT,"Error during MIX-Startup!\n");
-					 pProxy;
-					pProxy = NULL
+					delete pProxy;
+					pProxy = NULL;
 				#else
 					CAMsg::printMsg(LOG_CRIT,"Compiled without LocalProxy support!\n");
 					goto EXIT;
