@@ -249,6 +249,7 @@ CAListenerInterface* CAListenerInterface::getInstance(const DOMNode* elemListene
 		return pListener;
 ERR:
 		delete pListener;
+		pListener = NULL;
 		return NULL;
 }
 #endif //ONLY_LOCAL_PROXY

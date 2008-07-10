@@ -98,33 +98,33 @@ SINT32 CASignature::setSignKey(const DOMNode* n,UINT32 type,const char* passwd)
 	{
 		const DOMNode* node=n; 
 		switch(type)
-			{
-				case SIGKEY_PKCS12:
-					while(node!=NULL)
+		{
+			case SIGKEY_PKCS12:
+				while(node!=NULL)
+				{
+					if(equals(node->getNodeName(),"X509PKCS12"))
+					{
+						UINT32 strLen=4096;
+						UINT8* tmpStr=new UINT8[strLen];
+						if(getDOMElementValue(node,tmpStr,&strLen)!=E_SUCCESS)
 						{
-							if(equals(node->getNodeName(),"X509PKCS12"))
-								{
-									UINT32 strLen=4096;
-									UINT8* tmpStr=new UINT8[strLen];
-									if(getDOMElementValue(node,tmpStr,&strLen)!=E_SUCCESS)
-										{
-											delete[] tmpStr;
-											tmpStr = NULL;
-											return E_UNKNOWN;
-										}
-									UINT32 decLen=4096;
-									UINT8* decBuff=new UINT8[decLen];
-									CABase64::decode((UINT8*)tmpStr,strLen,decBuff,&decLen);
-									delete [] tmpStr;
-									tmpStr = NULL;
-									SINT32 ret=setSignKey(decBuff,decLen,SIGKEY_PKCS12,passwd);
-									delete[] decBuff;
-									decBuff = NULL;
-									return ret;
-								}
-							node=node->getNextSibling();
+							delete[] tmpStr;
+							tmpStr = NULL;
+							return E_UNKNOWN;
 						}
-			}
+						UINT32 decLen=4096;
+						UINT8* decBuff=new UINT8[decLen];
+						CABase64::decode((UINT8*)tmpStr,strLen,decBuff,&decLen);
+						delete [] tmpStr;
+						tmpStr = NULL;
+						SINT32 ret=setSignKey(decBuff,decLen,SIGKEY_PKCS12,passwd);
+						delete[] decBuff;
+						decBuff = NULL;
+						return ret;
+					}
+					node=node->getNextSibling();
+				}
+		}
 		return E_UNKNOWN;
 	}
 

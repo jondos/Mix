@@ -661,7 +661,6 @@ SINT32 setDOMElementValue(DOMElement* pElem,const UINT8* value)
 							n->release();
 							n = NULL;
 						}
-						//delete n;
 					}
 				pChild=pChild->getNextSibling();
 			}
@@ -1084,19 +1083,19 @@ SINT32 decryptXMLElement(DOMNode* node, CAASymCipher* pRSA)
 		UINT8* cipherValue=new UINT8[1000];
 		UINT32 len=1000;
 		if(getDOMElementValue(elemCipherValue,cipherValue,&len)!=E_SUCCESS)
-			{
-				delete[] cipherValue;
-				cipherValue = NULL;
-				return E_UNKNOWN;
-			}
+		{
+			delete[] cipherValue;
+			cipherValue = NULL;
+			return E_UNKNOWN;
+		}
 		CABase64::decode(cipherValue,len,cipherValue,&len);
 		if(	pRSA->decryptOAEP(cipherValue,cipherValue,&len)!=E_SUCCESS||
 				len!=32)
-			{
-				delete[] cipherValue;
-				cipherValue = NULL;
-				return E_UNKNOWN;
-			}
+		{
+			delete[] cipherValue;
+			cipherValue = NULL;
+			return E_UNKNOWN;
+		}
 		CASymCipher *pSymCipher=new CASymCipher();
 		pSymCipher->setKey(cipherValue,false);
 		pSymCipher->setIVs(cipherValue+16);

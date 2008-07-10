@@ -388,11 +388,8 @@ SINT32 CAInfoService::setSignature(CASignature* pSig, CACertificate* pOwnCert,
 								CACertificate** a_opCerts, UINT32 a_opCertsLength)
 	{
 		m_pSignature=pSig;
-		if(m_pcertstoreOwnCerts!=NULL)
-		{
-			delete m_pcertstoreOwnCerts;
-		}
-		m_pcertstoreOwnCerts=NULL;
+		
+		delete m_pcertstoreOwnCerts;
 		m_pcertstoreOwnCerts=new CACertStore();
 
 		if (a_opCerts != NULL && a_opCertsLength > 0)

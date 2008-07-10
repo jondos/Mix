@@ -430,6 +430,8 @@ SINT32 CAMix::signXML(DOMNode* a_element)
 				return E_UNKNOWN;
 			}
     delete ownCert;
+    ownCert = NULL;
+    
 	for(UINT32 i=0;i<opCertsLength;i++)
 	{
 		delete opCert[i];

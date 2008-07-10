@@ -1049,17 +1049,18 @@ SINT32 CAMiddleMix::clean()
 		m_pReplayMsgProc=NULL;
 #endif
 		if(m_pMuxIn!=NULL)
-			{
-				m_pMuxIn->close();
-				delete m_pMuxIn;
-			}
-		m_pMuxIn=NULL;
+		{
+			m_pMuxIn->close();
+			delete m_pMuxIn;
+			m_pMuxIn=NULL;
+		}
+		
 		if(m_pMuxOut!=NULL)
-			{
-				m_pMuxOut->close();
-				delete m_pMuxOut;
-			}
-		m_pMuxOut=NULL;
+		{
+			m_pMuxOut->close();
+			delete m_pMuxOut;
+			m_pMuxOut=NULL;
+		}
 		
 		delete m_pRSA;
 		m_pRSA=NULL;

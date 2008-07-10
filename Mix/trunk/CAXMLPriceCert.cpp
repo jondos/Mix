@@ -44,12 +44,15 @@ CAXMLPriceCert::CAXMLPriceCert()
 
 CAXMLPriceCert::~CAXMLPriceCert()
 	{
-		if (m_StrSubjectKeyIdentifier != NULL) 
-			delete[] m_StrSubjectKeyIdentifier;
-		if (m_StrSignatureTime != NULL) 
-			delete[] m_StrSignatureTime;
-		if (m_StrBiID != NULL) 
-			delete[] m_StrBiID;
+		delete[] m_StrSubjectKeyIdentifier;
+		m_StrSubjectKeyIdentifier = NULL;
+		
+		delete[] m_StrSignatureTime;
+		m_StrSignatureTime = NULL;
+		
+		delete[] m_StrBiID;
+		m_StrBiID = NULL;
+		
 		if(m_domDocument != NULL)
 		{
 			//CAMsg::printMsg(LOG_DEBUG, "cleaning up internal PriceCert document 0x%x.\n",
