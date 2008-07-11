@@ -44,6 +44,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define _DEBUG
 #endif
 
+#define MULTI_CERT
 //#define LOG_TRAFFIC_PER_USER //Log detail for traffic per user
 //#define LOG_CHANNEL //Log detail for traffic per cahnnel
 //#define LOG_PACKET_TIMES //computes statistics about the processing time each packet needs
@@ -62,7 +63,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define DYNAMIC_MIX
 //#define SDTFA // specific logic needed by SDTFA, http://www.sdtfa.com
 
-//#define LASTMIX_CHECK_MEMORY // only for internal debugging purpose 
+//#define LASTMIX_CHECK_MEMORY // only for internal debugging purpose
 
 //#define PRINT_THREAD_STACK_TRACE //Usefull for debugging output of stack trace if mix dies...
 #if !defined(PRINT_THREAD_STACK_TRACE) && defined (DEBUG)&& ! defined(ONLY_LOCAL_PROXY)
@@ -212,7 +213,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	//For Visual C++    #if defined(_MSC_VER)
 	//For Borland C++    #if defined(__BCPLUSPLUS__)
 	#define _CRT_SECURE_NO_DEPRECATE
-	#define _CRT_SECURE_NO_WARNINGS    
+	#define _CRT_SECURE_NO_WARNINGS
 	#if _MSC_VER > 1000
 		#pragma once
 	#endif // _MSC_VER > 1000
@@ -341,7 +342,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include <memory.h>
 	#include <sys/resource.h>
 	#include <sys/wait.h>
-	#include <termios.h> 
+	#include <termios.h>
 
 	#include <ctype.h>
     typedef struct sockaddr SOCKADDR;
