@@ -1798,18 +1798,21 @@ SINT32 CAFirstMix::clean()
 					{
 						CAMuxSocket * pMuxSocket=pHashEntry->pMuxSocket;
 						delete pHashEntry->pQueueSend;
-						delete pHashEntry->pSymCipher; 
+						pHashEntry->pQueueSend = NULL;
+						delete pHashEntry->pSymCipher;
+						pHashEntry->pSymCipher = NULL;
 
 						fmChannelListEntry* pEntry=m_pChannelList->getFirstChannelForSocket(pHashEntry->pMuxSocket);
 						while(pEntry!=NULL)
 							{
 								delete pEntry->pCipher;
-			
+								pEntry->pCipher = NULL;
 								pEntry=m_pChannelList->getNextChannel(pEntry);
 							}
 						m_pChannelList->remove(pHashEntry->pMuxSocket);
 						pMuxSocket->close();
 						delete pMuxSocket;
+						pMuxSocket = NULL;
 						pHashEntry=m_pChannelList->getNext();
 					}
 			}
