@@ -44,7 +44,7 @@ extern CACmdLnOptions* pglobalOptions;
 		 * 2. close connections
 		 * 3. close sockets
 		 */
-SINT32 CAFirstMixA::clean()
+/*SINT32 CAFirstMixA::clean()
 	{
 		#ifdef _DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"CAFirstMixA::clean() start\n");
@@ -53,7 +53,7 @@ SINT32 CAFirstMixA::clean()
 		m_bRestart=true;
 		MONITORING_FIRE_NET_EVENT(ev_net_nextConnectionClosed);
 		
-		/*1. stop threads */
+		
 		if(m_pthreadAcceptUsers!=NULL)
 		{
 			CAMsg::printMsg(LOG_CRIT,"Wait for LoopAcceptUsers!\n");
@@ -92,7 +92,7 @@ SINT32 CAFirstMixA::clean()
 		}
 		m_pthreadReadFromMix=NULL;
 		
-		/* 2. close connections*/
+		
 #ifdef PAYMENT
 			UINT32 connectionsClosed = 0;
 			fmHashTableEntry* timeoutHashEntry;
@@ -114,7 +114,7 @@ SINT32 CAFirstMixA::clean()
 				CAMsg::printMsg(LOG_DEBUG,"Closed %i client connections.\n", connectionsClosed);
 			}
 #endif
-		/* 3. close sockets*/
+		
 		if(m_pMuxOut!=NULL)
 			{
 				m_pMuxOut->close();
@@ -125,7 +125,7 @@ SINT32 CAFirstMixA::clean()
 					m_arrSocketsIn[i].close();
 			}
 		
-		/**/
+		
 
 		
 		
@@ -268,16 +268,13 @@ SINT32 CAFirstMixA::clean()
 		CAMsg::printMsg(LOG_DEBUG,"CAFirstMixA::clean() finished\n");
 #endif
 		return E_SUCCESS;
-	}
+	}*/
 
 void CAFirstMixA::shutDown()
 {
 	m_bIsShuttingDown = true;
-	clean();
-	m_bIsShuttingDown = false;
-	//m_bRestart = true;
-}
-/*#ifdef PAYMENT
+
+#ifdef PAYMENT
 	UINT32 connectionsClosed = 0;
 	fmHashTableEntry* timeoutHashEntry;
 	
@@ -300,7 +297,8 @@ void CAFirstMixA::shutDown()
 #endif
 	m_bRestart = true;
 	m_bIsShuttingDown = false;
-}*/
+}
+
 
 
 SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
