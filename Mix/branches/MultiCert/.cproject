@@ -154,7 +154,6 @@
 <storageModule moduleId="org.eclipse.cdt.core.language.mapping"/>
 
 <storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
-
 <storageModule moduleId="org.eclipse.cdt.make.core.buildtargets">
 <buildTargets>
 <target name="all" path="nagios_plugin" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
@@ -163,15 +162,13 @@
 <buildTarget>all</buildTarget>
 <stopOnError>false</stopOnError>
 <useDefaultCommand>true</useDefaultCommand>
-<runAllBuilders>true</runAllBuilders>
 </target>
 <target name="all" path="" targetID="org.eclipse.cdt.make.MakeTargetBuilder">
 <buildCommand>nmake</buildCommand>
 <buildArguments>/f Makefile.old</buildArguments>
 <buildTarget>all</buildTarget>
-<stopOnError>true</stopOnError>
+<stopOnError>false</stopOnError>
 <useDefaultCommand>true</useDefaultCommand>
-<runAllBuilders>true</runAllBuilders>
 </target>
 </buildTargets>
 </storageModule>

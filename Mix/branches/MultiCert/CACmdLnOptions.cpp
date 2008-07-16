@@ -1,28 +1,28 @@
 /*
-Copyright (c) 2000, The JAP-Team
+Copyright (c) 2000, The JAP-Team 
 All rights reserved.
-Redistribution and use in source and binary forms, with or without modification,
+Redistribution and use in source and binary forms, with or without modification, 
 are permitted provided that the following conditions are met:
 
-	- Redistributions of source code must retain the above copyright notice,
+	- Redistributions of source code must retain the above copyright notice, 
 	  this list of conditions and the following disclaimer.
 
-	- Redistributions in binary form must reproduce the above copyright notice,
-	  this list of conditions and the following disclaimer in the documentation and/or
+	- Redistributions in binary form must reproduce the above copyright notice, 
+	  this list of conditions and the following disclaimer in the documentation and/or 
 		other materials provided with the distribution.
 
-	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors
-	  may be used to endorse or promote products derived from this software without specific
-		prior written permission.
+	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors 
+	  may be used to endorse or promote products derived from this software without specific 
+		prior written permission. 
 
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS
-OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
+	
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS 
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
 AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
-OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 
@@ -132,8 +132,12 @@ SINT32 CACmdLnOptions::clearTargetInterfaces()
 		if(m_arTargetInterfaces!=NULL)
 			{
 				for(UINT32 i=0;i<m_cnTargets;i++)
+				{
 					delete m_arTargetInterfaces[i].addr;
+					m_arTargetInterfaces[i].addr = NULL;
+				}
 				delete[] m_arTargetInterfaces;
+				m_arTargetInterfaces = NULL;
 			}
 		m_cnTargets=0;
 		m_arTargetInterfaces=NULL;
@@ -147,9 +151,10 @@ SINT32 CACmdLnOptions::clearListenerInterfaces()
 		if(m_arListenerInterfaces!=NULL)
 			{
 				for(UINT32 i=0;i<m_cnListenerInterfaces;i++)
-					{
-						delete m_arListenerInterfaces[i];
-					}
+				{
+					delete m_arListenerInterfaces[i];
+					m_arListenerInterfaces[i] = NULL;
+				}
 				delete[] m_arListenerInterfaces;
 			}
 		m_cnListenerInterfaces=0;
@@ -163,11 +168,14 @@ SINT32 CACmdLnOptions::clearListenerInterfaces()
 SINT32 CACmdLnOptions::clearVisibleAddresses()
 	{
 		if(m_arStrVisibleAddresses!=NULL)
+		{
+			for(UINT32 i=0;i<m_cnVisibleAddresses;i++)
 			{
-				for(UINT32 i=0;i<m_cnVisibleAddresses;i++)
-					delete[] m_arStrVisibleAddresses[i];
-				delete[] m_arStrVisibleAddresses;
+				delete[] m_arStrVisibleAddresses[i];
+				m_arStrVisibleAddresses[i] = NULL;
 			}
+			delete[] m_arStrVisibleAddresses;
+		}
 		m_cnVisibleAddresses=0;
 		m_arStrVisibleAddresses=NULL;
 		return E_SUCCESS;
@@ -213,15 +221,16 @@ SINT32 CACmdLnOptions::addVisibleAddresses(DOMNode* nodeProxy)
 											{
 												memcpy(tmpAr,m_arStrVisibleAddresses,m_cnVisibleAddresses*sizeof(UINT8*));
 												delete[] m_arStrVisibleAddresses;
+												m_arStrVisibleAddresses = NULL;
 											}
 										tmpAr[m_cnVisibleAddresses]=new UINT8[len+1];
 										memcpy(tmpAr[m_cnVisibleAddresses],tmp,len+1);
 										m_cnVisibleAddresses++;
-										m_arStrVisibleAddresses=tmpAr;
+										m_arStrVisibleAddresses=tmpAr;	
 									}
 							}
 					}
-				elemVisAddress=elemVisAddress->getNextSibling();
+				elemVisAddress=elemVisAddress->getNextSibling();	
 			}
 		return E_SUCCESS;
 	}
@@ -237,70 +246,72 @@ SINT32 CACmdLnOptions::getVisibleAddress(UINT8* strAddressBuff, UINT32 len,UINT3
 				return E_SPACE;
 			}
 		strcpy((char*)strAddressBuff,(char*)m_arStrVisibleAddresses[nr-1]);
-		return E_SUCCESS;
+		return E_SUCCESS;	
 	}
 #endif //ONLY_LOCAL_PROXY
 
 /** Deletes all resssource allocated by objects of this class EXPECT the locks necessary to controll access to the properties of this class*/
 void CACmdLnOptions::clean()
   {
-		if(m_strConfigFile!=NULL)
-			{
-				delete[] m_strConfigFile;
-				m_strConfigFile=NULL;
-			}
-		if(m_strTargetHost!=NULL)
-			{
-				delete[] m_strTargetHost;
-	    }
+		delete[] m_strConfigFile;
+		m_strConfigFile=NULL;
+		
+
+		delete[] m_strTargetHost;
 		m_strTargetHost=NULL;
-		if(m_strSOCKSHost!=NULL)
-			{
-				delete[] m_strSOCKSHost;
-	    }
+	    
+		delete[] m_strSOCKSHost;
 		m_strSOCKSHost=NULL;
+		
 #ifndef ONLY_LOCAL_PROXY
 		if (m_addrInfoServices != NULL)
 			{
 	    	for (UINT32 i = 0; i < m_addrInfoServicesSize; i++)
-	    		{
-	    			delete m_addrInfoServices[i];
-	    		}
+    		{
+    			delete m_addrInfoServices[i];
+    			m_addrInfoServices[i] = NULL;
+    		}
 	    	delete[] m_addrInfoServices;
-				m_addrInfoServices=NULL;
+			m_addrInfoServices=NULL;
 	    	m_addrInfoServicesSize = 0;
 	    }
 #endif //ONLY_LOCAL_PROXY
 
-		if(m_strCascadeName!=NULL)
-			delete[] m_strCascadeName;
+
+		delete[] m_strCascadeName;
 		m_strCascadeName=NULL;
-		if(m_strLogDir!=NULL)
-			delete[] m_strLogDir;
+		
+
+		delete[] m_strLogDir;
 		m_strLogDir=NULL;
-		if(m_strPidFile!=NULL)
-			delete[] m_strPidFile;
+		
+	
+		delete[] m_strPidFile;
 		m_strPidFile=NULL;
-		if(m_strEncryptedLogDir!=NULL)
-			delete[] m_strEncryptedLogDir;
+		
+	
+		delete[] m_strEncryptedLogDir;
 		m_strEncryptedLogDir=NULL;
-		if(m_strUser!=NULL)
-			delete[] m_strUser;
+		
+	
+		delete[] m_strUser;
 		m_strUser=NULL;
-		if(m_strMixID!=NULL)
-			delete[] m_strMixID;
+		
+	
+		delete[] m_strMixID;
 		m_strMixID=NULL;
+		
 		clearTargetInterfaces();
 		clearListenerInterfaces();
 #ifndef ONLY_LOCAL_PROXY
 		if(m_docMixInfo!=NULL)
 			m_docMixInfo=NULL;
 		clearVisibleAddresses();
-		if(m_pSignKey!=NULL)
-			delete m_pSignKey;
+
+		delete m_pSignKey;
 		m_pSignKey=NULL;
-		if(m_pOwnCertificate!=NULL)
-			delete m_pOwnCertificate;
+		
+		delete m_pOwnCertificate;
 		m_pOwnCertificate=NULL;
 		// deleting whole array and array elements
 		if (m_OpCerts != NULL)
@@ -310,31 +321,41 @@ void CACmdLnOptions::clean()
 				for (UINT32 i = 0; i < m_OpCertsLength; i++)
 				{
 					delete m_OpCerts[i];
+					m_OpCerts[i] = NULL;
 				}
 			}
 			delete[] m_OpCerts;
 		}
 		m_OpCerts=NULL;
-		if(m_pNextMixCertificate!=NULL)
-			delete m_pNextMixCertificate;
+		
+		delete m_pNextMixCertificate;
 		m_pNextMixCertificate=NULL;
-		if(m_pPrevMixCertificate!=NULL)
-			delete m_pPrevMixCertificate;
+		
+		delete m_pPrevMixCertificate;
 		m_pPrevMixCertificate=NULL;
-		if(m_pLogEncryptionCertificate!=NULL)
-			delete m_pLogEncryptionCertificate;
+		
+		delete m_pLogEncryptionCertificate;
 		m_pLogEncryptionCertificate=NULL;
+		
 		if(m_docMixInfo!=NULL)
+		{
 			m_docMixInfo->release();
-		m_docMixInfo=NULL;
+			m_docMixInfo=NULL;
+		}
+		
 		if(m_docMixXml!=NULL)
+		{
 			m_docMixXml->release();
-		m_docMixXml=NULL;
+			m_docMixXml=NULL;
+		}
 
 #ifdef COUNTRY_STATS
 		delete[] m_dbCountryStatsHost;
+		m_dbCountryStatsHost = NULL;
 		delete[] m_dbCountryStatsUser;
+		m_dbCountryStatsUser = NULL;
 		delete[] m_dbCountryStatsPasswd;
+		m_dbCountryStatsPasswd = NULL;
 #endif
 
 #endif //ONLY_LOCAL_PROXY
@@ -342,12 +363,14 @@ void CACmdLnOptions::clean()
 		if(m_strMonitoringListenerHost != NULL)
 		{
 			delete[] m_strMonitoringListenerHost;
+			m_strMonitoringListenerHost = NULL;
 		}
 #endif
 #ifdef PERFORMANCE_SERVER
 		if(m_strPerformanceServerListenerHost != NULL)
 		{
 			delete[] m_strPerformanceServerListenerHost;
+			m_strPerformanceServerListenerHost = NULL;
 		}
 #endif
 }
@@ -568,6 +591,7 @@ SINT32 CACmdLnOptions::parse(int argc,const char** argv)
 						}
 						m_arListenerInterfaces[0]=CAListenerInterface::getInstance(RAW_TCP,(UINT8*)strServerHost,(UINT16)iServerPort);
 					delete [] strServerHost;
+					strServerHost = NULL;
 				}
 			free(serverPort);
 			if(m_arListenerInterfaces[0]!=0)
@@ -589,7 +613,7 @@ SINT32 CACmdLnOptions::parse(int argc,const char** argv)
     {
         createDefaultConfiguration();
         ret=processXmlConfiguration(m_docMixXml);
-        if(ret!=E_SUCCESS)
+        if(ret!=E_SUCCESS) 
             return ret;
     }
                 }
@@ -662,13 +686,13 @@ SINT32 CACmdLnOptions::setNewValues(CACmdLnOptions& newOptions)
 				for(UINT32 i=0;i<m_cnTargets;i++)
 					newOptions.getTargetInterface(m_arTargetInterfaces[i],i+1);
 			}
-#if defined( DELAY_CHANNELS)||defined(DELAY_USERS)
+#if defined( DELAY_CHANNELS)||defined(DELAY_USERS)			
 		//Copy ressources limitation
 		m_u32DelayChannelUnlimitTraffic=newOptions.getDelayChannelUnlimitTraffic();
 		m_u32DelayChannelBucketGrow=newOptions.getDelayChannelBucketGrow();
 		m_u32DelayChannelBucketGrowIntervall=newOptions.getDelayChannelBucketGrowIntervall();
-#endif
-#if defined( DELAY_CHANNELS_LATENCY)
+#endif			
+#if defined( DELAY_CHANNELS_LATENCY)			
 		//Copy ressources limitation
 		m_u32DelayChannelLatency=newOptions.getDelayChannelLatency();
 #endif
@@ -892,10 +916,12 @@ SINT32 CACmdLnOptions::setNextMix(DOM_Document& doc)
 			m_arTargetInterfaces[m_cnTargets].target_type=targetInterfaceNextMix->target_type;
 			m_arTargetInterfaces[m_cnTargets++].addr=targetInterfaceNextMix->addr;
 			delete targetInterfaceNextMix;
+			targetInterfaceNextMix = NULL;
 		}
 
 	SKIP_NEXT_MIX:
 			delete addr;
+			addr = NULL;
 }
 
 	CAMsg::printMsg(LOG_DEBUG,"setNextMix() - end\n");
@@ -916,7 +942,7 @@ SINT32 CACmdLnOptions::setPrevMix(XERCES_CPP_NAMESPACE::DOMDocument* doc)
 {
 		CAMsg::printMsg(LOG_DEBUG,"setPrevMix() - start\n");
 		DOMElement* elemRoot = doc->getDocumentElement();
-
+    
     //getCertificates if given...
     DOMElement* elemSig;
     getDOMChildByName(elemRoot,"Signature",elemSig,false);
@@ -940,13 +966,13 @@ SINT32 CACmdLnOptions::setPrevMix(XERCES_CPP_NAMESPACE::DOMDocument* doc)
             elemOptionsCerts->appendChild(elemOptionsPrevMixCert);
   					CAMsg::printMsg(LOG_DEBUG,"setPrevMix() - try to import the one we got from infoservice\n");
 						getDOMChildByName(elemCert,"X509Certificate",elemCert,false);
-
+						
 						CAMsg::printMsg(LOG_DEBUG,"setPrevMix() - Cert to be imported:\n");
 						UINT8 buff[8192];
 						UINT32 len=8192;
 						DOM_Output::dumpToMem(elemCert,buff,&len);
 						CAMsg::printMsg(LOG_DEBUG,(char*)buff);
-
+						
 						elemOptionsPrevMixCert->appendChild(m_docMixXml->importNode(elemCert,true));
 						CAMsg::printMsg(LOG_DEBUG,"setPrevMix() - MixConf now:\n");
 						len=8192;
@@ -1017,7 +1043,7 @@ SINT32 CACmdLnOptions::resetNextMix()
 	}
 	if(getDOMChildByName(elemOptionsCerts, (UINT8*) "PrevOperatorCertificate", elemTmp, false) == E_SUCCESS)
 	{
-
+		
 		elemOptionsCerts.removeChild(elemTmp);
 	}
 	clearTargetInterfaces();
@@ -1038,12 +1064,12 @@ SINT32 CACmdLnOptions::resetPrevMix()
 	// Remove existing certificates
 	if(getDOMChildByName(elemOptionsCerts, (UINT8*) "NextMixCertificate", elemTmp, false) == E_SUCCESS)
 	{
-
+		
 		elemOptionsCerts.removeChild(elemTmp);
 	}
 	if(getDOMChildByName(elemOptionsCerts, (UINT8*) "NextOperatorCertificate", elemTmp, false) == E_SUCCESS)
 	{
-
+		
 		elemOptionsCerts.removeChild(elemTmp);
 	}
 	return E_SUCCESS;
@@ -1165,7 +1191,7 @@ SINT32 CACmdLnOptions::getSOCKSHost(UINT8* host,UINT32 len)
 #endif //ONLY_LOCAL_PROXY
 
 #ifdef PAYMENT
-/**Returns an CAXMLBI object, which describes the BI this AI uses. This is not a copy of the
+/**Returns an CAXMLBI object, which describes the BI this AI uses. This is not a copy of the 
   * CAXMLBI object. The caller should not delete it!
 	* @retval NULL if BI was not set in the configuration file
 	* @return information stored inthe configuration file about the BI
@@ -1184,7 +1210,7 @@ SINT32 CACmdLnOptions::getDatabaseHost(UINT8 * host, UINT32 len)
 				return E_UNKNOWN;
 			}
 		strcpy((char*)host,(char *)m_strDatabaseHost);
-		return E_SUCCESS;
+		return E_SUCCESS;	
 }
 
 UINT16 CACmdLnOptions::getDatabasePort()
@@ -1201,7 +1227,7 @@ SINT32 CACmdLnOptions::getDatabaseName(UINT8 * name, UINT32 len)
 				return E_UNKNOWN;
 			}
 		strcpy((char*)name,(char *)m_strDatabaseName);
-		return E_SUCCESS;
+		return E_SUCCESS;	
 	}
 
 SINT32 CACmdLnOptions::getDatabaseUsername(UINT8 * user, UINT32 len)
@@ -1213,7 +1239,7 @@ SINT32 CACmdLnOptions::getDatabaseUsername(UINT8 * user, UINT32 len)
 				return E_UNKNOWN;
 			}
 		strcpy((char*)user,(char *)m_strDatabaseUser);
-		return E_SUCCESS;
+		return E_SUCCESS;	
 	}
 
 SINT32 CACmdLnOptions::getDatabasePassword(UINT8 * pass, UINT32 len)
@@ -1225,7 +1251,7 @@ SINT32 CACmdLnOptions::getDatabasePassword(UINT8 * pass, UINT32 len)
 				return E_UNKNOWN;
 			}
 		strcpy((char*)pass,(char *)m_strDatabasePassword);
-		return E_SUCCESS;
+		return E_SUCCESS;	
 	}
 
 SINT32 CACmdLnOptions::getAiID(UINT8 * id, UINT32 len)
@@ -1313,13 +1339,14 @@ SINT32 CACmdLnOptions::getLogDir(UINT8* name,UINT32 len)
 SINT32 CACmdLnOptions::setLogDir(const UINT8* name,UINT32 len)
   {
 		if(m_strLogDir!=NULL)
-			{
-				delete[] m_strLogDir;
-			}
+		{
+			delete[] m_strLogDir;
+			m_strLogDir = NULL;
+		}
 		m_strLogDir=new char[len+1];
 		memcpy(m_strLogDir,name,len);
 		m_strLogDir[len]=0;
-		return E_SUCCESS;
+		return E_SUCCESS;	
 	}
 
 SINT32 CACmdLnOptions::getPidFile(UINT8* pidfile,UINT32 len)
@@ -1374,7 +1401,7 @@ char *CACmdLnOptions::getMonitoringListenerHost()
 }
 
 UINT16 CACmdLnOptions::getMonitoringListenerPort()
-{
+{	
 	return m_iMonitoringListenerPort;
 }
 #endif /* SERVER_MONITORING */
@@ -1441,6 +1468,7 @@ SINT32 CACmdLnOptions::readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* &
 			return E_FILE_READ;
     SINT32 retVal = readXmlConfiguration(docConfig, tmpChar, len);
     delete[] tmpChar;
+    tmpChar = NULL;
     return retVal;
 }
 
@@ -1482,8 +1510,8 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 
 		UINT8 tmpBuff[255];
 		UINT32 tmpLen=255;
-
-
+		
+		
 		//getMixType
 		DOMElement* elem=NULL;
 		if (getDOMChildByName(elemGeneral,"MixType",elem,false) != E_SUCCESS)
@@ -1559,7 +1587,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 		tmpLen=255;
 		if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS&&memcmp(tmpBuff,"True",4)==0)
 			m_bDaemon=true;
-
+			
 		// get max users
 		DOMElement* elemMaxUsers=NULL;
 		getDOMChildByName(elemGeneral,"MaxUsers",elemMaxUsers,false);
@@ -1570,7 +1598,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				m_maxNrOfUsers = tmp;
 			}
 		}
-
+			
 		//get Logging
 		DOMElement* elemLogging=NULL;
 		getDOMChildByName(elemGeneral,"Logging",elemLogging,false);
@@ -1591,7 +1619,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				{
 					m_bSyslog=true;
 				}
-
+					
 				DOMElement* elemEncLog;
 				//get Encrypted Log Info
 				if(getDOMChildByName(elemLogging,"EncryptedLog",elemEncLog,false)==E_SUCCESS)
@@ -1626,7 +1654,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 			{
 				return E_UNKNOWN;
 			}
-
+		
 		m_pSignKey=new CASignature();
 		UINT8 passwd[500];
 		passwd[0]=0;
@@ -1641,14 +1669,13 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				delete m_pSignKey;
 				m_pSignKey=NULL;
 			}
-		}
+		}		
 		m_pOwnCertificate=CACertificate::decode(elemOwnCert->getFirstChild(),CERT_PKCS12,(char*)passwd);
 		if (m_pOwnCertificate == NULL)
 		{
 			CAMsg::printMsg(LOG_CRIT,"Could not decode mix certificate!\n");
 			return E_UNKNOWN;
 		}
-
 #ifdef MULTI_CERT
 		//MultiCert
 		m_ownCertsLength = 0;
@@ -1701,7 +1728,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 		}
 		strtrim(tmpBuff);
 		m_strMixID=new char[strlen((char*)tmpBuff)+1];
-		strcpy(m_strMixID,(char*) tmpBuff);
+		strcpy(m_strMixID,(char*) tmpBuff);		
 
 #ifdef DYNAMIC_MIX
 			/* LERNGRUPPE: Dynamic Mixes must have a cascade name, as MiddleMixes may be reconfigured to be FirstMixes */
@@ -1720,12 +1747,12 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 			return E_UNKNOWN;
 		}
 		//CAMsg::printMsg(LOG_DEBUG,"Node: %s\n",elemOpCert.getNodeName().transcode());
-
+		
 		m_OpCertsLength = 0;
 		if (elemOpCert != NULL)
 		{
-			DOMNodeList* opCertList = getElementsByTagName(elemOpCert,"X509Certificate");
-			m_OpCerts = new CACertificate*[opCertList->getLength()];
+			DOMNodeList* opCertList = getElementsByTagName(elemOpCert,"X509Certificate");		
+			m_OpCerts = new CACertificate*[opCertList->getLength()];	
 			for (UINT32 i = 0; i < opCertList->getLength(); i++)
 			{
 				m_OpCerts[m_OpCertsLength] = CACertificate::decode(opCertList->item(i),CERT_X509CERTIFICATE);
@@ -1739,9 +1766,9 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				CAMsg::printMsg(LOG_CRIT,"Node \"X509Certificate\" of operator certificate not found!\n");
 				return E_UNKNOWN;
 			}
-		}
-
-
+		}		
+		
+		
 		//nextMixCertificate if given
 		DOMElement* elemNextCert=NULL;
 		getDOMChildByName(elemCertificates,"NextMixCertificate",elemNextCert,false);
@@ -1754,7 +1781,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 			m_pPrevMixCertificate=CACertificate::decode(elemPrevCert->getFirstChild(),CERT_X509CERTIFICATE);
 
 #ifdef PAYMENT
-// Added by Bastian Voigt:
+// Added by Bastian Voigt: 
 // Read PaymentInstance data (JPI Hostname, Port, Publickey) from configfile
 
 		DOMElement* elemAccounting=NULL;
@@ -1763,30 +1790,30 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 			CAMsg::printMsg(LOG_CRIT,"Node \"Accounting\" not found!\n");
 			return E_UNKNOWN;
 		}
-		if(elemAccounting != NULL)
+		if(elemAccounting != NULL) 
 		{
 
 			//get price certificate
 			DOMElement* pcElem=NULL;
-			//function in CAUtil, last param is "deep", needs to be set to include child elems
+			//function in CAUtil, last param is "deep", needs to be set to include child elems				
 			getDOMChildByName(elemAccounting, "PriceCertificate",pcElem, false);
 			if (pcElem == NULL)
 			{
 				CAMsg::printMsg(LOG_CRIT,"Node \"PriceCertificate\" not found!\n");
 				return E_UNKNOWN;
-			} else
+			} else 
 			{
-				m_pPriceCertificate = CAXMLPriceCert::getInstance(pcElem);
+				m_pPriceCertificate = CAXMLPriceCert::getInstance(pcElem); 
 				if (m_pPriceCertificate == NULL) {
 					CAMsg::printMsg(LOG_DEBUG, "PRICECERT PROCESSED, BUT STILL NULL");
 					return E_UNKNOWN;
 				}
-			}
+			}				
 
 			//if (m_bFirstMix)
 			//{
 				CAMsg::printMsg(LOG_DEBUG, "Parsing JPI values.\n");
-
+	
 				DOMElement* elemJPI=NULL;
 				getDOMChildByName(elemAccounting, CAXMLBI::getXMLElementName(), elemJPI, false);
 				m_pBI = CAXMLBI::getInstance(elemJPI);
@@ -1816,7 +1843,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				if (getDOMChildByName(elemAccounting,"PrepaidInterval", elem, false) != E_SUCCESS)
 				{
 					CAMsg::printMsg(LOG_CRIT,"Node \"PrepaidInterval\" not found!\n");
-
+					
 					if (getDOMChildByName(elemAccounting,"PrepaidIntervalKbytes", elem, false) != E_SUCCESS)
 					{
 						CAMsg::printMsg(LOG_CRIT,"Node \"PrepaidIntervalKbytes\" not found!\n");
@@ -1829,14 +1856,14 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 						}
 					}
 				}
-				else if(getDOMElementValue(elem, &tmp) == E_SUCCESS)
+				else if(getDOMElementValue(elem, &tmp) == E_SUCCESS)	
 				{
 					m_iPrepaidInterval = tmp;
 				}
-				else
+				else 
 				{
 					CAMsg::printMsg(LOG_CRIT,"Node \"PrepaidInterval\" is empty! Setting default...\n");
-					m_iPrepaidInterval = 3000000; //3 MB as safe default if not explicitly set in config file
+					m_iPrepaidInterval = 3000000; //3 MB as safe default if not explicitly set in config file	
 				}
 				if (m_iPrepaidInterval > 3000000)
 				{
@@ -1861,12 +1888,12 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 					return E_UNKNOWN;
 				}
 			//}
-
+			
 			CAMsg::printMsg(LOG_DEBUG, "Parsing AI values.\n");
-
+				
 			// get AiID (NOT a separate element /Accounting/AiID any more, rather the subjectkeyidentifier given in the price certificate
 			m_strAiID = m_pPriceCertificate->getSubjectKeyIdentifier();
-
+				
 			if (m_bFirstMix)
 			{
 				DOMElement* elemDatabase=NULL;
@@ -1874,8 +1901,8 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				{
 					CAMsg::printMsg(LOG_CRIT,"Node \"Database\" not found!\n");
 					return E_UNKNOWN;
-				}
-				else //if(elemDatabase != NULL)
+				}								
+				else //if(elemDatabase != NULL) 
 				{
 					// get DB Hostname
 					if (getDOMChildByName(elemDatabase,"Host", elem, false) != E_SUCCESS)
@@ -1884,7 +1911,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 						return E_UNKNOWN;
 					}
 					tmpLen = 255;
-					if(getDOMElementValue(elem, tmpBuff, &tmpLen)==E_SUCCESS)
+					if(getDOMElementValue(elem, tmpBuff, &tmpLen)==E_SUCCESS) 
 					{
 						strtrim(tmpBuff);
 						m_strDatabaseHost = new UINT8[strlen((char*)tmpBuff)+1];
@@ -1901,7 +1928,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 						CAMsg::printMsg(LOG_CRIT,"Node \"Port\" not found!\n");
 						return E_UNKNOWN;
 					}
-					if(getDOMElementValue(elem, &tmp)==E_SUCCESS)
+					if(getDOMElementValue(elem, &tmp)==E_SUCCESS) 
 					{
 						m_iDatabasePort = tmp;
 					}
@@ -1917,7 +1944,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 						return E_UNKNOWN;
 					}
 					tmpLen = 255;
-					if(getDOMElementValue(elem, tmpBuff, &tmpLen)==E_SUCCESS)
+					if(getDOMElementValue(elem, tmpBuff, &tmpLen)==E_SUCCESS) 
 					{
 						strtrim(tmpBuff);
 						m_strDatabaseName = new UINT8[strlen((char*)tmpBuff)+1];
@@ -1935,7 +1962,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 						return E_UNKNOWN;
 					}
 					tmpLen = 255;
-					if(getDOMElementValue(elem, tmpBuff, &tmpLen)==E_SUCCESS)
+					if(getDOMElementValue(elem, tmpBuff, &tmpLen)==E_SUCCESS) 
 					{
 						strtrim(tmpBuff);
 						m_strDatabaseUser = new UINT8[strlen((char*)tmpBuff)+1];
@@ -1946,8 +1973,8 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 						CAMsg::printMsg(LOG_CRIT,"Node \"Username\" is empty!\n");
 						return E_UNKNOWN;
 					}
-
-					//get DB password from xml
+							
+					//get DB password from xml 	
 					getDOMChildByName(elemDatabase, "Password", elem, false);
 					tmpLen = 255;
 					//read password from xml if given
@@ -1957,14 +1984,14 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 						strcpy((char *)m_strDatabasePassword, (char *) tmpBuff);
 					}
 					else
-					{
+					{      
 				        //read password from stdin:
 						UINT8 dbpass[500];
 						dbpass[0]=0;
 						printf("Please enter password for postgresql user %s at %s: ",m_strDatabaseUser, m_strDatabaseHost);
-						scanf("%400[^\n]%*1[\n]",(char*)dbpass);
+						scanf("%400[^\n]%*1[\n]",(char*)dbpass); 
 						int len = strlen((char *)dbpass);
-						if(len>0)
+						if(len>0) 
 						{
 							m_strDatabasePassword = new UINT8[len+1];
 							strcpy((char *)m_strDatabasePassword, (char *)dbpass);
@@ -1973,15 +2000,15 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 						{
 							m_strDatabasePassword = new UINT8[1];
 							m_strDatabasePassword[0] = '\0';
-						}
+						}	
 					}
-
+							
 				} //of elem database
 			}
-
+			
 			CAMsg::printMsg(LOG_DEBUG, "Accounting values parsed OK.\n");
 		} //of elem accounting
-		else
+		else 
 		{
 			CAMsg::printMsg(LOG_CRIT, "No accounting instance info found in configfile. Payment will not work!\n");
 			return E_UNKNOWN;
@@ -1994,7 +2021,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 		DOMElement* elemNetwork=NULL;
 		if (getDOMChildByName(elemRoot,"Network",elemNetwork,false) != E_SUCCESS)
 		{
-			CAMsg::printMsg(LOG_CRIT,"Node \"Network\" not found!\n");
+			CAMsg::printMsg(LOG_CRIT,"Node \"Network\" not found!\n");				
 			return E_UNKNOWN;
 		}
 		DOMElement* elemInfoServiceContainer=NULL;
@@ -2006,16 +2033,16 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 			DOMElement* elemAllowReconfig=NULL;
 			if (getDOMChildByName(elemNetwork,"InfoService",elemInfoService,false) != E_SUCCESS)
 			{
-				CAMsg::printMsg(LOG_CRIT,"Node \"InfoService\" not found!\n");
+				CAMsg::printMsg(LOG_CRIT,"Node \"InfoService\" not found!\n");				
 			}
 			/* LERNGRUPPE: There might not be any InfoService configuration in the file, but in infoservices.xml, so check this */
 			if(elemInfoService != NULL)
-			{
+			{ 
 				getDOMChildByName(elemInfoService,"AllowAutoConfiguration",elemAllowReconfig,false);
 				CAListenerInterface* isListenerInterface = CAListenerInterface::getInstance(elemInfoService);
 				if (!isListenerInterface)
 				{
-					CAMsg::printMsg(LOG_CRIT,"Node \"InfoService\" does not contain valid data!\n");
+					CAMsg::printMsg(LOG_CRIT,"Node \"InfoService\" does not contain valid data!\n");				
 				}
 				else
 				{
@@ -2034,7 +2061,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				// Refactored
 				parseInfoServices(elemInfoServiceContainer);
 	    }
-
+		 
 		//get ListenerInterfaces
 		DOMElement* elemListenerInterfaces=NULL;
 		getDOMChildByName(elemNetwork,CAListenerInterface::XML_ELEMENT_CONTAINER_NAME,elemListenerInterfaces,false);
@@ -2138,16 +2165,17 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				m_cnTargets=1;
 SKIP_NEXT_MIX:
 				delete addr;
+				addr = NULL;
 			}
 
 #ifdef SERVER_MONITORING
 		DOMElement* elemServerMonitoringRoot = NULL;
 		DOMElement* elemServerMonitoringHost = NULL;
 		DOMElement* elemServerMonitoringPort = NULL;
-
+		
 		m_strMonitoringListenerHost = NULL;
 		m_iMonitoringListenerPort = 0xFFFF;
-
+		
 		if (getDOMChildByName(elemNetwork,"ServerMonitoring",elemServerMonitoringRoot,false) == E_SUCCESS)
 		{
 			if(getDOMChildByName(elemServerMonitoringRoot,
@@ -2155,20 +2183,20 @@ SKIP_NEXT_MIX:
 								elemServerMonitoringHost,
 								false) == E_SUCCESS)
 			{
-
+				
 				char buffHost[255];
 				UINT32 buffHostLen=255;
 				memset(buffHost, 0, sizeof(char)*buffHostLen);
 				if(getDOMElementValue(elemServerMonitoringHost,
 									  (UINT8 *)buffHost,&buffHostLen)==E_SUCCESS)
 				{
-
+					
 					m_strMonitoringListenerHost = new char[buffHostLen+1];
 					strncpy(m_strMonitoringListenerHost, (const char*) buffHost, buffHostLen);
 					m_strMonitoringListenerHost[buffHostLen] = 0;
-
+					
 				}
-
+				
 			}
 			if(getDOMChildByName(elemServerMonitoringRoot,
 								"Port",
@@ -2178,7 +2206,7 @@ SKIP_NEXT_MIX:
 				UINT16 port = 0xFFFF;
 				if(getDOMElementValue(elemServerMonitoringPort,&port)==E_SUCCESS)
 				{
-					m_iMonitoringListenerPort = port;
+					m_iMonitoringListenerPort = port;		
 				}
 			}
 		}
@@ -2190,13 +2218,13 @@ SKIP_NEXT_MIX:
 #ifdef PERFORMANCE_SERVER
 		m_strPerformanceServerListenerHost = NULL;
 		m_iPerformanceServerListenerPort = 7777;
-
+		
 		if(isLastMix())
 		{
 			DOMElement* elemPerformanceServerRoot = NULL;
 			DOMElement* elemPerformanceServerHost = NULL;
 			DOMElement* elemPerformanceServerPort = NULL;
-
+		
 			if (getDOMChildByName(elemNetwork,"PerformanceServer",elemPerformanceServerRoot,false) == E_SUCCESS)
 			{
 				if(getDOMChildByName(elemPerformanceServerRoot,
@@ -2215,7 +2243,7 @@ SKIP_NEXT_MIX:
 						m_strPerformanceServerListenerHost[buffHostLen] = 0;
 					}
 				}
-
+				
 				if(getDOMChildByName(elemPerformanceServerRoot,
 							"Port",
 							elemPerformanceServerPort,
@@ -2232,7 +2260,7 @@ SKIP_NEXT_MIX:
 			{
 				CAMsg::printMsg(LOG_DEBUG, "Performance Server Config not found\n");
 			}
-
+		
 			if(!m_strPerformanceServerListenerHost)
 			{
 				m_strPerformanceServerListenerHost = new UINT8[10];
@@ -2260,8 +2288,8 @@ SKIP_NEXT_MIX:
 						UINT16 port;
 						for(UINT32 i=0;i<nlTargetInterfaces->getLength();i++)
 							{
-								if(addr!=NULL)
-									delete addr;
+								
+								delete addr;
 								addr=NULL;
 								DOMNode* elemTargetInterface=NULL;
 								elemTargetInterface=nlTargetInterfaces->item(i);
@@ -2364,9 +2392,10 @@ SKIP_NEXT_MIX:
 				m_arTargetInterfaces[m_cnTargets].target_type=targetInterfaceNextMix->target_type;
 				m_arTargetInterfaces[m_cnTargets++].addr=targetInterfaceNextMix->addr;
 				delete targetInterfaceNextMix;
+				targetInterfaceNextMix = NULL;
 			}
-
-		//-----------------------------------------------------------------------------
+		
+		//-----------------------------------------------------------------------------	
 		//construct a XML-String, which describes the Mix (send via Infoservice.Helo())
 		m_docMixInfo=createDOMDocument();
 		DOMElement* elemMix=createDOMElement(m_docMixInfo,"Mix");
@@ -2395,15 +2424,15 @@ SKIP_NEXT_MIX:
     if(elem != NULL)
     {
     	elemMix->appendChild(m_docMixInfo->importNode(elem, true));
-    }
-
+    }    
+        
     // LERNGRUPPE: insert dynamic flag
     getDOMChildByName(elemGeneral,"Dynamic",elem,false);
     if(elem != NULL)
     {
     	elemMix->appendChild(m_docMixInfo->importNode(elem, true));
-    }
-
+    }    
+    
 		//Import the Description if given
 		DOMElement* elemMixDescription=NULL;
 		getDOMChildByName(elemRoot,"Description",elemMixDescription,false);
@@ -2452,14 +2481,14 @@ SKIP_NEXT_MIX:
 				}
 			}
 		}
-
+		
 		//Set Software-Version...
 		DOMElement* elemSoftware=createDOMElement(m_docMixInfo,"Software");
 		DOMElement* elemVersion=createDOMElement(m_docMixInfo,"Version");
 		setDOMElementValue(elemVersion,(UINT8*)MIX_VERSION);
 		elemSoftware->appendChild(elemVersion);
 		elemMix->appendChild(elemSoftware);
-
+		
 #ifdef PERFORMANCE_SERVER
 		if(isLastMix() && m_strPerformanceServerListenerHost != NULL)
 		{
@@ -2472,29 +2501,29 @@ SKIP_NEXT_MIX:
 			elemPerf->appendChild(elemPerfPort);
 			elemMix->appendChild(elemPerf);
 		}
-#endif
-
+#endif		
+		
 #ifdef PAYMENT
-
+		
 		//insert price certificate
 		if (getPriceCertificate() == NULL)
 		{
 			CAMsg::printMsg(LOG_CRIT, "can't insert price certificate because it's Null\n");
 			return E_UNKNOWN;
 		} else {
-			DOMElement* pcElem=NULL;
-			getPriceCertificate()->toXmlElement(m_docMixInfo,pcElem);
+			DOMElement* pcElem=NULL;		
+			getPriceCertificate()->toXmlElement(m_docMixInfo,pcElem);	
 			elemMix->appendChild(pcElem);
 		}
 		//insert prepaid interval
 		UINT32 prepaidInterval;
 		getPrepaidInterval(&prepaidInterval);
 		DOMElement* elemInterval = createDOMElement(m_docMixInfo,"PrepaidIntervalKbytes");
-		setDOMElementValue(elemInterval,prepaidInterval / 1000);
-		elemMix->appendChild(elemInterval);
-
-
-
+		setDOMElementValue(elemInterval,prepaidInterval / 1000); 
+		elemMix->appendChild(elemInterval);	
+			
+			
+		
 #endif /*payment*/
 
 
@@ -2528,7 +2557,7 @@ SKIP_NEXT_MIX:
 					m_nCrimeRegExpsURL++;
 				}
 			}
-
+			
 			nlRegExp=elemCrimeDetection.getElementsByTagName("RegExpPayload");
 			m_arCrimeRegExpsPayload=new regex_t[nlRegExp.getLength()];
 			for(UINT32 i=0;i<nlRegExp.getLength();i++)
@@ -2547,7 +2576,7 @@ SKIP_NEXT_MIX:
 
 					m_nCrimeRegExpsPayload++;
 				}
-			}
+			}				
 		}
 		CAMsg::printMsg(LOG_DEBUG,"Loading Crime Detection Data finished\n");
 #endif
@@ -2592,27 +2621,27 @@ SKIP_NEXT_MIX:
 #if defined(DELAY_CHANNELS)&&defined(DELAY_USERS)
 		if(isFirstMix())
 			{
-				m_u32DelayChannelUnlimitTraffic=DELAY_USERS_TRAFFIC;
-				m_u32DelayChannelBucketGrow=DELAY_USERS_BUCKET_GROW;
-				m_u32DelayChannelBucketGrowIntervall=DELAY_USERS_BUCKET_GROW_INTERVALL;
-			}
+				m_u32DelayChannelUnlimitTraffic=DELAY_USERS_TRAFFIC;	
+				m_u32DelayChannelBucketGrow=DELAY_USERS_BUCKET_GROW;	
+				m_u32DelayChannelBucketGrowIntervall=DELAY_USERS_BUCKET_GROW_INTERVALL;	
+			}	
 		else
 			{
-				m_u32DelayChannelUnlimitTraffic=DELAY_CHANNEL_TRAFFIC;
-				m_u32DelayChannelBucketGrow=DELAY_BUCKET_GROW;
-				m_u32DelayChannelBucketGrowIntervall=DELAY_BUCKET_GROW_INTERVALL;
-			}
+				m_u32DelayChannelUnlimitTraffic=DELAY_CHANNEL_TRAFFIC;	
+				m_u32DelayChannelBucketGrow=DELAY_BUCKET_GROW;	
+				m_u32DelayChannelBucketGrowIntervall=DELAY_BUCKET_GROW_INTERVALL;	
+			}	
 #elif defined(DELAY_CHANNELS)
-		m_u32DelayChannelUnlimitTraffic=DELAY_CHANNEL_TRAFFIC;
-		m_u32DelayChannelBucketGrow=DELAY_BUCKET_GROW;
-		m_u32DelayChannelBucketGrowIntervall=DELAY_BUCKET_GROW_INTERVALL;
+		m_u32DelayChannelUnlimitTraffic=DELAY_CHANNEL_TRAFFIC;	
+		m_u32DelayChannelBucketGrow=DELAY_BUCKET_GROW;	
+		m_u32DelayChannelBucketGrowIntervall=DELAY_BUCKET_GROW_INTERVALL;	
 #elif defined (DELAY_USERS)
-		m_u32DelayChannelUnlimitTraffic=DELAY_USERS_TRAFFIC;
-		m_u32DelayChannelBucketGrow=DELAY_USERS_BUCKET_GROW;
-		m_u32DelayChannelBucketGrowIntervall=DELAY_USERS_BUCKET_GROW_INTERVALL;
+		m_u32DelayChannelUnlimitTraffic=DELAY_USERS_TRAFFIC;	
+		m_u32DelayChannelBucketGrow=DELAY_USERS_BUCKET_GROW;	
+		m_u32DelayChannelBucketGrowIntervall=DELAY_USERS_BUCKET_GROW_INTERVALL;	
 #endif
 #if defined(DELAY_CHANNELS_LATENCY)
-		m_u32DelayChannelLatency=DELAY_CHANNEL_LATENCY;
+		m_u32DelayChannelLatency=DELAY_CHANNEL_LATENCY;	
 #endif
 		DOMElement* elemRessources=NULL;
 		getDOMChildByName(elemRoot,"Ressources",elemRessources,false);
@@ -2701,6 +2730,7 @@ SINT32 CACmdLnOptions::parseInfoServices(DOMElement* a_infoServiceNode)
 		for(UINT32 i=0;i<m_addrInfoServicesSize;i++)
 		{
 			delete m_addrInfoServices[i];
+			m_addrInfoServices[i] = NULL;
 		}
 		delete[] m_addrInfoServices;
 	}
@@ -2726,13 +2756,14 @@ SINT32 CACmdLnOptions::parseInfoServices(DOMElement* a_infoServiceNode)
 			{
 				// the other interfaces are not needed...
 				delete isListenerInterfaces[j];
+				isListenerInterfaces[j] = NULL;
 			}
 		}
 	}
 	UINT8 tmpBuff[255];
 	UINT32 tmpLen=255;
 	if(getDOMElementValue(elemAllowReconfig,tmpBuff,&tmpLen)==E_SUCCESS)
-	{
+	{	
 		m_bAcceptReconfiguration = (strcmp("True",(char*)tmpBuff) == 0);
 	}
 
@@ -2813,7 +2844,7 @@ SINT32 CACmdLnOptions::buildDefaultConfig(XERCES_CPP_NAMESPACE::DOMDocument* doc
     elemLogging->appendChild(elemTmp);
     DOMElement* elemNet=createDOMElement(doc,"Network");
     elemRoot->appendChild(elemNet);
-
+    
     /** @todo Add a list of default InfoServices to the default configuration */
     DOMElement*elemISs=createDOMElement(doc,"InfoServices");
 		elemNet->appendChild(elemISs);
@@ -2882,7 +2913,9 @@ SINT32 CACmdLnOptions::buildDefaultConfig(XERCES_CPP_NAMESPACE::DOMDocument* doc
 
     /** @todo Add Description section because InfoService doesn't accept MixInfos without Location or Operator */
     delete pCert;
+    pCert = NULL;
     delete pSignature;
+    pSignature = NULL;
     return E_SUCCESS;
 }
 
@@ -2911,6 +2944,7 @@ SINT32 CACmdLnOptions::saveToFile(XERCES_CPP_NAMESPACE::DOMDocument* p_doc, cons
         fflush(stdout);
     }
     delete[] buff;
+    buff = NULL;
     return E_SUCCESS;
 }
 
@@ -3034,12 +3068,13 @@ SINT32 CACmdLnOptions::checkListenerInterfaces()
     }
 error:
     delete dyn;
+    dyn = NULL;
     return result;
 }
 
 /**
   * LERNGRUPPE
-  * Perform a test if we have at least MIN_INFOSERVICES working
+  * Perform a test if we have at least MIN_INFOSERVICES working 
   * InfoServices. We can not work correctly without them
   * @return r_runningInfoServices The actual number of runnung InfoServices
   * @retval E_SUCCESS if we have the InfoServices
@@ -3069,7 +3104,7 @@ SINT32 CACmdLnOptions::checkInfoServices(UINT32 *r_runningInfoServices)
 }
 
 /**
-  * Checks if all certificate information is ok.
+  * Checks if all certificate information is ok. 
   * @retval E_SUCCESS if test succeeds
   * @retval E_UNKNOWN otherwise
 */
@@ -3082,7 +3117,7 @@ SINT32 CACmdLnOptions::checkCertificates()
 }
 
 /**
-  * Checks if the ID of this mix is ok. A MixID is ok if it equals(
+  * Checks if the ID of this mix is ok. A MixID is ok if it equals( 
   * the SubjectKeyIdentifier of the mix' certificate
   * @retval E_SUCCESS if the test is successfull
   * @retval E_UNKNOWN otherwise
@@ -3102,7 +3137,7 @@ SINT32 CACmdLnOptions::checkMixId()
 
 /**
   * Returns a random InfoService's address from the list of the known InfoServices
-  * The returned InfoService is tested to be online (i.e. reachable through a socket connction)
+  * The returned InfoService is tested to be online (i.e. reachable through a socket connction) 
   * @return r_address The address of the random InfoService
   * @retval E_SUCCESS if successfull
   * @retval E_UNKNOWN otherwise
@@ -3160,8 +3195,8 @@ UINT32 CACmdLnOptions::getRandom(UINT32 a_max)
 
 /**
  * LERNGRUPPE
- * Changes the information about the type of this mix. This is needed if a
- * FirstMix should be reconfigured as MiddleMix and vice versa.
+ * Changes the information about the type of this mix. This is needed if a 
+ * FirstMix should be reconfigured as MiddleMix and vice versa. 
  * @param a_newMixType The new type of this mix
  * @retval E_SUCCESS if everything went well
  * @retval E_UNKNOWN otherwise

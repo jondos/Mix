@@ -33,7 +33,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #if !defined(AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_)
 #define AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_
 
-#define MIX_VERSION "00.08.17"
+#define MIX_VERSION "00.08.22"
 
 #include "doxygen.h"
 
@@ -63,7 +63,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define DYNAMIC_MIX
 //#define SDTFA // specific logic needed by SDTFA, http://www.sdtfa.com
 
-//#define LASTMIX_CHECK_MEMORY // only for internal debugging purpose
+//#define LASTMIX_CHECK_MEMORY // only for internal debugging purpose 
 
 #define PRINT_THREAD_STACK_TRACE //Usefull for debugging output of stack trace if mix dies...
 #if !defined(PRINT_THREAD_STACK_TRACE) && defined (DEBUG)&& ! defined(ONLY_LOCAL_PROXY)
@@ -213,7 +213,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	//For Visual C++    #if defined(_MSC_VER)
 	//For Borland C++    #if defined(__BCPLUSPLUS__)
 	#define _CRT_SECURE_NO_DEPRECATE
-	#define _CRT_SECURE_NO_WARNINGS
+	#define _CRT_SECURE_NO_WARNINGS    
 	#if _MSC_VER > 1000
 		#pragma once
 	#endif // _MSC_VER > 1000
@@ -342,7 +342,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include <memory.h>
 	#include <sys/resource.h>
 	#include <sys/wait.h>
-	#include <termios.h>
+	#include <termios.h> 
 
 	#include <ctype.h>
     typedef struct sockaddr SOCKADDR;

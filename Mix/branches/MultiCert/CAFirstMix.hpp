@@ -109,6 +109,7 @@ public:
 					m_pmutexUser=new CAMutex();
 					m_pmutexMixedPackets=new CAMutex();
 					m_pmutexLoginThreads=new CAMutex();
+					m_pmutexNewConnections=new CAMutex();
 					m_nMixedPackets=0;
 					m_nUser=0;
 					m_nSocketsIn=0;
@@ -144,11 +145,22 @@ public:
 #endif
 				}
 
-    	virtual ~CAFirstMix()
+    	/*virtual ~CAFirstMix()
 			{
-				
-			}
-
+				delete m_pmutexNewConnections;				
+				m_pmutexNewConnections = NULL;
+			}*/
+    	virtual ~CAFirstMix()
+		{
+			clean();
+			delete m_pmutexUser;
+			m_pmutexUser = NULL;
+			delete m_pmutexMixedPackets;
+			m_pmutexMixedPackets = NULL;
+			delete m_pmutexLoginThreads;
+			m_pmutexLoginThreads = NULL;
+		}
+    
 		tMixType getType() const
 			{
 				return CAMix::FIRST_MIX;
@@ -163,6 +175,7 @@ protected:
 			virtual SINT32 loop()=0;
 			bool isShuttingDown();
 			SINT32 init();
+			SINT32 clean();
 			SINT32 initOnce();
 #ifdef DYNAMIC_MIX
 			void stopCascade()
@@ -353,10 +366,27 @@ protected:
 
 private:
 	SINT32 doUserLogin_internal(CAMuxSocket* pNewUSer,UINT8 perrIP[4]);
+	SINT32 isAllowedToPassRestrictions(CASocket* pNewMuxSocket);
 	
 	static const UINT32 MAX_CONCURRENT_NEW_CONNECTIONS;
 
-	UINT32 m_newConnections;
+	volatile UINT32 m_newConnections;
+	CAMutex* m_pmutexNewConnections;
+
+	void incNewConnections()
+		{
+			m_pmutexNewConnections->lock();
+			m_newConnections++;
+			m_pmutexNewConnections->unlock();
+		}
+
+	void decNewConnections()
+		{
+			m_pmutexNewConnections->lock();
+			m_newConnections--;
+			m_pmutexNewConnections->unlock();
+		}
+
 };
 
 #endif
