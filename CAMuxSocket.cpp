@@ -183,12 +183,19 @@ SINT32 CAMuxSocket::prepareForSend(MIXPACKET *pinoutPacket)
 	*/
 SINT32 CAMuxSocket::receive(MIXPACKET* pPacket)
 	{
-		m_csReceive.lock();
+		UINT32 retLock = m_csReceive.lock();
+		if (retLock != E_SUCCESS)
+		{
+			CAMsg::printMsg(LOG_CRIT,
+				"Could not lock MuxSocket receive method! Error code: %d\n", retLock);
+			return E_UNKNOWN;
+		}
+		
 		if(m_Socket.receiveFully((UINT8*)pPacket,MIXPACKET_SIZE)!=E_SUCCESS)
-			{
-				m_csReceive.unlock();
-				return SOCKET_ERROR;
-			}
+		{
+			m_csReceive.unlock();
+			return SOCKET_ERROR;
+		}
 		if(m_bIsCrypted)
     	m_oCipherIn.crypt1((UINT8*)pPacket,(UINT8*)pPacket,16);
 		pPacket->channel=ntohl(pPacket->channel);
@@ -206,7 +213,13 @@ SINT32 CAMuxSocket::receive(MIXPACKET* pPacket)
 //TODO: Bug if socket is not in non_blocking mode!!
 SINT32 CAMuxSocket::receive(MIXPACKET* pPacket,UINT32 msTimeout)
 	{
-		m_csReceive.lock();
+		UINT32 retLock = m_csReceive.lock();
+		if (retLock != E_SUCCESS)
+		{
+			CAMsg::printMsg(LOG_CRIT,
+				"Could not lock MuxSocket timed receive method! Error code: %d\n", retLock);
+			return E_UNKNOWN;
+		}
 		SINT32 len=MIXPACKET_SIZE-m_aktBuffPos;
 		SINT32 ret=m_Socket.receive(m_Buff+m_aktBuffPos,len);
 		if(ret<=0&&ret!=E_AGAIN) //if socket was set in non-blocking mode

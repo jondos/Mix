@@ -38,7 +38,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAMix.hpp"
 #include "CAListenerInterface.hpp"
 #include "CAXMLBI.hpp"
-#include "CAXMLPriceCert.hpp"
+#include "CAXMLPriceCert.hpp"  
 #ifdef LOG_CRIME
 	#include "tre/regex.h"
 #endif
@@ -177,11 +177,11 @@ class CACmdLnOptions
 				if(m_pPriceCertificate != NULL)
 				{
 					return m_pPriceCertificate;
-				}
+				}	
 				return NULL;
 			}
-#endif
-
+#endif				
+				
 #ifdef COUNTRY_STATS
 			SINT32 getCountryStatsDBConnectionLoginData(char** db_host,char**db_user,char**db_passwd);
 #endif
@@ -237,7 +237,7 @@ class CACmdLnOptions
 			{
 				return m_bSyslog;
 			}
-
+			
 			/** Set to true if the encrpyted log could/should be used**/
 			SINT32 enableEncryptedLog(bool b)
 			{
@@ -259,12 +259,11 @@ class CACmdLnOptions
 			}
 
 			SINT32 getCascadeName(UINT8* name,UINT32 len) const;
-
+    
 			// added by ronin <ronin2@web.de>
 			SINT32 setCascadeName(const UINT8* name)
 			{
-    		if(m_strCascadeName!=NULL)
-					delete[] m_strCascadeName;
+				delete[] m_strCascadeName;
 				m_strCascadeName = new UINT8[strlen((const char*)name)+1];
 				strcpy((char*)m_strCascadeName,(const char*)name);
 				return E_SUCCESS;
@@ -278,7 +277,7 @@ class CACmdLnOptions
 		/** Get the XML describing the Mix. this is not a string!*/
 			//SINT32 getMixXml(UINT8* strxml,UINT32* len);
 			SINT32 getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo);
-
+			
 			UINT32 getKeepAliveSendInterval()
 				{
 				return m_u32KeepAliveSendInterval;
@@ -291,8 +290,8 @@ class CACmdLnOptions
 			bool isInfoServiceEnabled()
 				{
 					return (m_addrInfoServicesSize>0);
-				}
-#endif //ONLY_LOCAL_PROXY
+				}			
+#endif //ONLY_LOCAL_PROXY			
 			bool getCompressLogs()
 				{
 					return m_bCompressedLogs;
@@ -311,13 +310,13 @@ class CACmdLnOptions
 			char *getMonitoringListenerHost();
 			UINT16 getMonitoringListenerPort();
 #endif /* SERVER_MONITORING */
-
+			
 
 #ifdef PERFORMANCE_SERVER
 			UINT8* getPerformanceServerListenerHost();
 			UINT16 getPerformanceServerListenerPort();
-#endif /* PERFORMANCE_SERVER */
-
+#endif /* PERFORMANCE_SERVER */	
+			
 			bool isLocalProxy();
 			bool isFirstMix();
 			bool isMiddleMix();
@@ -325,7 +324,7 @@ class CACmdLnOptions
 			bool isSock5sSupported()
 			{
 				return m_bSocksSupport;
-			}
+			}				
 
 
 			bool getAutoReconnect()
@@ -343,7 +342,7 @@ class CACmdLnOptions
 				*len=m_nCrimeRegExpsURL;
 				return m_arCrimeRegExpsURL;
 			}
-
+			
 			regex_t* getCrimeRegExpsPayload(UINT32* len)
 			{
 				*len=m_nCrimeRegExpsPayload;
@@ -355,7 +354,7 @@ class CACmdLnOptions
 			UINT32 getDelayChannelUnlimitTraffic()
 				{
 					return m_u32DelayChannelUnlimitTraffic;
-				}
+				}	
 			UINT32 getDelayChannelBucketGrow()
 				{
 					return m_u32DelayChannelBucketGrow;
@@ -371,11 +370,11 @@ class CACmdLnOptions
 			UINT32 getDelayChannelLatency()
 				{
 					return m_u32DelayChannelLatency;
-				}
+				}	
 #endif
 
 
-#ifdef PAYMENT
+#ifdef PAYMENT	
 			// accounting database
 			SINT32 getDatabaseHost(UINT8 * host, UINT32 len);
 			UINT16 getDatabasePort();
@@ -386,9 +385,9 @@ class CACmdLnOptions
 			CAXMLBI* getBI();
 			SINT32 getPaymentHardLimit(UINT32 *pHardLimit);
 			SINT32 getPaymentSoftLimit(UINT32 *pSoftLimit);
-			SINT32 getPrepaidInterval(UINT32 *pPrepaidInterval);
+			SINT32 getPrepaidInterval(UINT32 *pPrepaidInterval); 
 			SINT32 getPaymentSettleInterval(UINT32 *pInterval);
-#endif
+#endif	
 
 
 #ifndef ONLY_LOCAL_PROXY
@@ -399,7 +398,7 @@ class CACmdLnOptions
 			bool acceptReconfiguration() { return m_bAcceptReconfiguration; }
 
 			friend THREAD_RETURN threadReConfigure(void *param);
-
+			
 			/** Writes a default configuration file into the file named by filename*/
 			static SINT32 createMixOnCDConfiguration(const UINT8* strFileName);
 		static SINT32 saveToFile(XERCES_CPP_NAMESPACE::DOMDocument* a_doc, const UINT8* a_strFileName);
@@ -486,13 +485,13 @@ class CACmdLnOptions
 			CAXMLPriceCert*	m_pPriceCertificate;
 #endif
 
-			CACertificate** 	m_OpCerts;
-			UINT32 				m_OpCertsLength;
+			CACertificate** m_OpCerts;
+			UINT32 m_OpCertsLength;
 
 			CACertificate*	m_pPrevMixCertificate;
 			CACertificate*	m_pNextMixCertificate;
 			CACertificate*	m_pLogEncryptionCertificate;
-
+			
 			UINT32 m_maxNrOfUsers;
 
 			// added by ronin <ronin2@web.de>
@@ -500,7 +499,7 @@ class CACmdLnOptions
 			bool m_bAcceptReconfiguration;
 			XERCES_CPP_NAMESPACE::DOMDocument* m_docMixInfo;
 			XERCES_CPP_NAMESPACE::DOMDocument* m_docMixXml;
-
+			
 			UINT32 m_u32KeepAliveSendInterval;
 			UINT32 m_u32KeepAliveRecvInterval;
 #endif //ONLY_LOCAL_PROXY
@@ -518,7 +517,7 @@ class CACmdLnOptions
 			char*		m_strUser;
 			char*		m_strPidFile;
 			SINT32	m_nrOfOpenFiles; //How many open files (sockets) should we use
-
+    
 			//char*		m_strMixXml;
 			char*		m_strMixID;
 
@@ -530,7 +529,7 @@ class CACmdLnOptions
 			UINT32								m_cnListenerInterfaces;
 			UINT8**								m_arStrVisibleAddresses;
 			UINT32								m_cnVisibleAddresses;
-
+	
 
 #ifdef LOG_CRIME
 			regex_t* m_arCrimeRegExpsURL;
@@ -539,13 +538,13 @@ class CACmdLnOptions
 			UINT32 m_nCrimeRegExpsPayload;
 #endif
 #if defined (DELAY_CHANNELS) ||defined(DELAY_USERS)
-		UINT32 m_u32DelayChannelUnlimitTraffic;
-		UINT32 m_u32DelayChannelBucketGrow;
-		UINT32 m_u32DelayChannelBucketGrowIntervall;
+		UINT32 m_u32DelayChannelUnlimitTraffic;	
+		UINT32 m_u32DelayChannelBucketGrow;	
+		UINT32 m_u32DelayChannelBucketGrowIntervall;	
 #endif
 
 #if defined (DELAY_CHANNELS_LATENCY)
-		UINT32 m_u32DelayChannelLatency;
+		UINT32 m_u32DelayChannelLatency;	
 #endif
 
 #ifdef PAYMENT
@@ -561,7 +560,7 @@ class CACmdLnOptions
 			UINT16 m_iDatabasePort;
 			UINT32 m_iPaymentHardLimit;
 			UINT32 m_iPaymentSoftLimit;
-			UINT32 m_iPrepaidInterval;
+			UINT32 m_iPrepaidInterval; 
 			UINT32 m_iPaymentSettleInterval;
 #endif
 #ifdef SERVER_MONITORING
@@ -574,7 +573,7 @@ class CACmdLnOptions
 			UINT8* m_strPerformanceServerListenerHost;
 			UINT16 m_iPerformanceServerListenerPort;
 #endif
-
+			
 		private:
 			SINT32 setNewValues(CACmdLnOptions& newOptions);
 #ifndef ONLY_LOCAL_PROXY
