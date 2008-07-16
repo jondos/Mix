@@ -97,14 +97,14 @@ class CASignature
 			DSA* m_pDSA;
 			SINT32 parseSignKeyXML(const UINT8* buff,UINT32 len);
 			SINT32 sign(UINT8* in,UINT32 inlen,DSA_SIG** dsaSig);
+#define SHA1_REFERENCE "http://www.w3.org/2000/09/xmldsig#sha1"
+#define DSA_SHA1_REFERENCE "http://www.w3.org/2000/09/xmldsig#dsa-sha1"
+#define RSA_SHA1_REFERENCE "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
 #ifdef MULTI_CERT
-#define SIG_TYPE_DSA 1
-#define SIG_TYPE_RSA 2
 			RSA* m_pRSA;
 			RSA* getRSA(){return m_pRSA;}
 			SINT32 m_sigType;
 #endif //MULTI_CERT
-
 
 	};
 #endif

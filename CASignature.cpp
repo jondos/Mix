@@ -36,12 +36,25 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 CASignature::CASignature()
 	{
 		m_pDSA=NULL;
+#ifdef MULTI_CERT
+		m_pRSA=NULL;
+#endif
 	}
 
 CASignature::~CASignature()
 	{
 		if(m_pDSA!=NULL)
+		{
 			DSA_free(m_pDSA);
+			m_pDSA = NULL;
+		}
+#ifdef MULTI_CERT
+		if(m_pRSA!=NULL)
+		{
+			RSA_free(m_pRSA);
+			m_pRSA = NULL;
+		}
+#endif
 	}
 
 
@@ -53,8 +66,16 @@ CASignature* CASignature::clone()
 				DSA* tmpDSA=DSA_clone(m_pDSA);
 				tmpSig->m_pDSA=tmpDSA;
 			}
+#ifdef MULTI_CERT
+		if(m_pRSA!=NULL)
+		{
+			RSA* tmpRSA=RSA_clone(m_pRSA);
+			tmpSig->m_pRSA=tmpRSA;
+		}
+#endif
 		return tmpSig;
 	}
+
 
 SINT32 CASignature::generateSignKey(UINT32 size)
 	{
@@ -155,9 +176,9 @@ SINT32 CASignature::setSignKey(const UINT8* buff,UINT32 len,UINT32 type,const ch
 							if(EVP_PKEY_type(key->type)==EVP_PKEY_RSA)
 							{
 								// found RSA key
-								m_sigType = SIG_TYPE_RSA;
 								RSA* tmpRSA=RSA_clone(key->pkey.rsa);
 								EVP_PKEY_free(key);
+								key=NULL;
 								tmpRSA->flags|=RSA_FLAG_THREAD_SAFE;
 								tmpRSA->flags|=RSA_FLAG_SIGN_VER;
 								#ifdef RSA_FLAG_NO_BLINDING
@@ -166,7 +187,8 @@ SINT32 CASignature::setSignKey(const UINT8* buff,UINT32 len,UINT32 type,const ch
 								#if OPENSSL_VERSION_NUMBER	> 0x0090707fL
 									tmpRSA->flags|=RSA_FLAG_NO_EXP_CONSTTIME;
 								#endif
-								RSA_free(m_pRSA);
+								//RSA_free(m_pRSA);
+								//m_pRSA=NULL
 								m_pRSA=tmpRSA;
 								return E_SUCCESS;
 							}
@@ -174,11 +196,9 @@ SINT32 CASignature::setSignKey(const UINT8* buff,UINT32 len,UINT32 type,const ch
 							EVP_PKEY_free(key);
 							return E_UNKNOWN;
 						}
-#ifdef MULTI_CERT
-					m_sigType = SIG_TYPE_DSA;
-#endif //MULTI_CERT
 					DSA* tmpDSA=DSA_clone(key->pkey.dsa);
 					EVP_PKEY_free(key);
+					//printf("\n%d\n", DSA_size(tmpDSA));
 					if(DSA_sign_setup(tmpDSA,NULL,&tmpDSA->kinv,&tmpDSA->r)!=1)
 						{
 							DSA_free(tmpDSA);
@@ -278,16 +298,33 @@ SINT32 CASignature::parseSignKeyXML(const UINT8* buff,UINT32 len)
 
 SINT32 CASignature::sign(UINT8* in,UINT32 inlen,UINT8* sig,UINT32* siglen)
 	{
-		DSA_SIG* signature=NULL;
-		if(	sign(in,inlen,&signature)!=E_SUCCESS)
-			return E_UNKNOWN;
-		if(encodeRS(sig,siglen,signature)!=E_SUCCESS)
-			{
-				DSA_SIG_free(signature);
+		if(m_pDSA!=NULL)
+		{
+			DSA_SIG* signature=NULL;
+			if(	sign(in,inlen,&signature)!=E_SUCCESS)
 				return E_UNKNOWN;
-			}
-		DSA_SIG_free(signature);
-		return E_SUCCESS;
+			if(encodeRS(sig,siglen,signature)!=E_SUCCESS)
+				{
+					DSA_SIG_free(signature);
+					return E_UNKNOWN;
+				}
+			DSA_SIG_free(signature);
+			return E_SUCCESS;
+		}
+#ifdef MULTI_CERT
+		if(m_pRSA!=NULL)
+		{
+			UINT8 dgst[SHA_DIGEST_LENGTH];
+			SHA1(in,inlen,dgst);
+
+			if(RSA_sign(NID_sha1, dgst, SHA_DIGEST_LENGTH, sig, siglen, m_pRSA)!=1)
+				return E_UNKNOWN;
+
+			CAMsg::printMsg(LOG_DEBUG,"Signatur-Laenge: %d\n", *siglen);
+			return E_SUCCESS;
+		}
+#endif //MULTICERT
+		return E_UNKNOWN;
 	}
 
 SINT32 CASignature::sign(UINT8* in,UINT32 inlen,DSA_SIG** pdsaSig)
@@ -302,7 +339,12 @@ SINT32 CASignature::sign(UINT8* in,UINT32 inlen,DSA_SIG** pdsaSig)
 
 SINT32 CASignature::getSignatureSize()
 	{
+#ifdef MULTI_CERT
+		if(m_pRSA != NULL)
+			return RSA_size(m_pRSA);
+#endif
 		return DSA_size(m_pDSA);
+
 	}
 
 /** Signs an XML Document.
@@ -383,11 +425,25 @@ SINT32 CASignature::signXML(DOMNode* node,CACertStore* pIncludeCerts)
 
 		//Creating the Sig-InfoBlock....
 		DOMElement* elemSignedInfo=createDOMElement(doc,"SignedInfo");
+		DOMElement* elemCanonicalizationMethod=createDOMElement(doc,"CanonicalizationMethod");
+		DOMElement* elemSignatureMethod=createDOMElement(doc,"SignatureMethod");
+		if(m_pDSA != NULL)
+			setDOMElementAttribute(elemSignatureMethod, "Algorithm", (UINT8*)DSA_SHA1_REFERENCE);
+#ifdef MULTI_CERT
+		else if(m_pRSA != NULL)
+			setDOMElementAttribute(elemSignatureMethod, "Algorithm", (UINT8*)RSA_SHA1_REFERENCE);
+#endif //MULTI_CERT
 		DOMElement* elemReference=createDOMElement(doc,"Reference");
-		setDOMElementAttribute(elemReference,"URI",(UINT8*)"");
+		//setDOMElementAttribute(elemReference,"URI",(UINT8*)"");
+		DOMElement* elemDigestMethod=createDOMElement(doc, "DigestMethod");
+		setDOMElementAttribute(elemDigestMethod, "Algorithm", (UINT8*)SHA1_REFERENCE);
 		DOMElement* elemDigestValue=createDOMElement(doc,"DigestValue");
 		setDOMElementValue(elemDigestValue,tmpBuff);
+
+		elemSignedInfo->appendChild(elemCanonicalizationMethod);
+		elemSignedInfo->appendChild(elemSignatureMethod);
 		elemSignedInfo->appendChild(elemReference);
+		elemReference->appendChild(elemDigestMethod);
 		elemReference->appendChild(elemDigestValue);
 
 		// Signing the SignInfo block....
@@ -396,45 +452,47 @@ SINT32 CASignature::signXML(DOMNode* node,CACertStore* pIncludeCerts)
 		if(canonicalBuff==NULL)
 			return E_UNKNOWN;
 #ifdef MULTI_CERT
-		if(m_sigType == SIG_TYPE_RSA && m_pRSA != NULL)
+		if(m_pDSA!=NULL)
 		{
-			UINT32* sigLen;
-			UINT8 rsaSig[RSA_size(m_pRSA)];
-			if(RSA_sign(NID_sha1, canonicalBuff, len, rsaSig, sigLen, m_pRSA)!=1)
-			{
-				delete[] canonicalBuff;
-				//delete rsaSig;
-				return E_UNKNOWN;
-			}
-			printf("Erfolg!");
-			return E_SUCCESS;
-		}
-		else{
 #endif //MULTI_CERT
-		DSA_SIG* pdsaSig=NULL;
+			DSA_SIG* pdsaSig=NULL;
 
-		SINT32 ret=sign(canonicalBuff,len,&pdsaSig);
-		delete[] canonicalBuff;
+			SINT32 ret=sign(canonicalBuff,len,&pdsaSig);
+			delete[] canonicalBuff;
 
-		if(ret!=E_SUCCESS)
+			if(ret!=E_SUCCESS)
+				{
+					DSA_SIG_free(pdsaSig);
+					return E_UNKNOWN;
+				}
+			len=1024;
+			encodeRS(tmpBuff,&len,pdsaSig);
+			//memset(tmpBuff,0,40); //make first 40 bytes '0' --> if r or s is less then 20 bytes long!
+														//(Due to be compatible to the standarad r and s must be 20 bytes each)
+			//BN_bn2bin(pdsaSig->r,tmpBuff+20-BN_num_bytes(pdsaSig->r)); //so r is 20 bytes with leading '0'...
+			//BN_bn2bin(pdsaSig->s,tmpBuff+40-BN_num_bytes(pdsaSig->s));
+
+			DSA_SIG_free(pdsaSig);
+#ifdef MULTI_CERT
+		}
+		else if(m_pRSA!=NULL)
+		{
+			UINT32 sigLen=RSA_size(m_pRSA);
+			//UINT8 rsaSig[sigLen];
+			if(sign(canonicalBuff,len,tmpBuff,&sigLen)!=E_SUCCESS)
 			{
-				DSA_SIG_free(pdsaSig);
 				return E_UNKNOWN;
 			}
-		len=1024;
-		encodeRS(tmpBuff,&len,pdsaSig);
-		//memset(tmpBuff,0,40); //make first 40 bytes '0' --> if r or s is less then 20 bytes long!
-													//(Due to be compatible to the standarad r and s must be 20 bytes each)
-		//BN_bn2bin(pdsaSig->r,tmpBuff+20-BN_num_bytes(pdsaSig->r)); //so r is 20 bytes with leading '0'...
-		//BN_bn2bin(pdsaSig->s,tmpBuff+40-BN_num_bytes(pdsaSig->s));
-
-		DSA_SIG_free(pdsaSig);
-
+			len=sigLen;
+		}
+		else
+		{
+			return E_UNKNOWN;
+		}
+#endif //MULTI_CERT
 		UINT sigSize=255;
 		UINT8 sig[255];
-#ifdef MULTI_CERT
-		} //end else
-#endif //MULTI_CERT
+
 		if(CABase64::encode(tmpBuff,len,sig,&sigSize)!=E_SUCCESS)
 			return E_UNKNOWN;
 		sig[sigSize]=0;
@@ -520,6 +578,16 @@ SINT32 CASignature::setVerifyKey(CACertificate* pCert)
 		EVP_PKEY *key=X509_get_pubkey(pCert->m_pCert);
 		if(EVP_PKEY_type(key->type)!=EVP_PKEY_DSA)
 			{
+#ifdef MULTI_CERT
+				if(EVP_PKEY_type(key->type)==EVP_PKEY_RSA)
+				{
+					RSA* tmpRSA=RSA_clone(key->pkey.rsa);
+					EVP_PKEY_free(key);
+					RSA_free(m_pRSA);
+					m_pRSA=tmpRSA;
+					return E_SUCCESS;
+				}
+#endif //MULTI_CERT
 				EVP_PKEY_free(key);
 				return E_UNKNOWN;
 			}
@@ -773,8 +841,27 @@ SINT32 CASignature::verifyXML(DOMNode* root,CACertStore* trustedCerts)
 			return E_UNKNOWN;
 		if(CABase64::decode(tmpSig,tmpSiglen,tmpSig,&tmpSiglen)!=E_SUCCESS)
 			return E_UNKNOWN;
+
+		UINT8* out=new UINT8[5000];
+		UINT32 outlen=5000;
+#ifdef MULTI_CERT
+		if(m_pRSA != NULL)
+		{
+			if(DOM_Output::makeCanonical(elemSigInfo,out,&outlen)!=E_SUCCESS)
+				return E_UNKNOWN;
+			UINT8 sha1[SHA_DIGEST_LENGTH];
+			SHA1(out,outlen,sha1);
+			if(RSA_verify(NID_sha1, sha1, SHA_DIGEST_LENGTH, tmpSig, tmpSiglen, m_pRSA)!=1)
+				return E_UNKNOWN;
+		}
+		else
+		{
+#endif //MULTICERT
 		if(tmpSiglen!=40)
+		{
+			delete[] out;
 			return E_UNKNOWN;
+		}
 		//extract r and s and make the ASN.1 sequenz
 			//Making DER-Encoding of r and s.....
             // ASN.1 Notation:
@@ -809,8 +896,6 @@ SINT32 CASignature::verifyXML(DOMNode* root,CACertStore* trustedCerts)
 		DSA_SIG* dsaSig=DSA_SIG_new();
 		dsaSig->r=BN_bin2bn(tmpSig,20,dsaSig->r);
 		dsaSig->s=BN_bin2bn(tmpSig+20,20,dsaSig->s);
-		UINT8* out=new UINT8[5000];
-		UINT32 outlen=5000;
 		if(DOM_Output::makeCanonical(elemSigInfo,out,&outlen)!=E_SUCCESS||
 				verify(out,outlen,dsaSig)!=E_SUCCESS)
 			{
@@ -819,6 +904,9 @@ SINT32 CASignature::verifyXML(DOMNode* root,CACertStore* trustedCerts)
 				return E_UNKNOWN;
 			}
 		DSA_SIG_free(dsaSig);
+#ifdef MULTI_CERT
+		} //else
+#endif //MULTICERT
 		DOMNode* tmpNode=root->removeChild(elemSignature);
 		outlen=5000;
 		DOM_Output::makeCanonical(root,out,&outlen);
