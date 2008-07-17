@@ -483,8 +483,11 @@ SINT32 CASignature::signXML(DOMNode* node,CACertStore* pIncludeCerts)
 		else if(m_pRSA != NULL)
 		{
 			UINT32 sigLen = RSA_size(m_pRSA);
-			//UINT8 rsaSig[sigLen];
-			if(sign(canonicalBuff, len, tmpBuff, &sigLen) != E_SUCCESS)
+			SINT32 ret = sign(canonicalBuff, len, tmpBuff, &sigLen);
+			delete[] canonicalBuff;
+			canonicalBuff = NULL;
+
+			if(ret != E_SUCCESS)
 			{
 				return E_UNKNOWN;
 			}

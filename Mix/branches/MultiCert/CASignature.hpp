@@ -1,28 +1,28 @@
 /*
-Copyright (c) 2000, The JAP-Team 
+Copyright (c) 2000, The JAP-Team
 All rights reserved.
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-	- Redistributions of source code must retain the above copyright notice, 
+	- Redistributions of source code must retain the above copyright notice,
 	  this list of conditions and the following disclaimer.
 
-	- Redistributions in binary form must reproduce the above copyright notice, 
-	  this list of conditions and the following disclaimer in the documentation and/or 
+	- Redistributions in binary form must reproduce the above copyright notice,
+	  this list of conditions and the following disclaimer in the documentation and/or
 		other materials provided with the distribution.
 
-	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors 
-	  may be used to endorse or promote products derived from this software without specific 
-		prior written permission. 
+	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors
+	  may be used to endorse or promote products derived from this software without specific
+		prior written permission.
 
-	
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS 
-OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
-OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
-IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 #ifndef __CASIGNATURE__
@@ -52,7 +52,7 @@ class CASignature
 			 * Parses the XML representation of a DSA public key
 			 */
 			SINT32 setVerifyKey(const DOMElement* xmlKey);
-			/** Get the public key as XML encoded X509 certificate*/ 
+			/** Get the public key as XML encoded X509 certificate*/
 			SINT32 getVerifyKey(CACertificate**);
 			SINT32 getVerifyKeyHash(UINT8* buff,UINT32* len);
 
@@ -61,7 +61,7 @@ class CASignature
 			SINT32 verifyXML(DOMNode* node,CACertStore* pTrustedCerts=NULL);
 			SINT32 getSignatureSize();
 			SINT32 encodeRS(UINT8* out,UINT32* outLen,DSA_SIG* pdsaSig);
-			
+
 			/**
 			* Converts a DSA signature from the XML Signature format to the
 			* openSSL R/S BigNumber format.
@@ -74,7 +74,7 @@ class CASignature
 			*/
 			SINT32 decodeRS(const UINT8* in, const UINT32 inLen, DSA_SIG* pDsaSig);
 			SINT32 verify(UINT8* in,UINT32 inlen,DSA_SIG* dsaSig);
-			
+
 			/**
 			* Verifies an ASN.1 DER encoded SHA1-DSA signature.
 			*
@@ -87,11 +87,8 @@ class CASignature
 			* @retval E_UNKNOWN otherwise
 			*/
 			SINT32 verifyDER(UINT8* in, UINT32 inlen, const UINT8 * dsaSig, const UINT32 sigLen);
-#ifdef MULTI_CERT
-			SINT32 setRSASignKey(const UINT8* buff,UINT32 len,UINT32 type,const char* passwd=NULL);
-			SINT32 setRSASignKey(const DOMNode* node,UINT32 type,const char* passwd=NULL);
-#endif //MULTI_CERT
 			friend class CASSLContext;
+
 		private:
 			DSA* getDSA(){return m_pDSA;}
 			DSA* m_pDSA;
@@ -101,10 +98,11 @@ class CASignature
 #define DSA_SHA1_REFERENCE "http://www.w3.org/2000/09/xmldsig#dsa-sha1"
 #define RSA_SHA1_REFERENCE "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
 #ifdef MULTI_CERT
+			friend class CAMultiSignature;
 			RSA* m_pRSA;
 			RSA* getRSA(){ return m_pRSA; }
 #endif //MULTI_CERT
-		
+
 	};
 #endif
 #endif //ONLY_LOCAL_PROXY

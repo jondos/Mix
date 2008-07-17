@@ -1,28 +1,28 @@
 /*
-Copyright (c) 2000, The JAP-Team 
+Copyright (c) 2000, The JAP-Team
 All rights reserved.
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-	- Redistributions of source code must retain the above copyright notice, 
+	- Redistributions of source code must retain the above copyright notice,
 	  this list of conditions and the following disclaimer.
 
-	- Redistributions in binary form must reproduce the above copyright notice, 
-	  this list of conditions and the following disclaimer in the documentation and/or 
+	- Redistributions in binary form must reproduce the above copyright notice,
+	  this list of conditions and the following disclaimer in the documentation and/or
 		other materials provided with the distribution.
 
-	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors 
-	  may be used to endorse or promote products derived from this software without specific 
-		prior written permission. 
+	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors
+	  may be used to endorse or promote products derived from this software without specific
+		prior written permission.
 
-	
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS 
-OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
-OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
-IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 #include "StdAfx.h"
@@ -35,7 +35,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 extern CACmdLnOptions* pglobalOptions;
 
- 
+
 CAMix::CAMix()
 {
     m_acceptReconfiguration = pglobalOptions->acceptReconfiguration();
@@ -59,18 +59,22 @@ CAMix::CAMix()
 SINT32 CAMix::start()
 	{
 		SINT32 initStatus;
-		
+
 		if(initOnce()!=E_SUCCESS)
 			return E_UNKNOWN;
 		if(m_pSignature != NULL && pglobalOptions->isInfoServiceEnabled())
 		{
 			CAMsg::printMsg(LOG_DEBUG, "CAMix start: creating InfoService object\n");
 			m_pInfoService=new CAInfoService(this);
-        
+
 			UINT32 opCertLength;
 			CACertificate** opCerts = pglobalOptions->getOpCertificates(opCertLength);
 			CACertificate* pOwnCert=pglobalOptions->getOwnCertificate();
+#ifndef MULTI_CERT
 			m_pInfoService->setSignature(m_pSignature, pOwnCert, opCerts, opCertLength);
+#else
+			m_pInfoService->setMultiSignature(m_multiSig);
+#endif
 			delete pOwnCert;
 			pOwnCert = NULL;
 			UINT64 currentMillis;
@@ -79,7 +83,7 @@ SINT32 CAMix::start()
 				currentMillis = 0;
 			}
 			m_pInfoService->setSerial(currentMillis);
-			
+
 			if(opCerts!=NULL)
 				{
 					for(UINT32 i=0;i<opCertLength;i++)
@@ -90,10 +94,10 @@ SINT32 CAMix::start()
 					delete[] opCerts;
 					opCerts = NULL;
 				}
-	
+
 	        bool allowReconf = pglobalOptions->acceptReconfiguration();
 	        bool needReconf = needAutoConfig();
-	
+
 	        m_pInfoService->setConfiguring(allowReconf && needReconf);
 			CAMsg::printMsg(LOG_DEBUG, "CAMix start: starting InfoService\n");
 			m_pInfoService->start();
@@ -132,7 +136,7 @@ SINT32 CAMix::start()
 	                if( ! m_pInfoService->isRunning())
 	                    m_pInfoService->start();
 	            }
-	
+
 	            CAMsg::printMsg(LOG_INFO, "The mix is now on-line.\n");
 #ifdef DYNAMIC_MIX
 							m_bReconfiguring = false;
@@ -184,7 +188,7 @@ SKIP:
 	            {
 	            	currentMillis = 0;
 	            }
-	            m_pInfoService->setSerial(currentMillis);            
+	            m_pInfoService->setSerial(currentMillis);
 	        }
 			CAMsg::printMsg(LOG_DEBUG, "CAMix main: before clean()\n");
 			clean();
@@ -266,7 +270,7 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
     		setDOMElementAttribute(elemRoot,"maxUsers", maxUsers);
     	}
     }
-    
+
     UINT8 id[50];
 		UINT8* cascadeID=NULL;
     pglobalOptions->getMixId(id,50);
@@ -301,8 +305,8 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
         }
         delete pListener;
         pListener = NULL;
-    }	
-    
+    }
+
     DOMNode* elemMixesDocCascade=createDOMElement(m_docMixCascadeInfo,"Mixes");
     DOMElement* elemMix;
     count=1;
@@ -316,7 +320,7 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
 			CAMsg::printMsg(LOG_DEBUG,"Could not sign KeyInfo sent to users...\n");
 		}
     	//if(m_pSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
-		//m_pSignature, pglobalOptions->getOwnCertificate()    	
+		//m_pSignature, pglobalOptions->getOwnCertificate()
 		/*
         elemMixesDocCascade.appendChild(elemThisMix);*/
     }
@@ -356,20 +360,20 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
     if(cascadeID != NULL)
 				setDOMElementAttribute(elemRoot,"id",cascadeID);
     setDOMElementAttribute(elemMixesDocCascade,"count",count);
-    
+
     DOMElement* elemPerf = NULL;
     if(getDOMChildByName(elemMixesDocCascade, "PerformanceServer", elemPerf, true) == E_SUCCESS && elemPerf != NULL)
     {
-    	elemPerf = createDOMElement(m_docMixCascadeInfo, "PerformanceServer");    	
+    	elemPerf = createDOMElement(m_docMixCascadeInfo, "PerformanceServer");
     	setDOMElementValue(elemPerf, (UINT8*) "true");
     }
     else
     {
-    	elemPerf = createDOMElement(m_docMixCascadeInfo, "PerformanceServer");   	
+    	elemPerf = createDOMElement(m_docMixCascadeInfo, "PerformanceServer");
     	setDOMElementValue(elemPerf, (UINT8*) "false");
     }
 	elemRoot->appendChild(elemPerf);
-    
+
   DOMNode* elemPayment=createDOMElement(m_docMixCascadeInfo,"Payment");
 	elemRoot->appendChild(elemPayment);
 #ifdef PAYMENT
@@ -408,14 +412,17 @@ SINT32 CAMix::addMixInfo(DOMNode* a_element, bool a_bForceFirstNode)
 
 SINT32 CAMix::signXML(DOMNode* a_element)
 	{
+#ifdef MULTI_CERT
+		return m_multiSig->signXML(a_element, true);
+#endif
     CACertStore* tmpCertStore=new CACertStore();
-    
+
     CACertificate* ownCert=pglobalOptions->getOwnCertificate();
     if(ownCert==NULL)
 			{
         CAMsg::printMsg(LOG_DEBUG,"Own Test Cert is NULL!\n");
 			}
-    
+
     // Operator Certificates
     UINT32 opCertsLength;
     CACertificate** opCert=pglobalOptions->getOpCertificates(opCertsLength);
@@ -428,18 +435,18 @@ SINT32 CAMix::signXML(DOMNode* a_element)
 				// Own  Mix Certificates first, then Operator Certificates
 				for(SINT32 i = opCertsLength - 1;  i >=0; i--)
 					{
-						tmpCertStore->add(opCert[i]); 	
+						tmpCertStore->add(opCert[i]);
 					}
 				}
     tmpCertStore->add(ownCert);
-    
+
     if(m_pSignature->signXML(a_element, tmpCertStore)!=E_SUCCESS)
 			{
 				return E_UNKNOWN;
 			}
     delete ownCert;
     ownCert = NULL;
-    
+
 	for(UINT32 i=0;i<opCertsLength;i++)
 	{
 		delete opCert[i];
@@ -447,9 +454,9 @@ SINT32 CAMix::signXML(DOMNode* a_element)
 	}
 	delete[] opCert;
 	opCert = NULL;
-    delete tmpCertStore;	
+    delete tmpCertStore;
     tmpCertStore = NULL;
-    
+
     return E_SUCCESS;
 }
 #ifdef DYNAMIC_MIX
@@ -469,14 +476,14 @@ SINT32 CAMix::dynaReconfigure(bool a_bChangeMixType)
 	SINT32 ret = E_UNKNOWN;
 	CASocket tmpSock;
 	const CASocketAddr* pAddr=NULL;
-	
+
 	m_bReconfigured = true;
 	m_bLoop = !a_bChangeMixType;
 
 	if(m_bCascadeEstablished)
 		stopCascade();
 	m_docMixCascadeInfo = NULL;
-	
+
 	/** @todo Break a middle mix out of its init. That doesn't look really nice, maybe there is a better way to do this?
    	*/
 	CAListenerInterface* pListener=NULL;
@@ -495,16 +502,16 @@ SINT32 CAMix::dynaReconfigure(bool a_bChangeMixType)
 		CAMsg::printMsg(LOG_CRIT,"Reason: no useable (non virtual) interface found!\n");
 		goto EXIT;
 	}
-	
+
 	pAddr=pListener->getAddr();
 	delete pListener;
 	pListener = NULL;
-	
+
 	tmpSock.connect(*pAddr);
 	delete pAddr;
 	pAddr = NULL;
 	tmpSock.close();
-	
+
 	ret = E_SUCCESS;
 EXIT:
 	CAMsg::printMsg(LOG_DEBUG, "Mix has been reconfigured!\n");

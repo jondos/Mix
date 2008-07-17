@@ -45,6 +45,7 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CAMix.cpp \
 		    CAMixWithReplayDB.cpp\
 		    CAMsg.cpp \
+			CAMultiSignature.cpp \
 		    CAMutex.cpp\
 		    CAMuxSocket.cpp \
 		    CAPriceInfo.cpp \
@@ -116,6 +117,7 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CAMix.hpp \
 		    CAMixWithReplayDB.hpp\
 		    CAMsg.hpp \
+			CAMultiSignature.hpp \
 		    CAMutex.hpp\
 		    CAMuxSocket.hpp \
 		    CAPerformanceServer.hpp \
