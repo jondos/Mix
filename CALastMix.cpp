@@ -265,11 +265,6 @@ SINT32 CALastMix::processKeyExchange()
 		CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Offering -- SendInterval %u -- Receive Interval %u\n",u32KeepAliveSendInterval,u32KeepAliveRecvInterval);
 
 		// create signature
-		if(m_multiSig == NULL || m_multiSig->getSignatureCount() == 0)
-		{
-			m_pSignature;
-			CAMsg::printMsg(LOG_ERR, "Signature not set up!\n");
-		}
 		if (signXML(elemMix) != E_SUCCESS)
 		{
 			CAMsg::printMsg(LOG_DEBUG,"Could not sign KeyInfo sent to users...\n");
