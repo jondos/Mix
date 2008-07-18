@@ -40,6 +40,9 @@ CAMix::CAMix()
 {
     m_acceptReconfiguration = pglobalOptions->acceptReconfiguration();
 		m_pSignature=NULL;
+#ifdef MULTI_CERT
+		//m_multiSig = NULL;
+#endif
 		m_pInfoService=NULL;
 		m_pMuxOutControlChannelDispatcher=NULL;
 		m_pMuxInControlChannelDispatcher=NULL;
@@ -62,7 +65,13 @@ SINT32 CAMix::start()
 
 		if(initOnce()!=E_SUCCESS)
 			return E_UNKNOWN;
+#ifndef MULTI_CERT
 		if(m_pSignature != NULL && pglobalOptions->isInfoServiceEnabled())
+#else
+		if(m_multiSig == NULL)
+			CAMsg::printMsg(LOG_ERR, "Error starting Infoservice, MultiSig not initialized!");
+		if(m_multiSig != NULL && pglobalOptions->isInfoServiceEnabled())
+#endif
 		{
 			CAMsg::printMsg(LOG_DEBUG, "CAMix start: creating InfoService object\n");
 			m_pInfoService=new CAInfoService(this);

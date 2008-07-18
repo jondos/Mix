@@ -101,7 +101,6 @@ SINT32 CAMultiSignature::signXML(DOMNode* node, bool appendCerts)
 	UINT8* canonicalBuff = DOM_Output::makeCanonical(elemRoot, &len);
 	if(canonicalBuff == NULL)
 		return E_UNKNOWN;
-
 	UINT8 dgst[SHA_DIGEST_LENGTH];
 	SHA1(canonicalBuff, len, dgst);
 	delete[] canonicalBuff;
@@ -111,7 +110,7 @@ SINT32 CAMultiSignature::signXML(DOMNode* node, bool appendCerts)
 	len = 512;
 	if(CABase64::encode(dgst, SHA_DIGEST_LENGTH, digestValue, &len) != E_SUCCESS)
 		return E_UNKNOWN;
-	digestValue[len] = 0;
+	//digestValue[len] = 0; //<- Why?
 
 	//append a signature for each SIGNATURE element we have
 	SIGNATURE* currentSignature = m_signatures;
@@ -124,6 +123,10 @@ SINT32 CAMultiSignature::signXML(DOMNode* node, bool appendCerts)
 		DOMElement* elemSignatureMethod = createDOMElement(doc, "SignatureMethod");
 		DOMElement* elemReference = createDOMElement(doc, "Reference");
 		DOMElement* elemDigestMethod = createDOMElement(doc, "DigestMethod");
+		if(currentSignature->pSig->isDSA())	//DSA-Signature
+			setDOMElementAttribute(elemSignatureMethod, "Algorithm", (UINT8*)DSA_SHA1_REFERENCE);
+		else if(currentSignature->pSig->isRSA())
+			setDOMElementAttribute(elemSignatureMethod, "Algorithm", (UINT8*)RSA_SHA1_REFERENCE);
 		setDOMElementAttribute(elemDigestMethod, "Algorithm", (UINT8*)SHA1_REFERENCE);
 		DOMElement* elemDigestValue = createDOMElement(doc, "DigestValue");
 		setDOMElementValue(elemDigestValue, digestValue);
@@ -140,9 +143,8 @@ SINT32 CAMultiSignature::signXML(DOMNode* node, bool appendCerts)
 				return E_UNKNOWN;
 
 		UINT8 sigBuff[1024];
-		if(currentSignature->pSig->getDSA() != NULL)	//DSA-Signature
+		if(currentSignature->pSig->isDSA())		//DSA-Signature
 		{
-			setDOMElementAttribute(elemSignatureMethod, "Algorithm", (UINT8*)DSA_SHA1_REFERENCE);
 			DSA_SIG* pdsaSig = NULL;
 			SINT32 ret = currentSignature->pSig->sign(canonicalBuff, len, &pdsaSig);
 			delete[] canonicalBuff;
@@ -157,9 +159,8 @@ SINT32 CAMultiSignature::signXML(DOMNode* node, bool appendCerts)
 			currentSignature->pSig->encodeRS(sigBuff, &len, pdsaSig);
 			DSA_SIG_free(pdsaSig);
 		}
-		else if(currentSignature->pSig->getRSA() != NULL)	//RSA-Signature
+		else if(currentSignature->pSig->isRSA())	//RSA-Signature
 		{
-			setDOMElementAttribute(elemSignatureMethod, "Algorithm", (UINT8*)RSA_SHA1_REFERENCE);
 			UINT32 sigLen = currentSignature->pSig->getSignatureSize();
 			SINT32 ret = currentSignature->pSig->sign(canonicalBuff, len, sigBuff, &sigLen);
 			delete[] canonicalBuff;
@@ -178,7 +179,7 @@ SINT32 CAMultiSignature::signXML(DOMNode* node, bool appendCerts)
 		UINT8 sig[255];
 		if(CABase64::encode(sigBuff, len, sig, &sigSize) != E_SUCCESS)
 			continue;
-		sig[sigSize]=0;
+		//sig[sigSize]=0;
 
 		//Makeing the whole Signature-Block....
 		DOMElement* elemSignature = createDOMElement(doc,"Signature");
@@ -207,12 +208,162 @@ SINT32 CAMultiSignature::signXML(DOMNode* node, bool appendCerts)
 	}
 	if(sigCount > 0)
 	{
-		CAMsg::printMsg(LOG_DEBUG, "Appended %d Signatures to XML-Structure\n", sigCount);
+		//CAMsg::printMsg(LOG_DEBUG, "Appended %d Signature(s) to XML-Structure\n", sigCount);
 		return E_SUCCESS;
 	}
 	return E_UNKNOWN;
 }
 
+SINT32 CAMultiSignature::verifyXML(DOMNode* root, CACertificate* a_cert)
+{
+	CASignature* sigVerifier = new CASignature();
+	sigVerifier->setVerifyKey(a_cert);
+	UINT8* signatureMethod;
+	if(sigVerifier->getDSA() != NULL)
+		signatureMethod = (UINT8*)DSA_SHA1_REFERENCE;
+	else if(sigVerifier->getRSA() != NULL)
+		signatureMethod = (UINT8*)RSA_SHA1_REFERENCE;
+	else return
+		E_UNKNOWN;
 
+	DOMNodeList* signatureElements = getElementsByTagName((DOMElement*)root, "Signature");
+	CAMsg::printMsg(LOG_DEBUG, "Found %d Signature(s) in XML-Structure\n", signatureElements->getLength());
+	UINT8 dgst[255];
+	UINT32 dgstlen=255;
+	UINT8* out = NULL;
+	UINT32 outlen;
+	bool verified = false;
+	//go through all appended Signatures an try to verify them with the given cert
+	for(UINT32 i=0; i<signatureElements->getLength(); i++)
+	{
+		DOMNode* elemSignature = signatureElements->item(i);
+		if(elemSignature == NULL)
+			continue;
+		DOMNode* elemSigInfo;
+		getDOMChildByName(elemSignature, "SignedInfo", elemSigInfo);
+		if(elemSigInfo == NULL)
+			continue;;
+		//check if SignatureMethod fits...
+		DOMNode* elemSigMethod;
+		getDOMChildByName(elemSigInfo, "SignatureMethod", elemSigMethod);
+		UINT32 algLen = 255;
+		UINT8* algorithm = new UINT8[255];
+		getDOMElementAttribute(elemSigMethod, (const char*)"Algorithm", algorithm, &algLen);
+		if(elemSigMethod == NULL ||
+				strncmp((const char*)algorithm, (const char*)signatureMethod, algLen) != E_SUCCESS)
+				//!equals((XMLCh*)algorithm, (const char*) signatureMethod))
+		{
+			CAMsg::printMsg(LOG_DEBUG, "Did NOT find matching SignatureMethods: %s and %s!\n", signatureMethod, algorithm);
+			continue;
+		}
+		DOMNode* elemSigValue;
+		getDOMChildByName(elemSignature, "SignatureValue", elemSigValue);
+		if(elemSigValue == NULL)
+			continue;
+		DOMNode* elemReference;
+		getDOMChildByName(elemSigInfo, "Reference", elemReference);
+		if(elemReference == NULL)
+			continue;
+		DOMNode* elemDigestValue;
+		getDOMChildByName(elemReference, "DigestValue", elemDigestValue);
+		if(elemDigestValue == NULL)
+			continue;
+
+		if(getDOMElementValue(elemDigestValue,dgst,&dgstlen)!=E_SUCCESS)
+			continue;
+		if(CABase64::decode(dgst,dgstlen,dgst,&dgstlen)!=E_SUCCESS)
+			continue;
+		if(dgstlen!=SHA_DIGEST_LENGTH)
+			continue;
+		UINT8 tmpSig[255];
+		UINT32 tmpSiglen=255;
+		if(getDOMElementValue(elemSigValue,tmpSig,&tmpSiglen)!=E_SUCCESS)
+			continue;
+		if(CABase64::decode(tmpSig,tmpSiglen,tmpSig,&tmpSiglen)!=E_SUCCESS)
+			continue;
+		out = new UINT8[5000];
+		outlen = 5000;
+		if(DOM_Output::makeCanonical(elemSigInfo, out, &outlen) != E_SUCCESS)
+		{
+			delete[] out;
+			out = NULL;
+			continue;
+		}
+		if(sigVerifier->getRSA() != NULL) //RSA-Signature
+		{
+			if(tmpSiglen != (UINT32)sigVerifier->getSignatureSize())
+			{
+				CAMsg::printMsg(LOG_DEBUG, "Signature does not have valid RSA-Size: %d\n", tmpSiglen);
+				delete[] out;
+				out = NULL;
+				continue;
+			}
+			UINT8 sha1[SHA_DIGEST_LENGTH];
+			SHA1(out, outlen, sha1);
+			if(RSA_verify(NID_sha1, sha1, SHA_DIGEST_LENGTH, tmpSig, tmpSiglen, sigVerifier->getRSA()) != 1)
+			{
+				CAMsg::printMsg(LOG_DEBUG, "RSA-Signature Verification not successful!\n", tmpSiglen);
+				delete[] out;
+				out = NULL;
+				continue;
+			}
+		}
+		else if(sigVerifier->getDSA() != NULL) //DSA-Signature
+		{
+			if(tmpSiglen != 40)
+			{
+				delete[] out;
+				out = NULL;
+				continue;
+			}
+			DSA_SIG* dsaSig=DSA_SIG_new();
+			dsaSig->r=BN_bin2bn(tmpSig, 20, dsaSig->r);
+			dsaSig->s=BN_bin2bn(tmpSig+20, 20, dsaSig->s);
+			if(sigVerifier->verify(out, outlen, dsaSig) != E_SUCCESS)
+			{
+				DSA_SIG_free(dsaSig);
+				delete[] out;
+				out = NULL;
+				continue;
+			}
+			DSA_SIG_free(dsaSig);
+		}
+		else //unknown SignatureMethod
+		{
+			continue;
+		}
+		//if we come to this point either RSA- or DSA- verification was successful, so we break the loop
+		verified = true;
+		break;
+	}
+	if(verified)
+	{
+		//the signature could be verified, now check digestValue
+		//first remove Signature-nodes from root
+		for(UINT32 i=0; i<signatureElements->getLength(); i++)
+		{
+			root->removeChild(signatureElements->item(i));
+		}
+		outlen = 5000;
+		DOM_Output::makeCanonical(root, out, &outlen);
+		//append Signature-nodes again
+		for(UINT32 i=0; i<signatureElements->getLength(); i++)
+		{
+			root->appendChild(signatureElements->item(i));
+		}
+
+		UINT8 newDgst[SHA_DIGEST_LENGTH];
+		SHA1(out, outlen, newDgst);
+		delete[] out;
+		out = NULL;
+		for(int i=0; i<SHA_DIGEST_LENGTH; i++)
+		{
+			if(newDgst[i] != dgst[i])
+				return E_UNKNOWN;
+		}
+		return E_SUCCESS;
+	}
+	return E_UNKNOWN;
+}
 
 

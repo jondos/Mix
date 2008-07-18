@@ -1710,7 +1710,6 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 			//TODO handle Password!
 			if(signature->setSignKey(a_cert, SIGKEY_PKCS12) == E_SUCCESS)
 			{
-				certs->add(CACertificate::decode(a_cert, CERT_PKCS12, (char*)passwd));
 				//try to find opCert(s) with same ID
 				for(UINT32 j=0; j<ownCertList->getLength(); j++)
 				{
@@ -1724,6 +1723,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 						 //TODO delete tmpOpCert?
 					}
 				}
+				certs->add(CACertificate::decode(a_cert, CERT_PKCS12, (char*)passwd));
 				CAMsg::printMsg(LOG_DEBUG, "Adding Sign-Key ID=%d with %d Operator-Certificat(e)\n", cert_id, opCertCount);
 				m_multiSig->addSignature(signature, certs);
 			}
@@ -1748,8 +1748,8 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 			//return E_UNKNOWN;
 		}
 		//sign config for debugging of MultiCert
-		m_multiSig->signXML(elemRoot, true);
-		saveToFile(elemRoot->getOwnerDocument(), (UINT8*)"SignedConfig.xml");
+		//m_multiSig->signXML(elemRoot, true);
+		//saveToFile(elemRoot->getOwnerDocument(), (UINT8*)"SignedConfig.xml");
 #endif
 #ifndef MULTI_CERT
 		//then Operator Certificate

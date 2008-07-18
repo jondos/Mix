@@ -320,7 +320,6 @@ SINT32 CASignature::sign(UINT8* in,UINT32 inlen,UINT8* sig,UINT32* siglen)
 			if(RSA_sign(NID_sha1, dgst, SHA_DIGEST_LENGTH, sig, siglen, m_pRSA) != 1)
 				return E_UNKNOWN;
 
-			CAMsg::printMsg(LOG_DEBUG, "Signatur-Laenge: %d\n", *siglen);
 			return E_SUCCESS;
 		}
 #endif //MULTICERT
@@ -962,7 +961,20 @@ SINT32 CASignature::decodeRS(const UINT8* in, const UINT32 inLen, DSA_SIG* pDsaS
 	return E_SUCCESS;
 }
 
+#ifdef MULTI_CERT
+bool CASignature::isDSA()
+{
+	if(m_pDSA != NULL)
+		return true;
+	return false;
+}
 
-
+bool CASignature::isRSA()
+{
+	if(m_pRSA != NULL)
+		return true;
+	return false;
+}
+#endif
 
 #endif //ONLY_LOCAL_PROXY

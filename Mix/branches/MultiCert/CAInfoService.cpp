@@ -349,6 +349,9 @@ CAInfoService::CAInfoService()
     m_expectedMixRelPos = 0;
     	m_pLoopCV = new CAConditionVariable();
 		m_pthreadRunLoop=new CAThread((UINT8*)"InfoServiceThread");
+#ifdef MULTI_CERT
+		m_multiSig = NULL;
+#endif
 #ifdef DYNAMIC_MIX
 		m_bReconfig = false;
 #endif
@@ -437,7 +440,11 @@ SINT32 CAInfoService::getMixedPackets(UINT64& ppackets)
 
 SINT32 CAInfoService::start()
 	{
+#ifndef MULTI_CERT
 		if(m_pSignature==NULL)
+#else
+		if(m_multiSig == NULL)
+#endif
 			return E_UNKNOWN;
 		m_bRun=true;
 		set64(m_lastMixedPackets,(UINT32)0);
@@ -652,7 +659,11 @@ UINT8* CAInfoService::getMixHeloXMLAsString(UINT32& a_len)
 			{
 				goto ERR;
 			}
+#ifndef MULTI_CERT
 		if(m_pSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
+#else
+		if(m_multiSig->signXML(docMixInfo, true) != E_SUCCESS)
+#endif
 			{
 				goto ERR;
 			}
@@ -936,8 +947,11 @@ UINT8* CAInfoService::getCascadeHeloXMLAsString(UINT32& a_len)
 			print64(tmpStrCurrentMillis, m_serial);
 			setDOMElementAttribute(elemRoot, "serial", tmpStrCurrentMillis);
 		}
-
+#ifndef MULTI_CERT
 		if(m_pSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
+#else
+		if(m_multiSig->signXML(docMixInfo, true) != E_SUCCESS)
+#endif
 		{
 			goto ERR;
 		}

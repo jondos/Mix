@@ -87,6 +87,10 @@ class CASignature
 			* @retval E_UNKNOWN otherwise
 			*/
 			SINT32 verifyDER(UINT8* in, UINT32 inlen, const UINT8 * dsaSig, const UINT32 sigLen);
+#ifdef MULTI_CERT
+			bool isDSA();
+			bool isRSA();
+#endif
 			friend class CASSLContext;
 
 		private:
