@@ -365,6 +365,7 @@ void CACmdLnOptions::clean()
 #endif
 }
 
+
 SINT32 CACmdLnOptions::parse(int argc,const char** argv)
     {
 	int iDaemon=0;
