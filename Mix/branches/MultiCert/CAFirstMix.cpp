@@ -576,8 +576,11 @@ SINT32 CAFirstMix::processKeyExchange()
 			}
 			m_u32KeepAliveRecvInterval=max(u32KeepAliveRecvInterval,tmpSendInterval);
 			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval,m_u32KeepAliveRecvInterval);
-
+#ifndef MULTI_CERT
             m_pSignature->signXML(elemRoot);
+#else
+            m_multiSig->signXML(elemRoot, false);
+#endif
             DOM_Output::dumpToMem(docSymKey,out,&outlen);
             if (docSymKey != NULL)
             {

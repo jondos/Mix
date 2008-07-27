@@ -34,24 +34,30 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 CASignature::CASignature()
 	{
-		m_pDSA=NULL;
+		m_pDSA = NULL;
 #ifdef MULTI_CERT
-		m_pRSA=NULL;
+		m_pRSA = NULL;
+		m_pEC = NULL;
 #endif
 	}
 
 CASignature::~CASignature()
 	{
-		if(m_pDSA!=NULL)
+		if(m_pDSA != NULL)
 		{
 			DSA_free(m_pDSA);
 			m_pDSA = NULL;
 		}
 #ifdef MULTI_CERT
-		if(m_pRSA!=NULL)
+		if(m_pRSA != NULL)
 		{
 			RSA_free(m_pRSA);
 			m_pRSA = NULL;
+		}
+		if(m_pEC != NULL)
+		{
+			EC_KEY_free(m_pEC);
+			m_pEC = NULL;
 		}
 #endif
 	}
@@ -59,17 +65,22 @@ CASignature::~CASignature()
 
 CASignature* CASignature::clone()
 	{
-		CASignature* tmpSig=new CASignature();
-		if(m_pDSA!=NULL)
+		CASignature* tmpSig = new CASignature();
+		if(m_pDSA != NULL)
 		{
-			DSA* tmpDSA=DSA_clone(m_pDSA);
-			tmpSig->m_pDSA=tmpDSA;
+			DSA* tmpDSA = DSA_clone(m_pDSA);
+			tmpSig->m_pDSA = tmpDSA;
 		}
 #ifdef MULTI_CERT
-		if(m_pRSA!=NULL)
+		if(m_pRSA != NULL)
 		{
-			RSA* tmpRSA=RSA_clone(m_pRSA);
-			tmpSig->m_pRSA=tmpRSA;
+			RSA* tmpRSA = RSA_clone(m_pRSA);
+			tmpSig->m_pRSA = tmpRSA;
+		}
+		if(m_pEC != NULL)
+		{
+			EC_KEY* tmpEC = EC_KEY_dup(m_pEC);
+			tmpSig->m_pEC = tmpEC;
 		}
 #endif
 		return tmpSig;
@@ -193,6 +204,17 @@ SINT32 CASignature::setSignKey(const UINT8* buff,UINT32 len,UINT32 type,const ch
 								m_pRSA=tmpRSA;
 								return E_SUCCESS;
 							}
+							else if(EVP_PKEY_type(key->type) == EVP_PKEY_EC)
+							{
+								// found EC key
+								EC_KEY* tmpECKey = EC_KEY_dup(key->pkey.ec);
+								EVP_PKEY_free(key);
+								key = NULL;
+								EC_KEY_free(m_pEC);
+								m_pEC = tmpECKey;
+								CAMsg::printMsg(LOG_DEBUG, "Found EC Key!\n");
+								return E_SUCCESS;
+							}
 #endif //MULTICERT
 							EVP_PKEY_free(key);
 							return E_UNKNOWN;
@@ -298,6 +320,22 @@ SINT32 CASignature::parseSignKeyXML(const UINT8* buff,UINT32 len)
 
 SINT32 CASignature::sign(UINT8* in,UINT32 inlen,UINT8* sig,UINT32* siglen)
 	{
+#ifdef MULTI_CERT
+		if(isRSA() || isECDSA())
+		{
+			UINT8 dgst[SHA_DIGEST_LENGTH];
+			SHA1(in,inlen,dgst);
+			if(isRSA()) //either RSA or EC is set
+			{
+				return signRSA(dgst, SHA_DIGEST_LENGTH, sig, siglen);
+			}
+			else //(isECDSA())
+			{
+				return signECDSA(dgst, SHA_DIGEST_LENGTH, sig, siglen);
+			}
+		}
+#endif //MULTICERT
+
 		if(m_pDSA!=NULL)
 		{
 			DSA_SIG* signature=NULL;
@@ -311,18 +349,6 @@ SINT32 CASignature::sign(UINT8* in,UINT32 inlen,UINT8* sig,UINT32* siglen)
 			DSA_SIG_free(signature);
 			return E_SUCCESS;
 		}
-#ifdef MULTI_CERT
-		if(m_pRSA != NULL)
-		{
-			UINT8 dgst[SHA_DIGEST_LENGTH];
-			SHA1(in, inlen, dgst);
-
-			if(RSA_sign(NID_sha1, dgst, SHA_DIGEST_LENGTH, sig, siglen, m_pRSA) != 1)
-				return E_UNKNOWN;
-
-			return E_SUCCESS;
-		}
-#endif //MULTICERT
 		return E_UNKNOWN;
 	}
 
@@ -340,7 +366,19 @@ SINT32 CASignature::getSignatureSize()
 	{
 #ifdef MULTI_CERT
 		if(m_pRSA != NULL)
+		{
 			return RSA_size(m_pRSA);
+		}
+		if(m_pEC != NULL)
+		{
+			const EC_GROUP* tmpGroup = EC_KEY_get0_group(m_pEC);
+
+			BIGNUM* order = BN_new();
+			EC_GROUP_get_order(tmpGroup, order, NULL);
+			SINT32 size = BN_num_bytes(order) * 2;
+			CAMsg::printMsg(LOG_DEBUG, "ECDSA-Signature size: %d\n", size);
+			return size;
+		}
 #endif
 		return DSA_size(m_pDSA);
 	}
@@ -431,10 +469,18 @@ SINT32 CASignature::signXML(DOMNode* node,CACertStore* pIncludeCerts)
 		DOMElement* elemCanonicalizationMethod=createDOMElement(doc,"CanonicalizationMethod");
 		DOMElement* elemSignatureMethod=createDOMElement(doc,"SignatureMethod");
 		if(m_pDSA != NULL)
+		{
 			setDOMElementAttribute(elemSignatureMethod, "Algorithm", (UINT8*)DSA_SHA1_REFERENCE);
+		}
 #ifdef MULTI_CERT
 		else if(m_pRSA != NULL)
+		{
 			setDOMElementAttribute(elemSignatureMethod, "Algorithm", (UINT8*)RSA_SHA1_REFERENCE);
+		}
+		else if(m_pEC != NULL)
+		{
+			setDOMElementAttribute(elemSignatureMethod, "Algorithm", (UINT8*)ECDSA_SHA1_REFERENCE);
+		}
 #endif //MULTI_CERT
 		DOMElement* elemReference=createDOMElement(doc,"Reference");
 		//setDOMElementAttribute(elemReference,"URI",(UINT8*)"");
@@ -479,9 +525,9 @@ SINT32 CASignature::signXML(DOMNode* node,CACertStore* pIncludeCerts)
 			DSA_SIG_free(pdsaSig);
 #ifdef MULTI_CERT
 		}
-		else if(m_pRSA != NULL)
+		else if(m_pRSA != NULL || m_pEC != NULL)
 		{
-			UINT32 sigLen = RSA_size(m_pRSA);
+			UINT32 sigLen = getSignatureSize();
 			SINT32 ret = sign(canonicalBuff, len, tmpBuff, &sigLen);
 			delete[] canonicalBuff;
 			canonicalBuff = NULL;
@@ -576,22 +622,30 @@ SINT32 CASignature::getVerifyKeyHash(UINT8* buff,UINT32* len)
 SINT32 CASignature::setVerifyKey(CACertificate* pCert)
 	{
 		if(pCert==NULL)
-			{
-				//TODO handle RSA-Key here too
-				DSA_free(m_pDSA);
-				m_pDSA=NULL;
-				return E_SUCCESS;
-			}
+		{
+			//TODO handle RSA-Key here too?
+			DSA_free(m_pDSA);
+			m_pDSA=NULL;
+			return E_SUCCESS;
+		}
 		EVP_PKEY *key=X509_get_pubkey(pCert->m_pCert);
 		if(EVP_PKEY_type(key->type)!=EVP_PKEY_DSA)
 			{
 #ifdef MULTI_CERT
-				if(EVP_PKEY_type(key->type)==EVP_PKEY_RSA)
+				if(EVP_PKEY_type(key->type) == EVP_PKEY_RSA)
 				{
-					RSA* tmpRSA=RSA_clone(key->pkey.rsa);
+					RSA* tmpRSA = RSA_clone(key->pkey.rsa);
 					EVP_PKEY_free(key);
 					RSA_free(m_pRSA);
-					m_pRSA=tmpRSA;
+					m_pRSA = tmpRSA;
+					return E_SUCCESS;
+				}
+				if(EVP_PKEY_type(key->type) == EVP_PKEY_EC)
+				{
+					EC_KEY* tmpEC = EC_KEY_dup(key->pkey.ec);
+					EVP_PKEY_free(key);
+					EC_KEY_free(m_pEC);
+					m_pEC = tmpEC;
 					return E_SUCCESS;
 				}
 #endif //MULTI_CERT
@@ -857,11 +911,20 @@ SINT32 CASignature::verifyXML(DOMNode* root,CACertStore* trustedCerts)
 			return E_UNKNOWN;
 		}
 #ifdef MULTI_CERT
-		if(m_pRSA != NULL)
+		if(m_pRSA != NULL || m_pEC != NULL)
 		{
 			UINT8 sha1[SHA_DIGEST_LENGTH];
 			SHA1(out, outlen, sha1);
-			if(RSA_verify(NID_sha1, sha1, SHA_DIGEST_LENGTH, tmpSig, tmpSiglen, m_pRSA) != 1)
+			SINT32 ret;
+			if(m_pRSA != NULL)
+			{
+				ret = RSA_verify(NID_sha1, sha1, SHA_DIGEST_LENGTH, tmpSig, tmpSiglen, m_pRSA);
+			}
+			else
+			{
+				ret = ECDSA_verify(NID_sha1, sha1, SHA_DIGEST_LENGTH, tmpSig, tmpSiglen, m_pEC);
+			}
+			if(ret != 1)
 			{
 				delete[] out;
 				out = NULL;
@@ -962,18 +1025,173 @@ SINT32 CASignature::decodeRS(const UINT8* in, const UINT32 inLen, DSA_SIG* pDsaS
 }
 
 #ifdef MULTI_CERT
+SINT32 CASignature::signRSA(UINT8* dgst, UINT32 dgstLen, UINT8* sig, UINT32* sigLen)
+{
+	if(RSA_sign(NID_sha1, dgst, dgstLen, sig, sigLen, m_pRSA) != 1)
+	{
+		return E_UNKNOWN;
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CASignature::signECDSA(UINT8* dgst, UINT32 dgstLen, UINT8* sig, UINT32* sigLen)
+{
+	UINT32 len = getSignatureSize();
+	if(len > *sigLen)
+	{
+		return E_UNKNOWN;
+	}
+	ECDSA_SIG* ecdsaSig = ECDSA_do_sign(dgst, dgstLen, m_pEC);
+	if(ecdsaSig == NULL)
+	{
+		return E_UNKNOWN;
+	}
+	memset(sig, 0, *sigLen);
+	UINT32 rSize, sSize;
+	rSize = BN_num_bytes(ecdsaSig->r);
+	sSize = BN_num_bytes(ecdsaSig->s);
+
+	UINT32 rPos = (len/2)-rSize;
+	UINT32 sPos = len-sSize;
+
+	CAMsg::printMsg(LOG_DEBUG, "Sig-Positions r: %d(size=%d), s: %d(size=%d)\n", rPos, rSize, sPos, sSize);
+
+	BN_bn2bin(ecdsaSig->r, sig + rPos);
+	BN_bn2bin(ecdsaSig->s, sig + sPos);
+
+	*sigLen = len;
+
+	/*SINT32 len = *sigLen;
+	ECDSA_SIG* ecdsaSig2 = ECDSA_SIG_new();
+	ecdsaSig2->r = BN_bin2bn(sig, len, ecdsaSig->r);
+	ecdsaSig2->s = BN_bin2bn(sig+len, len, ecdsaSig->s);
+
+	if(BN_cmp(ecdsaSig->r, ecdsaSig2->r) == 0)
+		CAMsg::printMsg(LOG_DEBUG, "r identic\n");
+	if(BN_cmp(ecdsaSig->s, ecdsaSig2->s) == 0)
+			CAMsg::printMsg(LOG_DEBUG, "s identic\n");*/
+	//ECDSA_SIG_free(ecdsaSig2);
+	/*UINT32 tmplen = 255;
+	UINT8 tmpbuff[tmplen];
+	CABase64::encode(sig, *sigLen, tmpbuff, &tmplen);
+	CAMsg::printMsg(LOG_DEBUG, "ECDSA-Signatur: %s (Raw: %d bytes)\n", tmpbuff, *sigLen);
+	*/
+	//CAMsg::printMsg(LOG_DEBUG, "ECDSA-Signatur r: %s\n", BN_, *sigLen);
+	ECDSA_SIG_free(ecdsaSig);
+
+	return E_SUCCESS;
+}
+
+SINT32 CASignature::verify(UINT8* in, UINT32 inLen, UINT8* sig, const UINT32 sigLen)
+{
+	UINT8 sha1[SHA_DIGEST_LENGTH];
+	SHA1(in, inLen, sha1);
+	SINT32 ret = -1;
+	if(isDSA())
+	{
+		ret = verifyDSA(sha1, SHA_DIGEST_LENGTH, sig, sigLen);
+	}
+	else if(isRSA())
+	{
+		ret = verifyRSA(sha1, SHA_DIGEST_LENGTH, sig, sigLen);
+	}
+	else if(isECDSA())
+	{
+		ret = verifyECDSA(sha1, SHA_DIGEST_LENGTH, sig, sigLen);
+	}
+	if(ret == 1)
+	{
+		return E_SUCCESS;
+	}
+	return E_UNKNOWN;
+}
+
+SINT32 CASignature::verifyRSA(UINT8* dgst, UINT32 dgstLen, UINT8* sig, const UINT32 sigLen)
+{
+	if(sigLen != (UINT32)getSignatureSize())
+	{
+		return E_UNKNOWN;
+	}
+	return RSA_verify(NID_sha1, dgst, dgstLen, sig, sigLen, m_pRSA);
+}
+
+SINT32 CASignature::verifyDSA(UINT8* dgst, UINT32 dgstLen, UINT8* sig, const UINT32 sigLen)
+{
+	if(sigLen != 40)
+	{
+		return E_UNKNOWN;
+	}
+	DSA_SIG* dsaSig = DSA_SIG_new();
+	dsaSig->r = BN_bin2bn(sig, 20, dsaSig->r);
+	dsaSig->s = BN_bin2bn(sig+20, 20, dsaSig->s);
+
+	SINT32 ret = DSA_do_verify(dgst, dgstLen, dsaSig, m_pDSA);
+	DSA_SIG_free(dsaSig);
+
+	return ret;
+}
+
+SINT32 CASignature::verifyECDSA(UINT8* dgst, UINT32 dgstLen, UINT8* sig, const UINT32 sigLen)
+{
+	SINT32 len = sigLen / 2;
+	CAMsg::printMsg(LOG_DEBUG, "recieved ECDSA-Signature size : %d\n", sigLen);
+	ECDSA_SIG* ecdsaSig = ECDSA_SIG_new();
+	ecdsaSig->r = BN_bin2bn(sig, len, ecdsaSig->r);
+	ecdsaSig->s = BN_bin2bn(sig+len, len, ecdsaSig->s);
+
+	SINT32 ret = ECDSA_do_verify(dgst, dgstLen, ecdsaSig, m_pEC);
+	ECDSA_SIG_free(ecdsaSig);
+
+	return ret;
+}
+
 bool CASignature::isDSA()
 {
 	if(m_pDSA != NULL)
+	{
 		return true;
+	}
 	return false;
 }
 
 bool CASignature::isRSA()
 {
 	if(m_pRSA != NULL)
+	{
 		return true;
+	}
 	return false;
+}
+
+bool CASignature::isECDSA()
+{
+	if(m_pEC != NULL)
+	{
+		return true;
+	}
+	return false;
+}
+
+bool CASignature::isSet()
+{
+	return (isDSA() || isRSA() || isECDSA());
+}
+
+UINT8* CASignature::getSignatureMethod()
+{
+	if(m_pDSA != NULL)
+	{
+		return (UINT8*)DSA_SHA1_REFERENCE;
+	}
+	if(m_pRSA != NULL)
+	{
+		return (UINT8*)RSA_SHA1_REFERENCE;
+	}
+	if(m_pEC != NULL)
+	{
+		return (UINT8*)ECDSA_SHA1_REFERENCE;
+	}
+	return NULL;
 }
 #endif
 

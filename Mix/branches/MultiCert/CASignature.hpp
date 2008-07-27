@@ -88,8 +88,12 @@ class CASignature
 			*/
 			SINT32 verifyDER(UINT8* in, UINT32 inlen, const UINT8 * dsaSig, const UINT32 sigLen);
 #ifdef MULTI_CERT
+			SINT32 verify(UINT8* in, UINT32 inLen, UINT8* sig, const UINT32 sigLen);
 			bool isDSA();
 			bool isRSA();
+			bool isECDSA();
+			bool isSet();
+			UINT8* getSignatureMethod();
 #endif
 			friend class CASSLContext;
 
@@ -101,12 +105,19 @@ class CASignature
 #define SHA1_REFERENCE "http://www.w3.org/2000/09/xmldsig#sha1"
 #define DSA_SHA1_REFERENCE "http://www.w3.org/2000/09/xmldsig#dsa-sha1"
 #define RSA_SHA1_REFERENCE "http://www.w3.org/2000/09/xmldsig#rsa-sha1"
+#define ECDSA_SHA1_REFERENCE "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha1"
 #ifdef MULTI_CERT
 			friend class CAMultiSignature;
+			SINT32 signRSA(UINT8* dgst, UINT32 dgstLen, UINT8* sig, UINT32* sigLen);
+			SINT32 signECDSA(UINT8* dgst, UINT32 dgstLen, UINT8* sig, UINT32* sigLen);
+			SINT32 verifyRSA(UINT8* dgst, UINT32 dgstLen, UINT8* sig, const UINT32 sigLen);
+			SINT32 verifyDSA(UINT8* dgst, UINT32 dgstLen, UINT8* sig, const UINT32 sigLen);
+			SINT32 verifyECDSA(UINT8* dgst, UINT32 dgstLen, UINT8* sig, const UINT32 sigLen);
 			RSA* m_pRSA;
 			RSA* getRSA(){ return m_pRSA; }
+			EC_KEY* m_pEC;
+			EC_KEY* getECKey(){ return m_pEC; }
 #endif //MULTI_CERT
-
 	};
 #endif
 #endif //ONLY_LOCAL_PROXY

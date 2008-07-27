@@ -1,28 +1,28 @@
 /*
-Copyright (c) 2000, The JAP-Team 
+Copyright (c) 2000, The JAP-Team
 All rights reserved.
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-	- Redistributions of source code must retain the above copyright notice, 
+	- Redistributions of source code must retain the above copyright notice,
 	  this list of conditions and the following disclaimer.
 
-	- Redistributions in binary form must reproduce the above copyright notice, 
-	  this list of conditions and the following disclaimer in the documentation and/or 
+	- Redistributions in binary form must reproduce the above copyright notice,
+	  this list of conditions and the following disclaimer in the documentation and/or
 		other materials provided with the distribution.
 
-	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors 
-	  may be used to endorse or promote products derived from this software without specific 
-		prior written permission. 
+	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors
+	  may be used to endorse or promote products derived from this software without specific
+		prior written permission.
 
-	
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS 
-OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
-OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
-IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 #ifndef __CA_UTIL__
@@ -39,7 +39,7 @@ UINT8* bytes2hex(const void* bytes,UINT32 len);
 char* strins(const char* src,UINT32 pos,const char* ins);
 char* strins(const char* src,const char * pos,const char* ins);
 
-SINT32 getcurrentTime(timespec& t); 
+SINT32 getcurrentTime(timespec& t);
 SINT32 getcurrentTimeMillis(UINT64& u64Time);
 SINT32 getcurrentTimeMicros(UINT64& u64Time);
 
@@ -96,11 +96,11 @@ SINT32 getDOMChildByName(const DOMNode* pNode,const XMLCh* const name,DOMNode* &
 SINT32 getDOMChildByName(const DOMNode* pNode,const char * const name,DOMNode* & child,bool deep=false);
 SINT32 getDOMChildByName(const DOMNode* pNode,const char * const name,DOMElement* & child,bool deep=false);
 
-/** 
+/**
  * Returns the content of the text node(s) under elem
  * as null-terminated C String. If there is no text node
  * len is set to 0.
- * 
+ *
  * @param DOM_Node the element which has a text node under it
  * @param value a buffer that gets the text value
  * @param len on call contains the buffer size, on return contains the number of bytes copied
@@ -114,11 +114,11 @@ bool equals(const XMLCh* const e1,const char* const e2);
 
 SINT32 getDOMElementAttribute(const DOMNode * const pElem,const char* attrName,SINT32* value);
 
-/** Creates a new DOMElement with the given name which belongs to the DOMDocument owernDoc. 
+/** Creates a new DOMElement with the given name which belongs to the DOMDocument owernDoc.
 **/
 DOMElement* createDOMElement(XERCES_CPP_NAMESPACE::DOMDocument* pOwnerDoc,const char * const name);
 
-/** Creates a new DOMText with the given value which belongs to the DOMDocument owernDoc. 
+/** Creates a new DOMText with the given value which belongs to the DOMDocument owernDoc.
 **/
 DOMText* createDOMText(XERCES_CPP_NAMESPACE::DOMDocument* pOwnerDoc,const char * const text);
 
@@ -127,7 +127,7 @@ DOMText* createDOMText(XERCES_CPP_NAMESPACE::DOMDocument* pOwnerDoc,const char *
 	*/
 XERCES_CPP_NAMESPACE::DOMDocument* createDOMDocument();
 
-/** Creates a new DOMText with the given value which belongs to the DOMDocument owernDoc. 
+/** Creates a new DOMText with the given value which belongs to the DOMDocument owernDoc.
 **/
 DOMText* createDOMText(XERCES_CPP_NAMESPACE::DOMDocument* pOwnerDoc,const char * const text);
 
@@ -231,7 +231,7 @@ inline void setZero64(UINT64& op1)
 		op1=0;
 #endif
 	}
-	
+
 inline void setZero64(SINT64& op1)
 	{
 #if !defined(HAVE_NATIVE_UINT64)
@@ -330,7 +330,7 @@ inline bool isEqual64(UINT64& op1,UINT64& op2)
 		return op1==op2;
 #endif
 	}
-	
+
 inline bool isZero64(UINT64& op1)
 	{
 #if !defined(HAVE_NATIVE_UINT64)
@@ -339,7 +339,7 @@ inline bool isZero64(UINT64& op1)
 		return op1==0;
 #endif
 	}
-	
+
 inline bool isZero64(SINT64& op1)
 	{
 #if !defined(HAVE_NATIVE_UINT64)
@@ -457,8 +457,26 @@ inline RSA* RSA_clone(RSA* rsa)
 		if(rsa->d != NULL)
 		{ //we have a private key
 			tmpRSA->d = BN_dup(rsa->d);
-			tmpRSA->p = BN_dup(rsa->p);
-			tmpRSA->q = BN_dup(rsa->q);
+			if(tmpRSA->p != NULL)
+			{
+				tmpRSA->p = BN_dup(rsa->p);
+			}
+			if(tmpRSA->q != NULL)
+			{
+				tmpRSA->q = BN_dup(rsa->q);
+			}
+		}
+		if(tmpRSA->dmp1 != NULL)
+		{
+			tmpRSA->dmp1 = BN_dup(rsa->dmp1);
+		}
+		if(tmpRSA->dmq1 != NULL)
+		{
+			tmpRSA->dmq1 = BN_dup(rsa->dmq1);
+		}
+		if(tmpRSA->iqmp != NULL)
+		{
+			tmpRSA->iqmp = BN_dup(rsa->iqmp);
 		}
 		return tmpRSA;
 	}
