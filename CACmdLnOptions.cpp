@@ -1724,7 +1724,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 					}
 				}
 				certs->add(CACertificate::decode(a_cert, CERT_PKCS12, (char*)passwd));
-				CAMsg::printMsg(LOG_DEBUG, "Adding Sign-Key ID=%d with %d Operator-Certificat(e)\n", cert_id, opCertCount);
+				CAMsg::printMsg(LOG_DEBUG, "Adding Sign-Key ID=%d with %d Operator-Certificate(s)\n", cert_id, opCertCount);
 				m_multiSig->addSignature(signature, certs);
 			}
 			else

@@ -313,12 +313,17 @@ SINT32 CALastMix::processKeyExchange()
 		CAMsg::printMsg(LOG_INFO,"Symmetric Key Info received is:\n");
 		CAMsg::printMsg(LOG_INFO,"%s\n",(char*)messageBuff);
 		//verify signature
+#ifndef MULTI_CERT
 		CASignature oSig;
 		CACertificate* pCert=pglobalOptions->getPrevMixTestCertificate();
 		oSig.setVerifyKey(pCert);
 		delete pCert;
 		pCert = NULL;
 		if(oSig.verifyXML(messageBuff,len)!=E_SUCCESS)
+#else
+		CACertificate* pCert = pglobalOptions->getPrevMixTestCertificate();
+		if(CAMultiSignature::verifyXML(messageBuff, len, pCert) != E_SUCCESS)
+#endif
 			{
 				CAMsg::printMsg(LOG_CRIT,"Could not verify the symmetric key!\n");
 				delete []messageBuff;

@@ -207,7 +207,11 @@ SINT32 CAMiddleMix::processKeyExchange()
 						m_u32KeepAliveRecvInterval2=max(u32KeepAliveRecvInterval,tmpSendInterval);
 						CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval2,m_u32KeepAliveRecvInterval2);
 
+#ifndef MULTI_CERT
 						m_pSignature->signXML(elemRoot);
+#else
+						m_multiSig->signXML(elemRoot, false);
+#endif
 						m_pMuxOut->setSendKey(key,32);
 						m_pMuxOut->setReceiveKey(key+32,32);
 						UINT32 outlen=0;
