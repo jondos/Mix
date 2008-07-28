@@ -1020,6 +1020,9 @@ NEXT_USER_WRITING:
 					}
 				if(!bAktiv)
 				  msSleep(100);
+#ifndef PAYMENT
+				msSleep(7);
+#endif
 			}
 //ERR:
 		CAMsg::printMsg(LOG_CRIT,"Seems that we are restarting now!!\n");
