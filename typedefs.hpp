@@ -109,6 +109,7 @@ typedef t_MixPacket MIXPACKET;
 struct t_queue_entry
 	{
 		MIXPACKET packet;
+		UINT64 timestamp_arrival;
 		#if defined  (LOG_PACKET_TIMES) || defined (LOG_CHANNEL)
 			UINT64 timestamp_proccessing_start;
 			UINT64 timestamp_proccessing_start_OP;
