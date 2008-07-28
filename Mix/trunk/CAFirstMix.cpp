@@ -660,6 +660,9 @@ THREAD_RETURN fm_loopSendToMix(void* param)
 
 		UINT32 len;
 		SINT32 ret;
+#ifdef FORCED_DELAY		
+		UINT64 waitMillis = 0;
+#endif
 #ifndef USE_POOL
 		tQueueEntry* pQueueEntry=new tQueueEntry;
 		MIXPACKET* pMixPacket=&pQueueEntry->packet;
@@ -680,6 +683,14 @@ THREAD_RETURN fm_loopSendToMix(void* param)
 						CAMsg::printMsg(LOG_ERR,"ret=%i len=%i\n",ret,len);
 						break;
 					}
+#ifdef FORCED_DELAY		
+				getcurrentTimeMillis(waitMillis);
+				if (waitMillis <=  (pQueueEntry->timestamp_arrival+MIN_LATENCY) )
+				{
+					waitMillis = (pQueueEntry->timestamp_arrival+MIN_LATENCY) - waitMillis;
+					msSleep(waitMillis);
+				}
+#endif
 				if(pMuxSocket->send(pMixPacket)!=MIXPACKET_SIZE)
 					{
 						CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopSendToMix - Error in sending MixPaket\n");
@@ -802,6 +813,9 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 				else if(ret>0)
 					{
 						ret=pMuxSocket->receive(pMixPacket);
+#ifdef FORCED_DELAY						
+						getcurrentTimeMillis(pQueueEntry->timestamp_arrival);
+#endif
 						#ifdef LOG_PACKET_TIMES
 							getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_start);
 						#endif
@@ -831,7 +845,7 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 						getcurrentTimeMicros(pQueueEntry->pool_timestamp_out);
 					#endif
 				#endif
-				pQueue->add(pMixPacket,sizeof(tQueueEntry));
+				pQueue->add(pQueueEntry, sizeof(tQueueEntry));
 				getcurrentTimeMillis(keepaliveLast);
 			}
 		delete pQueueEntry;

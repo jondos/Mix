@@ -335,7 +335,7 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 		#ifdef LOG_PACKET_TIMES
 			setZero64(pQueueEntry->timestamp_proccessing_start);
 		#endif
-		m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));
+		m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
 		delete pEntry->pCipher;
 		pEntry->pCipher = NULL;
 		pEntry=m_pChannelList->getNextChannel(pEntry);
@@ -413,6 +413,7 @@ SINT32 CAFirstMixA::loop()
 //		threadReadFromUsers.start(this);
 		while(!m_bRestart) /* the main mix loop as long as there are things that are not handled by threads. */
 			{
+LOOP_START:				
 				bAktiv=false;
 #ifdef PAYMENT
 				// check the timeout for all connections
@@ -480,6 +481,9 @@ SINT32 CAFirstMixA::loop()
 										countRead--;
 #endif																				
 										ret=pMuxSocket->receive(pMixPacket,0);
+#ifdef FORCED_DELAY		
+										getcurrentTimeMillis(pQueueEntry->timestamp_arrival);
+#endif								
 										#if defined LOG_PACKET_TIMES||defined(LOG_CHANNEL)
 											getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_start);
 											set64(pQueueEntry->timestamp_proccessing_start_OP,pQueueEntry->timestamp_proccessing_start);
@@ -559,7 +563,7 @@ SINT32 CAFirstMixA::loop()
 													#ifdef COUNTRY_STATS
 														m_PacketsPerCountryOUT[pHashEntry->countryID].inc();
 													#endif	
-													pHashEntry->pQueueSend->add(pMixPacket,sizeof(tQueueEntry));
+													pHashEntry->pQueueSend->add(pQueueEntry,sizeof(tQueueEntry));
 													#ifdef HAVE_EPOLL
 														m_psocketgroupUsersWrite->add(*pMuxSocket,pHashEntry); 
 													#else
@@ -577,7 +581,7 @@ SINT32 CAFirstMixA::loop()
 														#ifdef LOG_PACKET_TIMES
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 														#endif
-														m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));
+														m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
 														#ifdef LOG_CHANNEL
 															//pEntry->packetsInFromUser++;
 															getcurrentTimeMicros(current_time);
@@ -612,7 +616,7 @@ SINT32 CAFirstMixA::loop()
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 														#endif
 							
-														m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));
+														m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
 														incMixedPackets();
 														#ifdef LOG_CHANNEL
 															pEntry->packetsInFromUser++;
@@ -656,7 +660,7 @@ SINT32 CAFirstMixA::loop()
 																pTmpEntry->packetsInFromUser++;
 																set64(pTmpEntry->timeCreated,pQueueEntry->timestamp_proccessing_start);
 															#endif
-															m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));
+															m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
 															incMixedPackets();
 															#ifdef _DEBUG
 //																			CAMsg::printMsg(LOG_DEBUG,"Added out channel: %u\n",pMixPacket->channel);
@@ -689,6 +693,26 @@ NEXT_USER:
 					{
 						bAktiv=true;
 						countRead--;
+						
+#ifdef FORCED_DELAY
+						UINT64 waitMillis = 0;
+						ret=sizeof(tQueueEntry);
+						tQueueEntry *firstEntry = new tQueueEntry;
+						m_pQueueReadFromMix->peek((UINT8*)firstEntry,(UINT32*)&ret);
+						getcurrentTimeMillis(waitMillis);
+						if (waitMillis >  (firstEntry->timestamp_arrival+MIN_LATENCY) )
+						{
+							delete firstEntry;
+							firstEntry = NULL;
+						}
+						else
+						{
+							waitMillis = (firstEntry->timestamp_arrival+MIN_LATENCY) - waitMillis;							
+							delete firstEntry;
+							firstEntry = NULL;
+							goto LOOP_START;
+						}
+#endif	
 						ret=sizeof(tQueueEntry);
 						m_pQueueReadFromMix->get((UINT8*)pQueueEntry,(UINT32*)&ret);
 						#ifdef LOG_PACKET_TIMES
@@ -716,7 +740,7 @@ NEXT_USER:
 										#ifdef LOG_PACKET_TIMES
 											getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 										#endif
-										pEntry->pHead->pQueueSend->add(pMixPacket,sizeof(tQueueEntry));
+										pEntry->pHead->pQueueSend->add(pQueueEntry, sizeof(tQueueEntry));
 										#ifdef LOG_TRAFFIC_PER_USER
 											pEntry->pHead->trafficOut++;
 										#endif
@@ -794,7 +818,7 @@ NEXT_USER:
 										#ifdef LOG_PACKET_TIMES
 											getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 										#endif
-										pEntry->pHead->pQueueSend->add(pMixPacket,sizeof(tQueueEntry));
+										pEntry->pHead->pQueueSend->add(pQueueEntry, sizeof(tQueueEntry));
 										#ifdef LOG_TRAFFIC_PER_USER
 											pEntry->pHead->trafficOut++;
 										#endif
@@ -841,7 +865,7 @@ NEXT_USER:
 												#ifdef LOG_PACKET_TIMES
 													setZero64(pQueueEntry->timestamp_proccessing_start);
 												#endif
-												m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));
+												m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
 												pEntry->bIsSuspended=true;
 												pEntry->pHead->cSuspend++;
 											}
@@ -990,7 +1014,7 @@ goto NEXT_USER_WRITING;
 														#ifdef _DEBUG
 															CAMsg::printMsg(LOG_INFO,"Sending resume for channel: %u\n",pMixPacket->channel);
 														#endif												
-														m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));
+														m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
 														pEntry->bIsSuspended=false;	
 													}
 													
@@ -1018,11 +1042,9 @@ NEXT_USER_WRITING:
 						pfmHashEntry=m_pChannelList->getNext();
 #endif
 					}
+				
 				if(!bAktiv)
 				  msSleep(100);
-#ifndef PAYMENT
-				msSleep(7);
-#endif
 			}
 //ERR:
 		CAMsg::printMsg(LOG_CRIT,"Seems that we are restarting now!!\n");

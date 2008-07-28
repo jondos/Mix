@@ -175,7 +175,7 @@ SINT32 CALastMixA::loop()
 															#ifdef LOG_PACKET_TIMES
 																setZero64(pQueueEntry->timestamp_proccessing_start);
 															#endif
-															m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));			
+															m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));			
 															m_logDownloadedPackets++;	
 															delete newCipher;
 															newCipher = NULL;
@@ -222,7 +222,7 @@ SINT32 CALastMixA::loop()
 															    #ifdef LOG_PACKET_TIMES
 																    setZero64(pQueueEntry->timestamp_proccessing_start);
 															    #endif
-															    m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));			
+															    m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));			
 															    m_logDownloadedPackets++;	
 																	delete newCipher;
 																	newCipher = NULL;
@@ -353,7 +353,7 @@ SINT32 CALastMixA::loop()
 														#ifdef LOG_PACKET_TIMES
 															setZero64(pQueueEntry->timestamp_proccessing_start);
 														#endif
-														m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));			
+														m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));			
 														m_logDownloadedPackets++;	
 													}
 												else
@@ -423,7 +423,7 @@ SINT32 CALastMixA::loop()
 														#ifdef LOG_PACKET_TIMES
 															setZero64(pQueueEntry->timestamp_proccessing_start);
 														#endif
-														m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));			
+														m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));			
 														m_logDownloadedPackets++;	
 														#ifdef LOG_CHANNEL
 															pChannelListEntry->packetsDataOutToUser++;
@@ -514,7 +514,7 @@ SINT32 CALastMixA::loop()
 														#ifdef LOG_PACKET_TIMES
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 														#endif
-														m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));			
+														m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));			
 														m_logDownloadedPackets++;	
 														#ifdef LOG_CHANNEL
 															pChannelListEntry->packetsDataOutToUser++;
@@ -552,7 +552,7 @@ SINT32 CALastMixA::loop()
 														#ifdef LOG_PACKET_TIMES
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 														#endif
-														m_pQueueSendToMix->add(pMixPacket,sizeof(tQueueEntry));			
+														m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));			
 														m_logDownloadedPackets++;
 														#if defined(LOG_CHANNEL)
 															pChannelListEntry->packetsDataOutToUser++;
