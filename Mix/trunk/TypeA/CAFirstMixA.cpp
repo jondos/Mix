@@ -480,10 +480,12 @@ LOOP_START:
 									{
 										countRead--;
 #endif																				
+#ifdef DELAY_USERS
+								if( m_pChannelList->hasDelayBuckets(pHashEntry->delayBucketID) )
+								{
+#endif			
 										ret=pMuxSocket->receive(pMixPacket,0);
-#ifdef FORCED_DELAY		
-										getcurrentTimeMillis(pQueueEntry->timestamp_arrival);
-#endif								
+								
 										#if defined LOG_PACKET_TIMES||defined(LOG_CHANNEL)
 											getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_start);
 											set64(pQueueEntry->timestamp_proccessing_start_OP,pQueueEntry->timestamp_proccessing_start);
@@ -547,7 +549,6 @@ LOOP_START:
 													closeConnection(pHashEntry);
 													goto NEXT_USER;
 												}
-
 #endif													
 
 												if(pMixPacket->flags==CHANNEL_DUMMY) // just a dummy to keep the connection alife in e.g. NAT gateways 
@@ -565,7 +566,7 @@ LOOP_START:
 													#endif	
 													pHashEntry->pQueueSend->add(pQueueEntry,sizeof(tQueueEntry));
 													#ifdef HAVE_EPOLL
-														m_psocketgroupUsersWrite->add(*pMuxSocket,pHashEntry); 
+														//m_psocketgroupUsersWrite->add(*pMuxSocket,pHashEntry); 
 													#else
 														m_psocketgroupUsersWrite->add(*pMuxSocket); 
 													#endif
@@ -582,6 +583,7 @@ LOOP_START:
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 														#endif
 														m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
+														m_pChannelList->decDelayBuckets(pHashEntry->delayBucketID);
 														#ifdef LOG_CHANNEL
 															//pEntry->packetsInFromUser++;
 															getcurrentTimeMicros(current_time);
@@ -617,6 +619,7 @@ LOOP_START:
 														#endif
 							
 														m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
+														m_pChannelList->decDelayBuckets(pHashEntry->delayBucketID);
 														incMixedPackets();
 														#ifdef LOG_CHANNEL
 															pEntry->packetsInFromUser++;
@@ -661,6 +664,7 @@ LOOP_START:
 																set64(pTmpEntry->timeCreated,pQueueEntry->timestamp_proccessing_start);
 															#endif
 															m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
+															m_pChannelList->decDelayBuckets(pHashEntry->delayBucketID);
 															incMixedPackets();
 															#ifdef _DEBUG
 //																			CAMsg::printMsg(LOG_DEBUG,"Added out channel: %u\n",pMixPacket->channel);
@@ -669,6 +673,9 @@ LOOP_START:
 													}
 												}
 											}
+#ifdef DELAY_USERS
+									}
+#endif
 								#ifdef HAVE_EPOLL
 NEXT_USER:
 									pHashEntry=(fmHashTableEntry*)m_psocketgroupUsersRead->getNextSignaledSocketData();
@@ -692,27 +699,7 @@ NEXT_USER:
 				while(countRead>0&&m_pQueueReadFromMix->getSize()>=sizeof(tQueueEntry))
 					{
 						bAktiv=true;
-						countRead--;
-						
-#ifdef FORCED_DELAY
-						UINT64 waitMillis = 0;
-						ret=sizeof(tQueueEntry);
-						tQueueEntry *firstEntry = new tQueueEntry;
-						m_pQueueReadFromMix->peek((UINT8*)firstEntry,(UINT32*)&ret);
-						getcurrentTimeMillis(waitMillis);
-						if (waitMillis >  (firstEntry->timestamp_arrival+MIN_LATENCY) )
-						{
-							delete firstEntry;
-							firstEntry = NULL;
-						}
-						else
-						{
-							waitMillis = (firstEntry->timestamp_arrival+MIN_LATENCY) - waitMillis;							
-							delete firstEntry;
-							firstEntry = NULL;
-							goto LOOP_START;
-						}
-#endif	
+						countRead--;	
 						ret=sizeof(tQueueEntry);
 						m_pQueueReadFromMix->get((UINT8*)pQueueEntry,(UINT32*)&ret);
 						#ifdef LOG_PACKET_TIMES
@@ -763,7 +750,7 @@ NEXT_USER:
 										#endif
 										
 										#ifdef HAVE_EPOLL
-											m_psocketgroupUsersWrite->add(*pEntry->pHead->pMuxSocket,pEntry->pHead); 
+											//m_psocketgroupUsersWrite->add(*pEntry->pHead->pMuxSocket,pEntry->pHead); 
 										#else
 											m_psocketgroupUsersWrite->add(*pEntry->pHead->pMuxSocket); 
 										#endif
@@ -836,8 +823,13 @@ NEXT_USER:
 										#endif
 										
 										#ifdef HAVE_EPOLL
-											m_psocketgroupUsersWrite->add(*pEntry->pHead->pMuxSocket,pEntry->pHead); 
-										#else
+											/*int epret = m_psocketgroupUsersWrite->add(*pEntry->pHead->pMuxSocket,pEntry->pHead); 
+											if(epret == E_UNKNOWN)
+											{
+												epret=errno;
+												CAMsg::printMsg(LOG_INFO,"epoll_add returns: %s (return value: %d) \n", strerror(epret), epret);
+											}*/
+											#else
 											m_psocketgroupUsersWrite->add(*pEntry->pHead->pMuxSocket); 
 										#endif
 		
@@ -905,13 +897,12 @@ NEXT_USER:
 								countRead--;
 #endif
 #ifdef DELAY_USERS
-								if(pfmHashEntry->delayBucket>0)
+								if( m_pChannelList->hasDelayBuckets(pfmHashEntry->delayBucketID) )
 								{
 #endif
 									
 								if(pfmHashEntry->pQueueSend->getSize()>0)
 								{
-									//CAMsg::printMsg(LOG_CRIT,"turning!!\n");
 									bAktiv=true;
 									UINT32 len=sizeof(tQueueEntry);
 									if(pfmHashEntry->uAlreadySendPacketSize==-1)
@@ -983,7 +974,7 @@ goto NEXT_USER_WRITING;
 												}
 												#endif
 												#ifdef DELAY_USERS
-													pfmHashEntry->delayBucket--;
+												m_pChannelList->decDelayBuckets(pfmHashEntry->delayBucketID);
 												#endif
 												pfmHashEntry->uAlreadySendPacketSize=-1;
 												#ifdef LOG_PACKET_TIMES
@@ -1064,3 +1055,4 @@ NEXT_USER_WRITING:
 		return E_UNKNOWN;
 	}
 #endif //ONLY_LOCAL_PROXY
+
