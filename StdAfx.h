@@ -33,7 +33,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #if !defined(AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_)
 #define AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_
 
-#define MIX_VERSION "00.08.24"
+#define MIX_VERSION "00.08.25"
 
 #include "doxygen.h"
 
@@ -52,7 +52,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define DO_TRACE
 //#define PSEUDO_LOG
 //#define DELAY_CHANNELS //to enable max channel bandwidth
-//#define DELAY_USERS //to enable max per user bandwidth
+#define DELAY_USERS //to enable max per user bandwidth
 //#define DELAY_CHANNELS_LATENCY //to enable min latency per channel
 //#define HAVE_EPOLL //define if you have epoll support on your (Linux) system
 //#define MXML_DOM //define this if you wnat to use the Mix-XML library (www.minixml.org) instead of the default Xerces-C library
@@ -175,8 +175,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define MAX_MIXIN_SEND_QUEUE_SIZE 10000000
 #define MAX_NEXT_MIX_QUEUE_SIZE 10000000
 
-#define FORCED_DELAY
-#define MIN_LATENCY 250
+//#define FORCED_DELAY
+//#define MIN_LATENCY 250
 
 #define DEFAULT_INFOSERVICE "141.76.45.37"
 
