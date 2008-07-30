@@ -412,8 +412,7 @@ SINT32 CAFirstMixA::loop()
 //		threadReadFromUsers.setMainLoop(loopReadFromUsers);
 //		threadReadFromUsers.start(this);
 		while(!m_bRestart) /* the main mix loop as long as there are things that are not handled by threads. */
-			{
-LOOP_START:				
+			{				
 				bAktiv=false;
 #ifdef PAYMENT
 				// check the timeout for all connections
@@ -583,7 +582,9 @@ LOOP_START:
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 														#endif
 														m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
+														#ifdef DELAY_USERS
 														m_pChannelList->decDelayBuckets(pHashEntry->delayBucketID);
+														#endif
 														#ifdef LOG_CHANNEL
 															//pEntry->packetsInFromUser++;
 															getcurrentTimeMicros(current_time);
@@ -619,7 +620,9 @@ LOOP_START:
 														#endif
 							
 														m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
+														#ifdef DELAY_USERS
 														m_pChannelList->decDelayBuckets(pHashEntry->delayBucketID);
+														#endif
 														incMixedPackets();
 														#ifdef LOG_CHANNEL
 															pEntry->packetsInFromUser++;
@@ -664,7 +667,9 @@ LOOP_START:
 																set64(pTmpEntry->timeCreated,pQueueEntry->timestamp_proccessing_start);
 															#endif
 															m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
+															#ifdef DELAY_USERS
 															m_pChannelList->decDelayBuckets(pHashEntry->delayBucketID);
+															#endif
 															incMixedPackets();
 															#ifdef _DEBUG
 //																			CAMsg::printMsg(LOG_DEBUG,"Added out channel: %u\n",pMixPacket->channel);
