@@ -474,7 +474,7 @@ SINT32 CALastMixA::loop()
 										if(true
 										#endif
 												#ifdef DELAY_CHANNELS
-													&&(pChannelListEntry->delayBucket>0)
+													&&(m_pChannelList->hasDelayBuckets(pChannelListEntry->delayBucketID) )
 												#endif
 												#ifdef DELAY_CHANNELS_LATENCY
 													&&(isGreater64(current_time_millis,pChannelListEntry->timeLatency))
@@ -489,7 +489,10 @@ SINT32 CALastMixA::loop()
 												#ifndef DELAY_CHANNELS
 													ret=pChannelListEntry->pSocket->receive(pMixPacket->payload.data,PAYLOAD_SIZE);
 												#else
-													UINT32 readLen=min(pChannelListEntry->delayBucket,PAYLOAD_SIZE);
+													UINT32 readLen=
+																min(
+																	m_pChannelList->getDelayBuckets(pChannelListEntry->delayBucketID),
+																	PAYLOAD_SIZE);
 													ret=pChannelListEntry->pSocket->receive(pMixPacket->payload.data,readLen);
 												#endif
 												#ifdef LOG_PACKET_TIMES
@@ -532,7 +535,7 @@ SINT32 CALastMixA::loop()
 															pChannelListEntry->trafficOutToUser+=ret;
 														#endif
 														#ifdef DELAY_CHANNELS
-															pChannelListEntry->delayBucket-=ret;
+															m_pChannelList->reduceDelayBuckets(pChannelListEntry->delayBucketID, ret);
 														#endif
 														pMixPacket->channel=pChannelListEntry->channelIn;
 														pMixPacket->flags=CHANNEL_DATA;

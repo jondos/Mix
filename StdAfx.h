@@ -52,7 +52,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define DO_TRACE
 //#define PSEUDO_LOG
 //#define DELAY_CHANNELS //to enable max channel bandwidth
-#define DELAY_USERS //to enable max per user bandwidth
+//#define DELAY_USERS //to enable max per user bandwidth
 //#define DELAY_CHANNELS_LATENCY //to enable min latency per channel
 //#define HAVE_EPOLL //define if you have epoll support on your (Linux) system
 //#define MXML_DOM //define this if you wnat to use the Mix-XML library (www.minixml.org) instead of the default Xerces-C library
@@ -99,9 +99,15 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 		#define DELAY_BUCKET_GROW PAYLOAD_SIZE //Grow in bytes
 	#endif
 #endif
+
+#ifndef PAYMENT
+	#define DELAY_USERS
+	#define DELAY_CHANNELS_LATENCY
+#endif
+
 #ifdef DELAY_USERS
 	#ifndef DELAY_USERS_TRAFFIC
-		#define DELAY_USERS_TRAFFIC 100 //Traffic in packets after which (download direction) the user is delayed
+		#define DELAY_USERS_TRAFFIC 0 //Traffic in packets after which (download direction) the user is delayed
 	#endif
 	//Delay is at the moment constant and calculate as
 	// 1000/DELAY_BUCKET_GROW_INTERVALL*DELAY_BUCKET_GROW bytes/s
@@ -115,7 +121,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#endif
 #endif
 #ifdef DELAY_CHANNELS_LATENCY
-	#define DELAY_CHANNEL_LATENCY 10000 //min latency defaults to 10 second
+	#define DELAY_CHANNEL_LATENCY 2000 //min latency defaults to 10 second
 #endif
 
 #if defined LASTMIX_CHECK_MEMORY && ! defined(QUEUE_SIZE_LOG)
