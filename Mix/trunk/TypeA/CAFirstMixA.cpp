@@ -909,7 +909,7 @@ NEXT_USER:
 #ifdef DELAY_USERS								
 									pfmHashEntry->pQueueSend->peek((UINT8*)&pfmHashEntry->oQueueEntry,&len);
 									HCHANNEL packetChannel = pfmHashEntry->oQueueEntry.packet.channel;
-									delete pfmHashEntry->oQueueEntry;
+									//delete pfmHashEntry->oQueueEntry;
 									len=sizeof(tQueueEntry);
 									
 									if( m_pChannelList->hasDelayBuckets(pfmHashEntry->delayBucketID) || 
