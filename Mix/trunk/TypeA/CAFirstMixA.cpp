@@ -479,10 +479,10 @@ SINT32 CAFirstMixA::loop()
 									{
 										countRead--;
 #endif																				
-#ifdef DELAY_USERS
+/*#ifdef DELAY_USERS
 								if( m_pChannelList->hasDelayBuckets(pHashEntry->delayBucketID) )
 								{
-#endif			
+#endif*/			
 										ret=pMuxSocket->receive(pMixPacket,0);
 								
 										#if defined LOG_PACKET_TIMES||defined(LOG_CHANNEL)
@@ -678,9 +678,9 @@ SINT32 CAFirstMixA::loop()
 													}
 												}
 											}
-#ifdef DELAY_USERS
+/*#ifdef DELAY_USERS
 									}
-#endif
+#endif*/
 								#ifdef HAVE_EPOLL
 NEXT_USER:
 									pHashEntry=(fmHashTableEntry*)m_psocketgroupUsersRead->getNextSignaledSocketData();
@@ -901,15 +901,23 @@ NEXT_USER:
 							{
 								countRead--;
 #endif
-#ifdef DELAY_USERS
-								if( m_pChannelList->hasDelayBuckets(pfmHashEntry->delayBucketID) )
-								{
-#endif
+
 									
 								if(pfmHashEntry->pQueueSend->getSize()>0)
-								{
-									bAktiv=true;
+								{	
 									UINT32 len=sizeof(tQueueEntry);
+#ifdef DELAY_USERS								
+									pfmHashEntry->pQueueSend->peek((UINT8*)&pfmHashEntry->oQueueEntry,&len);
+									HCHANNEL packetChannel = pfmHashEntry->oQueueEntry.packet.channel;
+									delete pfmHashEntry->oQueueEntry;
+									len=sizeof(tQueueEntry);
+									
+									if( m_pChannelList->hasDelayBuckets(pfmHashEntry->delayBucketID) || 
+											(packetChannel>0 && packetChannel<256) )
+									{
+#endif
+									bAktiv=true;
+								
 									if(pfmHashEntry->uAlreadySendPacketSize==-1)
 									{
 										pfmHashEntry->pQueueSend->get((UINT8*)&pfmHashEntry->oQueueEntry,&len); 
@@ -1019,14 +1027,10 @@ goto NEXT_USER_WRITING;
 												pfmHashEntry->cSuspend=0;
 											}
 									}
-								
-								}
-								
-									
-								
 #ifdef DELAY_USERS
 								}
-#endif
+#endif								
+								}								
 									//todo error handling
 #ifdef HAVE_EPOLL
 NEXT_USER_WRITING:
