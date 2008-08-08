@@ -412,7 +412,7 @@ SINT32 CAFirstMixA::loop()
 //		threadReadFromUsers.setMainLoop(loopReadFromUsers);
 //		threadReadFromUsers.start(this);
 		while(!m_bRestart) /* the main mix loop as long as there are things that are not handled by threads. */
-			{				
+			{
 				bAktiv=false;
 #ifdef PAYMENT
 				// check the timeout for all connections
@@ -704,7 +704,7 @@ NEXT_USER:
 				while(countRead>0&&m_pQueueReadFromMix->getSize()>=sizeof(tQueueEntry))
 					{
 						bAktiv=true;
-						countRead--;	
+						countRead--;
 						ret=sizeof(tQueueEntry);
 						m_pQueueReadFromMix->get((UINT8*)pQueueEntry,(UINT32*)&ret);
 						#ifdef LOG_PACKET_TIMES
