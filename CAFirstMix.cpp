@@ -668,7 +668,7 @@ THREAD_RETURN fm_loopSendToMix(void* param)
 		while(!pFirstMix->m_bRestart)
 			{
 				len=sizeof(tQueueEntry);
-				ret=pQueue->getOrWait((UINT8*)pQueueEntry,&len,u32KeepAliveSendInterval);			
+				ret=pQueue->getOrWait((UINT8*)pQueueEntry,&len,u32KeepAliveSendInterval);
 				if(ret==E_TIMEDOUT)
 					{//send a dummy as keep-alvie-traffic
 						pMixPacket->flags=CHANNEL_DUMMY;

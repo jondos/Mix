@@ -121,7 +121,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#endif
 #endif
 #ifdef DELAY_CHANNELS_LATENCY
-	#define DELAY_CHANNEL_LATENCY 2000 //min latency defaults to 10 second
+	#define DELAY_CHANNEL_LATENCY 0 //min latency defaults to 0 milliseconds
 #endif
 
 #if defined LASTMIX_CHECK_MEMORY && ! defined(QUEUE_SIZE_LOG)
