@@ -177,10 +177,10 @@ SINT32 CASignature::setSignKey(const UINT8* buff,UINT32 len,UINT32 type,const ch
 					EVP_PKEY* key=NULL;
 //					X509* cert=NULL;
 					if(PKCS12_parse(tmpPKCS12,passwd,&key,NULL,NULL)!=1)
-							{
-								PKCS12_free(tmpPKCS12);
-								return E_UNKNOWN;
-							}
+					{
+						PKCS12_free(tmpPKCS12);
+						return E_UNKNOWN;
+					}
 					PKCS12_free(tmpPKCS12);
 	//				X509_free(cert);
 					if(EVP_PKEY_type(key->type)!=EVP_PKEY_DSA)
@@ -212,13 +212,13 @@ SINT32 CASignature::setSignKey(const UINT8* buff,UINT32 len,UINT32 type,const ch
 								key = NULL;
 								EC_KEY_free(m_pEC);
 								m_pEC = tmpECKey;
-								CAMsg::printMsg(LOG_DEBUG, "Found EC Key!\n");
 								return E_SUCCESS;
 							}
 #endif //MULTICERT
 							EVP_PKEY_free(key);
 							return E_UNKNOWN;
 						}
+					// found DSA key
 					DSA* tmpDSA=DSA_clone(key->pkey.dsa);
 					EVP_PKEY_free(key);
 					if(DSA_sign_setup(tmpDSA,NULL,&tmpDSA->kinv,&tmpDSA->r)!=1)
@@ -571,7 +571,7 @@ SINT32 CASignature::signXML(DOMNode* node,CACertStore* pIncludeCerts)
 		return E_SUCCESS;
 	}
 
-
+/** @todo not MULTI_CERT compatible */
 SINT32 CASignature::getVerifyKey(CACertificate** ppCert)
 	{
 		//We need this DAS key as EVP key...

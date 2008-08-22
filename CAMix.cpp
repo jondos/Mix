@@ -39,8 +39,10 @@ extern CACmdLnOptions* pglobalOptions;
 CAMix::CAMix()
 {
     m_acceptReconfiguration = pglobalOptions->acceptReconfiguration();
+
+#ifndef MULTI_CERT
 		m_pSignature=NULL;
-#ifdef MULTI_CERT
+#else
 		//m_multiSig = NULL;
 #endif
 		m_pInfoService=NULL;
@@ -76,33 +78,35 @@ SINT32 CAMix::start()
 			CAMsg::printMsg(LOG_DEBUG, "CAMix start: creating InfoService object\n");
 			m_pInfoService=new CAInfoService(this);
 
+
+#ifndef MULTI_CERT
 			UINT32 opCertLength;
 			CACertificate** opCerts = pglobalOptions->getOpCertificates(opCertLength);
 			CACertificate* pOwnCert=pglobalOptions->getOwnCertificate();
-#ifndef MULTI_CERT
+
 			m_pInfoService->setSignature(m_pSignature, pOwnCert, opCerts, opCertLength);
+			delete pOwnCert;
+			pOwnCert = NULL;
+
+			if(opCerts!=NULL)
+			{
+				for(UINT32 i=0;i<opCertLength;i++)
+				{
+					delete opCerts[i];
+					opCerts[i] = NULL;
+				}
+				delete[] opCerts;
+				opCerts = NULL;
+			}
 #else
 			m_pInfoService->setMultiSignature(m_multiSig);
 #endif
-			delete pOwnCert;
-			pOwnCert = NULL;
 			UINT64 currentMillis;
 			if (getcurrentTimeMillis(currentMillis) != E_SUCCESS)
 			{
 				currentMillis = 0;
 			}
 			m_pInfoService->setSerial(currentMillis);
-
-			if(opCerts!=NULL)
-				{
-					for(UINT32 i=0;i<opCertLength;i++)
-					{
-						delete opCerts[i];
-						opCerts[i] = NULL;
-					}
-					delete[] opCerts;
-					opCerts = NULL;
-				}
 
 	        bool allowReconf = pglobalOptions->acceptReconfiguration();
 	        bool needReconf = needAutoConfig();
@@ -423,7 +427,7 @@ SINT32 CAMix::signXML(DOMNode* a_element)
 	{
 #ifdef MULTI_CERT
 		return m_multiSig->signXML(a_element, true);
-#endif
+#else
     CACertStore* tmpCertStore=new CACertStore();
 
     CACertificate* ownCert=pglobalOptions->getOwnCertificate();
@@ -467,6 +471,7 @@ SINT32 CAMix::signXML(DOMNode* a_element)
     tmpCertStore = NULL;
 
     return E_SUCCESS;
+#endif
 }
 #ifdef DYNAMIC_MIX
 /**

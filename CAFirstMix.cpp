@@ -70,10 +70,17 @@ SINT32 CAFirstMix::initOnce()
 		CAMsg::printMsg(LOG_DEBUG,"Starting FirstMix InitOnce\n");
 #ifdef MULTI_CERT
 		m_multiSig = pglobalOptions->getMultiSigner();
-#endif
-		m_pSignature=pglobalOptions->getSignKey();
-		if(m_pSignature==NULL)
+		if(m_multiSig == NULL)
+		{
 			return E_UNKNOWN;
+		}
+#else
+		m_pSignature = pglobalOptions->getSignKey();
+		if(m_pSignature == NULL)
+		{
+			return E_UNKNOWN;
+		}
+#endif
 		//Try to find out how many (real) ListenerInterfaces are specified
 		UINT32 tmpSocketsIn=pglobalOptions->getListenerInterfaceCount();
 		m_nSocketsIn=0;
@@ -1258,7 +1265,11 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		xml_buff[1]=(UINT8)(xml_len&0xFF);
 		UINT8 sig[255];
 		UINT32 siglen=255;
+#ifdef MULTI_CERT
+		m_multiSig->sign(xml_buff,xml_len+2,sig,&siglen);
+#else
 		m_pSignature->sign(xml_buff,xml_len+2,sig,&siglen);
+#endif
 		XERCES_CPP_NAMESPACE::DOMDocument* docSig=createDOMDocument();
 
 		DOMElement *elemSig=NULL;

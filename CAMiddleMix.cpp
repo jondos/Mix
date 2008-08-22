@@ -51,12 +51,17 @@ SINT32 CAMiddleMix::initOnce()
 		CAMsg::printMsg(LOG_DEBUG,"Starting MiddleMix InitOnce\n");
 #ifdef MULTI_CERT
 		m_multiSig = pglobalOptions->getMultiSigner();
+		if(m_multiSig == NULL)
+		{
+			return E_UNKNOWN;
+		}
+#else
+		m_pSignature = pglobalOptions->getSignKey();
+		if(m_pSignature == NULL)
+		{
+			return E_UNKNOWN;
+		}
 #endif
-		m_pSignature=pglobalOptions->getSignKey();
-		if(m_pSignature==NULL)
-			{
-				return E_UNKNOWN;
-			}
 		if(pglobalOptions->getListenerInterfaceCount()<1)
 			{
 				CAMsg::printMsg(LOG_CRIT,"No ListenerInterfaces specified!\n");

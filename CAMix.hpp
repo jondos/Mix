@@ -134,10 +134,11 @@ class CAMix
 
 			SINT32 signXML(DOMNode* a_element);
 
-			CASignature* m_pSignature;
 			CAInfoService* m_pInfoService;
 #ifdef MULTI_CERT
 			CAMultiSignature* m_multiSig;
+#else
+			CASignature* m_pSignature;
 #endif
 
 			UINT32 m_u32KeepAliveRecvInterval;
