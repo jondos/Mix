@@ -1654,7 +1654,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 			{
 				return E_UNKNOWN;
 			}
-
+#ifndef MULTI_CERT
 		m_pSignKey=new CASignature();
 		UINT8 passwd[500];
 		passwd[0]=0;
@@ -1676,7 +1676,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 			CAMsg::printMsg(LOG_CRIT,"Could not decode mix certificate!\n");
 			return E_UNKNOWN;
 		}
-#ifdef MULTI_CERT
+#else //MULTI_CERT
 		m_ownCertsLength = 0;
 		m_OpCertsLength = 0;
 
@@ -1689,67 +1689,63 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 
 		DOMNodeList* ownCertList = getElementsByTagName(elemOwnCert,"X509PKCS12");
 		DOMNodeList* opCertList = getElementsByTagName(elemOpCert, "X509Certificate");
-
-		//m_ownCerts = new CACertificate*[ownCertList->getLength()];
-		//m_OpCerts = new CACertificate*[opCertList->getLength()];
+		UINT8 passwd[500];
+		passwd[0]=0;
 
 		m_multiSig = new CAMultiSignature();
 		for (UINT32 i=0; i<ownCertList->getLength(); i++)
 		{
 			DOMNode* a_cert = ownCertList->item(i);
+
 			//read ID if present
 			SINT32 cert_id;
 			if(getDOMElementAttribute(a_cert, "id", &cert_id) == E_SUCCESS && cert_id != 0)
 			{
-				CAMsg::printMsg(LOG_DEBUG, "Found Cert with ID=%d\n", cert_id);
+				//CAMsg::printMsg(LOG_DEBUG, "Found Cert with ID=%d\n", cert_id);
 			}
 			CASignature* signature = new CASignature();
 			CACertStore* certs = new CACertStore();
-			UINT32 opCertCount = 0;
+
 			//try to get signature key from ownCert
-			//TODO handle Password!
-			if(signature->setSignKey(a_cert, SIGKEY_PKCS12) == E_SUCCESS)
+			if(signature->setSignKey(a_cert, SIGKEY_PKCS12, (char*)passwd) != E_SUCCESS)
 			{
-				//try to find opCert(s) with same ID
-				for(UINT32 j=0; j<ownCertList->getLength(); j++)
+				//Read password if necessary
+				printf("I need a password for the sign key with ID=%d: ", cert_id);
+				fflush(stdout);
+				readPasswd(passwd,500);
+				if(signature->setSignKey(a_cert, SIGKEY_PKCS12, (char*)passwd) != E_SUCCESS)
 				{
-					DOMNode* a_opCert = opCertList->item(j);
-					SINT32 opCert_id;
-					if(getDOMElementAttribute(a_opCert, "id", &opCert_id) == E_SUCCESS && opCert_id == cert_id)
-					{
-						 CACertificate* tmpOpCert = CACertificate::decode(a_opCert,CERT_X509CERTIFICATE);
-						 certs->add(tmpOpCert);
-						 opCertCount++;
-						 //TODO delete tmpOpCert?
-					}
+					CAMsg::printMsg(LOG_CRIT,"Unable to load sign key with ID= %d!\n", cert_id);
+					delete signature;
+					signature = NULL;
+					return E_UNKNOWN;
 				}
-				certs->add(CACertificate::decode(a_cert, CERT_PKCS12, (char*)passwd));
-				CAMsg::printMsg(LOG_DEBUG, "Adding Sign-Key ID=%d with %d Operator-Certificate(s)\n", cert_id, opCertCount);
-				m_multiSig->addSignature(signature, certs);
 			}
-			else
+			//try to find opCert(s) with same ID
+			UINT32 opCertCount = 0;
+			for(UINT32 j=0; j<ownCertList->getLength(); j++)
 			{
-				CAMsg::printMsg(LOG_DEBUG, "Could not set sign-key ID=%d!\n", cert_id);
-			}
-			/*m_ownCerts[m_ownCertsLength] = CACertificate::decode(a_cert,CERT_PKCS12, (char*)passwd);
-			if (m_ownCerts[m_ownCertsLength] != NULL)
-			{
-				tmpLen = 255;
-				if(m_ownCerts[m_ownCertsLength]->getSubjectKeyIdentifier(tmpBuff, &tmpLen) == E_SUCCESS)
+				DOMNode* a_opCert = opCertList->item(j);
+				SINT32 opCert_id;
+				if(getDOMElementAttribute(a_opCert, "id", &opCert_id) == E_SUCCESS && opCert_id == cert_id)
 				{
-					CAMsg::printMsg(LOG_DEBUG, "OwnCert-SKI %u (Laenge %u): %s\n", m_ownCertsLength+1, tmpLen, tmpBuff);
+					 CACertificate* tmpOpCert = CACertificate::decode(a_opCert,CERT_X509CERTIFICATE);
+					 certs->add(tmpOpCert);
+					 opCertCount++;
+					 //TODO delete tmpOpCert?
 				}
-				m_ownCertsLength++;
-			}*/
+			}
+			certs->add(CACertificate::decode(a_cert, CERT_PKCS12, (char*)passwd));
+			CAMsg::printMsg(LOG_DEBUG, "Adding Sign-Key ID=%d with %d Operator-Certificate(s)\n", cert_id, opCertCount);
+			m_multiSig->addSignature(signature, certs);
 		}
 		if (m_multiSig->getSignatureCount() == 0)
 		{
 			CAMsg::printMsg(LOG_CRIT, "Could not set a signature key for MultiCert!\n");
-			//return E_UNKNOWN;
+			delete m_multiSig;
+			m_multiSig = NULL;
+			return E_UNKNOWN;
 		}
-		//sign config for debugging of MultiCert
-		//m_multiSig->signXML(elemRoot, true);
-		//saveToFile(elemRoot->getOwnerDocument(), (UINT8*)"SignedConfig.xml");
 #endif
 #ifndef MULTI_CERT
 		//then Operator Certificate
@@ -1784,8 +1780,9 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 
 		//get MixID
 		tmpLen=255;
-		if (m_pOwnCertificate->getSubjectKeyIdentifier(tmpBuff, &tmpLen) != E_SUCCESS)
-		{
+		//TODO for MULTI_CERT
+		/*if (m_pOwnCertificate->getSubjectKeyIdentifier(tmpBuff, &tmpLen) != E_SUCCESS)
+		{*/
 			DOMElement* elemMixID=NULL;
 			getDOMChildByName(elemGeneral,"MixID",elemMixID,false);
 			if(elemMixID==NULL)
@@ -1798,7 +1795,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				CAMsg::printMsg(LOG_CRIT,"Node \"MixID\" is empty!\n");
 				return E_UNKNOWN;
 			}
-		}
+		//}
 		strtrim(tmpBuff);
 		m_strMixID=new char[strlen((char*)tmpBuff)+1];
 		strcpy(m_strMixID,(char*) tmpBuff);

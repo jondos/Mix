@@ -303,17 +303,26 @@ SINT32 CAMultiSignature::verifyXML(DOMNode* root, CACertificate* a_cert)
 	if(verified)
 	{
 		//the signature could be verified, now check digestValue
-		//first remove Signature-nodes from root
-		for(UINT32 i=0; i<signatureElements->getLength(); i++)
+		//first remove Signature-nodes from root and store them
+		UINT32 sigCount = signatureElements->getLength();
+		DOMNode* removedSigs[sigCount];
+		for(UINT32 i=0; i<sigCount; i++)
 		{
-			root->removeChild(signatureElements->item(i));
+			//CAMsg::printMsg(LOG_DEBUG, "Removing element %d of %d from Root-Node\n", i, signatureElements->getLength());
+			removedSigs[i] = root->removeChild(signatureElements->item(0));
+			if(removedSigs[i] == NULL)
+			{
+				//TODO do what?
+				CAMsg::printMsg(LOG_ERR, "Error removing signature-element %d of %d from Root-Node\n", i, signatureElements->getLength());
+			}
 		}
+		CAMsg::printMsg(LOG_DEBUG, "%d elements remain in list\n", signatureElements->getLength());
 		outlen = 5000;
 		DOM_Output::makeCanonical(root, out, &outlen);
 		//append Signature-nodes again
-		for(UINT32 i=0; i<signatureElements->getLength(); i++)
+		for(UINT32 i=0; i<sigCount; i++)
 		{
-			root->appendChild(signatureElements->item(i));
+			root->appendChild(removedSigs[i]);
 		}
 
 		UINT8 newDgst[SHA_DIGEST_LENGTH];
@@ -333,49 +342,29 @@ SINT32 CAMultiSignature::verifyXML(DOMNode* root, CACertificate* a_cert)
 	CAMsg::printMsg(LOG_ERR, "XML-Signature could not be verified!\n");
 	return E_UNKNOWN;
 }
-
-/*SINT32 CAMultiSignature::encodeForXML(const UINT8* in, const UINT32* inlen, UINT8* out, UINT32* outlen)
+/** Method for producing a single Signature for Key Exchange */
+SINT32 CAMultiSignature::sign(UINT8* in,UINT32 inlen,UINT8* sig,UINT32* siglen)
 {
-	UINT8* rLen = in[3];
-	UINT8* sLen = in[3 + rLen + 2];
-
-	memset(out, 0, outlen);
-
-	for(SINT32 i = (outlen/2) - rLen; i < rLen; i++)
+	if(m_sigCount < 1)
 	{
-		out[i] = in[4 + i];
+		return E_UNKNOWN;
 	}
-	for(SINT32 j = outlen -sLen; j < sLen; j++)
-	{
-		out[j] = in[4 + rLen + 2];
-	}
-	return E_SUCCESS;
+	return m_signatures->pSig->sign(in, inlen, sig, siglen);
 }
 
-SINT32 CAMultiSignature::decodeForXML(UINT8* in, UINT32* inlen, UINT8** out, UINT32* outlen)
+SINT32 CAMultiSignature::getXORofSKIs(UINT8* in, UINT32 inlen)
 {
-	UINT8 index = outlen + 4 + 2;
-	if(in[0] < 0)
-	{
-		index++;
-	}
-	if(in[outlen/2] < 0)
-	{
-		index++;
-	}
-	out = UINT8[index];
-	out[0] = 0x30;
-	out[1] = index - 2;
-	out[2] = 0x02;
-	if(in[0] < 0)
-	{
-		ECDSA_
-	}
-	else
+	// TODO
+	/*SIGNATURE* currentSignature;
+
+	if(in == NULL || inlen < 24)
+		hex_to_string()
+
+	for(UINT32 i=0; i<m_sigCount; i++)
 	{
 
-	}
-	for(SINT32 i = )
-}*/
+	}*/
+}
+
 
 

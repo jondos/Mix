@@ -153,6 +153,7 @@ class CACmdLnOptions
 
 
 #ifndef ONLY_LOCAL_PROXY
+#ifndef MULTI_CERT
 			CASignature* getSignKey()
 				{
 					if(m_pSignKey!=NULL)
@@ -171,20 +172,6 @@ class CACmdLnOptions
 					return NULL;
 				}
 
-#ifdef PAYMENT
-			CAXMLPriceCert* getPriceCertificate() const
-			{
-				if(m_pPriceCertificate != NULL)
-				{
-					return m_pPriceCertificate;
-				}
-				return NULL;
-			}
-#endif
-
-#ifdef COUNTRY_STATS
-			SINT32 getCountryStatsDBConnectionLoginData(char** db_host,char**db_user,char**db_passwd);
-#endif
 			/** Returns a COPY of the Operator Certificate that mix.
 				* @return opCerts
 				*/
@@ -203,6 +190,21 @@ class CACmdLnOptions
 				r_length = 0;
 				return NULL;
 			}
+#endif
+#ifdef PAYMENT
+			CAXMLPriceCert* getPriceCertificate() const
+			{
+				if(m_pPriceCertificate != NULL)
+				{
+					return m_pPriceCertificate;
+				}
+				return NULL;
+			}
+#endif
+
+#ifdef COUNTRY_STATS
+			SINT32 getCountryStatsDBConnectionLoginData(char** db_host,char**db_user,char**db_passwd);
+#endif
 
 			bool hasPrevMixTestCertificate()
 				{
