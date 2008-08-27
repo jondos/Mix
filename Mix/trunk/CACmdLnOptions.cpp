@@ -41,10 +41,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include "tre/regex.h"
 #endif
 
-#ifdef SERVER_MONITORING
-	#include "monitoringDefs.h"
-#endif
-
 CACmdLnOptions::CACmdLnOptions()
   {
 		m_bDaemon=false;
@@ -2154,16 +2150,6 @@ SKIP_NEXT_MIX:
 				if(getDOMElementValue(elemServerMonitoringPort,&port)==E_SUCCESS)
 				{
 					m_iMonitoringListenerPort = port;
-				}
-				else
-				{
-					//Only if port is omitted: set standard monitoring port
-					if(elemServerMonitoringHost != NULL)
-					{
-						elemServerMonitoringPort = createDOMElement(docConfig,"Port");
-						setDOMElementValue(elemServerMonitoringPort, (UINT32) MONITORING_SERVER_PORT);
-						elemServerMonitoringRoot->appendChild(elemServerMonitoringPort);
-					}
 				}
 			}
 		}
