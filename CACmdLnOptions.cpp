@@ -2160,7 +2160,7 @@ SKIP_NEXT_MIX:
 					//Only if port is omitted: set standard monitoring port
 					if(elemServerMonitoringHost != NULL)
 					{
-						elemServerMonitoringPort = createDOMElement(m_docMixInfo,"Port");
+						elemServerMonitoringPort = createDOMElement(elemServerMonitoringPort,"Port");
 						setDOMElementValue(elemServerMonitoringPort, (UINT32) MONITORING_SERVER_PORT);
 						elemServerMonitoringRoot->appendChild(elemServerMonitoringPort);
 					}
