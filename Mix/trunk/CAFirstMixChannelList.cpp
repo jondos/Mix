@@ -633,7 +633,7 @@ SINT32 CAFirstMixChannelList::remove(CAMuxSocket* pMuxSocket)
 #endif
 				pEntry=pTmpEntry;
 			}
-/* already by pHashTableEntry->pControlChannelDispatcher->deleteAllControlChannels();
+/* already done by pHashTableEntry->pControlChannelDispatcher->deleteAllControlChannels();
 #ifdef PAYMENT
 		// cleanup accounting information
 		CAAccountingInstance::cleanupTableEntry(pHashTableEntry);

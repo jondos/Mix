@@ -355,7 +355,6 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 	CAMuxSocket* pMuxSocket = pHashEntry->pMuxSocket;
 	// Save the socket - its pointer will be deleted in this method!!! Crazy mad programming...
 	m_pChannelList->remove(pHashEntry->pMuxSocket);
-	CAMsg::printMsg(LOG_DEBUG,"Close connection: deleting socket %x\n", pMuxSocket);
 	delete pMuxSocket;
 	pMuxSocket = NULL;
 	pHashEntry->pMuxSocket = NULL; // not needed now, but maybe in the future...
