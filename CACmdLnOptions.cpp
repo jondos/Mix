@@ -253,7 +253,6 @@ void CACmdLnOptions::clean()
 		delete[] m_strConfigFile;
 		m_strConfigFile=NULL;
 
-
 		delete[] m_strTargetHost;
 		m_strTargetHost=NULL;
 
@@ -278,22 +277,17 @@ void CACmdLnOptions::clean()
 		delete[] m_strCascadeName;
 		m_strCascadeName=NULL;
 
-
 		delete[] m_strLogDir;
 		m_strLogDir=NULL;
-
 
 		delete[] m_strPidFile;
 		m_strPidFile=NULL;
 
-
 		delete[] m_strEncryptedLogDir;
 		m_strEncryptedLogDir=NULL;
 
-
 		delete[] m_strUser;
 		m_strUser=NULL;
-
 
 		delete[] m_strMixID;
 		m_strMixID=NULL;
@@ -1488,7 +1482,6 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 		UINT8 tmpBuff[255];
 		UINT32 tmpLen=255;
 
-
 		//getMixType
 		DOMElement* elem=NULL;
 		if (getDOMChildByName(elemGeneral,"MixType",elem,false) != E_SUCCESS)
@@ -2138,7 +2131,6 @@ SKIP_NEXT_MIX:
 					m_strMonitoringListenerHost = new char[buffHostLen+1];
 					strncpy(m_strMonitoringListenerHost, (const char*) buffHost, buffHostLen);
 					m_strMonitoringListenerHost[buffHostLen] = 0;
-
 				}
 			}
 			if(getDOMChildByName(elemServerMonitoringRoot,
@@ -2178,7 +2170,6 @@ SKIP_NEXT_MIX:
 						UINT16 port;
 						for(UINT32 i=0;i<nlTargetInterfaces->getLength();i++)
 							{
-
 								delete addr;
 								addr=NULL;
 								DOMNode* elemTargetInterface=NULL;

@@ -1433,7 +1433,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 					pNewUser->prepareForSend(&(aiAnswerQueueEntry->packet));
 					ai_ret = ((CASocket*)pNewUser)->
 						sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), MIXPACKET_SIZE, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
-					if( ai_ret != E_SUCCESS)
+					if (ai_ret != E_SUCCESS)
 					{
 						if(ai_ret == E_TIMEDOUT )
 						{
@@ -1495,9 +1495,9 @@ loop_break:
 					pNewUser->prepareForSend(&(aiAnswerQueueEntry->packet));
 					ai_ret = ((CASocket*)pNewUser)->
 							sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), MIXPACKET_SIZE, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
-					if(ai_ret != E_SUCCESS)
+					if (ai_ret != E_SUCCESS)
 					{
-						if(ai_ret == E_TIMEDOUT )
+						if (ai_ret == E_TIMEDOUT )
 						{
 							CAMsg::printMsg(LOG_INFO,"AI login: client timeout occured after settling.\n");
 						}
