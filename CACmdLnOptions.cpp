@@ -60,8 +60,9 @@ CACmdLnOptions::CACmdLnOptions()
 		m_bCompressedLogs=false;
 		m_pLogEncryptionCertificate=NULL;
 		m_bIsEncryptedLogEnabled=false;
-		m_docMixInfo=NULL;
+		m_docMixInfo= createDOMDocument(); 
 		m_docMixXml=NULL;
+		m_docOpTnCs=NULL; //Operator Terms and Conditions (if any)
 		m_bAcceptReconfiguration=false;
 		m_maxNrOfUsers = 0;
 #ifdef COUNTRY_STATS
@@ -83,6 +84,7 @@ CACmdLnOptions::CACmdLnOptions()
 		m_cnVisibleAddresses=0;
 		m_nrOfOpenFiles=-1;
 		m_strMixID=NULL;
+		m_strMixName=NULL;
 		m_bAutoReconnect=false;
 		m_strConfigFile=NULL;
 		m_strPidFile=NULL;
@@ -103,6 +105,12 @@ CACmdLnOptions::CACmdLnOptions()
 #ifdef DYNAMIC_MIX
 		m_strLastCascadeProposal = NULL;
 #endif
+		/* initialize pointer to option setter functions */
+		initMainOptionSetters();
+		initGeneralOptionSetters();
+		initCertificateOptionSetters();
+		initAccountingOptionSetters();
+		initNetworkOptionSetters();
  }
 
 CACmdLnOptions::~CACmdLnOptions()
@@ -110,6 +118,72 @@ CACmdLnOptions::~CACmdLnOptions()
 		cleanup();
 	}
 
+void CACmdLnOptions::initMainOptionSetters()
+{
+	mainOptionSetters = new optionSetter_pt[MAIN_OPTIONS_NR];
+	int count = -1;
+	
+	mainOptionSetters[++count]= 
+		&CACmdLnOptions::setGeneralOptions;
+	mainOptionSetters[++count]= 
+		&CACmdLnOptions::setCertificateOptions;
+}
+
+void CACmdLnOptions::initGeneralOptionSetters()
+{
+	generalOptionSetters = new optionSetter_pt[GENERAL_OPTIONS_NR];
+	int count = -1;
+	
+	generalOptionSetters[++count]= 
+		&CACmdLnOptions::setMixType;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setMixName;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setMixID;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setDynamicMix;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setCascadeNameFromOptions;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setUserID;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setNrOfFileDescriptors;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setDaemonMode;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setMaxUsers;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setLoggingOptions;
+}
+
+void CACmdLnOptions::initCertificateOptionSetters()
+{
+	certificateOptionSetters = new optionSetter_pt[CERTIFICATE_OPTIONS_NR];
+	int count = -1;
+	
+	certificateOptionSetters[++count]= 
+		&CACmdLnOptions::setOwnCertificate;
+	certificateOptionSetters[++count]= 
+		&CACmdLnOptions::setOwnOperatorCertificate;
+	certificateOptionSetters[++count]= 
+		&CACmdLnOptions::setNextMixCertificate;
+	certificateOptionSetters[++count]= 
+		&CACmdLnOptions::setPrevMixCertificate;
+}
+
+void CACmdLnOptions::initAccountingOptionSetters()
+{
+	accountingOptionSetters = new optionSetter_pt[ACCOUNTING_OPTIONS_NR];
+	int count = -1;
+	
+}
+
+void CACmdLnOptions::initNetworkOptionSetters()
+{
+	networkOptionSetters = new optionSetter_pt[NETWORK_OPTIONS_NR];
+	int count = -1;
+	
+}
 /** This is the final cleanup, which deletes every resource (including any locks necessary to synchronise read/write to properties).
 */
 SINT32 CACmdLnOptions::cleanup()
@@ -194,17 +268,16 @@ SINT32 CACmdLnOptions::clearVisibleAddresses()
 	*/
 SINT32 CACmdLnOptions::addVisibleAddresses(DOMNode* nodeProxy)
 	{
-		if(nodeProxy==NULL)
-			return E_UNKNOWN;
-		if(!equals(nodeProxy->getNodeName(),"Proxy"))
-			return E_UNKNOWN;
+		if(nodeProxy==NULL) return E_UNKNOWN;
+		ASSERT_PARENT_NODE_NAME
+			(nodeProxy->getNodeName(), OPTIONS_NODE_PROXY, OPTIONS_NODE_VISIBLE_ADDRESSES);
 		DOMNode* elemVisAdresses=NULL;
-		getDOMChildByName(nodeProxy,"VisibleAddresses",elemVisAdresses);
+		getDOMChildByName(nodeProxy, OPTIONS_NODE_VISIBLE_ADDRESSES, elemVisAdresses);
 		DOMNode* elemVisAddress=NULL;
-		getDOMChildByName(elemVisAdresses,"VisibleAddress",elemVisAddress);
+		getDOMChildByName(elemVisAdresses, OPTIONS_NODE_VISIBLE_ADDRESS ,elemVisAddress);
 		while(elemVisAddress!=NULL)
 			{
-				if(equals(elemVisAddress->getNodeName(),"VisibleAddress"))
+				if(equals(elemVisAddress->getNodeName(), OPTIONS_NODE_VISIBLE_ADDRESS))
 					{
 						DOMElement* elemHost;
 						if(getDOMChildByName(elemVisAddress,"Host",elemHost)==E_SUCCESS)
@@ -292,6 +365,9 @@ void CACmdLnOptions::clean()
 		delete[] m_strMixID;
 		m_strMixID=NULL;
 
+		delete[] m_strMixName;
+		m_strMixName=NULL;
+		
 		clearTargetInterfaces();
 		clearListenerInterfaces();
 #ifndef ONLY_LOCAL_PROXY
@@ -339,7 +415,13 @@ void CACmdLnOptions::clean()
 			m_docMixXml->release();
 			m_docMixXml=NULL;
 		}
-
+		
+		if(m_docOpTnCs!=NULL)
+		{
+			m_docOpTnCs->release();
+			m_docOpTnCs=NULL;
+		}
+		
 #ifdef COUNTRY_STATS
 		delete[] m_dbCountryStatsHost;
 		m_dbCountryStatsHost = NULL;
@@ -357,6 +439,12 @@ void CACmdLnOptions::clean()
 			m_strMonitoringListenerHost = NULL;
 		}
 #endif
+		delete [] mainOptionSetters;
+		mainOptionSetters = NULL;
+		delete [] generalOptionSetters;
+		generalOptionSetters = NULL;
+		delete certificateOptionSetters;
+		certificateOptionSetters = NULL;
 }
 
 SINT32 CACmdLnOptions::parse(int argc,const char** argv)
@@ -1399,15 +1487,20 @@ UINT16 CACmdLnOptions::getMonitoringListenerPort()
 */
 SINT32 CACmdLnOptions::getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo)
 	{
+		if(m_docMixInfo == NULL)
+		{
+			CAMsg::printMsg(LOG_CRIT,"No mixinfo document initialized!\n");
+			return E_UNKNOWN;
+		}
 		docMixInfo=m_docMixInfo;
 		//insert (or update) the Timestamp
 		DOMElement* elemTimeStamp=NULL;
 		DOMElement* elemRoot=docMixInfo->getDocumentElement();
 		if(getDOMChildByName(elemRoot,"LastUpdate",elemTimeStamp,false)!=E_SUCCESS)
-			{
-				elemTimeStamp=createDOMElement(docMixInfo,"LastUpdate");
-				elemRoot->appendChild(elemTimeStamp);
-			}
+		{
+			elemTimeStamp=createDOMElement(docMixInfo,"LastUpdate");
+			elemRoot->appendChild(elemTimeStamp);
+		}
 		UINT64 currentMillis;
 		getcurrentTimeMillis(currentMillis);
 		UINT8 tmpStrCurrentMillis[50];
@@ -1460,6 +1553,599 @@ SINT32 CACmdLnOptions::readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* &
 		return E_SUCCESS;
 }
 
+/* this method is only for internal use in order to intialize the
+ * mixinfo structure when the options are parsed. Don't get confused
+ * with the method addMixInfo of class CAMix which also includes
+ * setting a timestamp. 
+ */
+SINT32 CACmdLnOptions::appendMixInfo_internal(DOMNode* a_node, bool with_subtree)
+{
+	DOMNode *importedNode = NULL;
+	DOMNode *appendedNode = NULL;
+	
+	if(a_node == NULL)
+	{
+		CAMsg::printMsg(LOG_CRIT,"No node specified!\n");
+		return E_UNKNOWN;
+	}
+	if(m_docMixInfo == NULL)
+	{
+		CAMsg::printMsg(LOG_CRIT,"No mixinfo document initialized!\n");
+		return E_UNKNOWN;
+	}
+	if(m_docMixInfo->getDocumentElement() == NULL)
+	{	
+		CAMsg::printMsg(LOG_CRIT,"No mixinfo dom structure initialized!\n");
+		return E_UNKNOWN;
+	}
+	
+	importedNode = m_docMixInfo->importNode(a_node, with_subtree);
+	if(importedNode != NULL)
+	{
+		appendedNode = m_docMixInfo->getDocumentElement()->appendChild(importedNode);
+		if( appendedNode != NULL )
+		{
+			return E_SUCCESS;
+		}
+	}
+	CAMsg::printMsg(LOG_CRIT,"Could not append Node \"%s\" to Mixinfo!\n", a_node->getNodeName());
+	return E_UNKNOWN;
+}
+
+/**
+ * Just add the id of the Mix to the MixInfo Document
+ */
+inline SINT32 CACmdLnOptions::addMixIdToMixInfo()
+{
+	if( (m_docMixInfo != NULL) && (m_strMixID != NULL) )
+	{
+		return setDOMElementAttribute
+				(m_docMixInfo->getDocumentElement(), "id", (UINT8*) m_strMixID);
+	}
+	else
+	{
+		CAMsg::printMsg(LOG_CRIT,"No mixinfo document initialized!\n");
+		return E_UNKNOWN;
+	}
+	return E_SUCCESS;
+}
+
+
+/**
+ * framework-function for calling predefined option setter functions.
+ * Used by functions that handle a certain type of options, i.e. 
+ * general settings, account setting, etc. 
+ */
+SINT32 CACmdLnOptions::invokeOptionSetters
+		(optionSetter_pt *optionsSetters, DOMElement* optionsSource, SINT32 optionsSettersLength)
+{
+	SINT32 i = 0;
+	SINT32 ret = E_SUCCESS;
+	for(; i < optionsSettersLength; i++ )
+	{
+		ret = (this->*(optionsSetters[i]))(optionsSource);
+		if(ret != E_SUCCESS)
+		{
+			return ret;
+		}
+	}
+	return E_SUCCESS;
+}
+
+/* processs all options in <General> </General>*/
+SINT32 CACmdLnOptions::setGeneralOptions(DOMElement* elemRoot)
+{
+	DOMElement* elemGeneral=NULL;
+	
+	if (getDOMChildByName(elemRoot, OPTIONS_NODE_GENERAL,
+						  elemGeneral,false) != E_SUCCESS)
+	{
+		LOG_NODE_NOT_FOUND(OPTIONS_NODE_GENERAL);
+		return E_UNKNOWN;
+	}
+	
+	return invokeOptionSetters
+		(generalOptionSetters, elemGeneral, GENERAL_OPTIONS_NR);
+}
+
+/** 
+ * determines whether this mix is a first a middle or a last mix 
+ * appears in <General></General> and must be set.
+ * */
+SINT32 CACmdLnOptions::setMixType(DOMElement* elemGeneral)
+{
+	DOMElement* elemMixType=NULL;
+	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT32 tmpLen = TMP_BUFF_SIZE;
+	
+	if(elemGeneral == NULL) return E_UNKNOWN;
+	ASSERT_GENERAL_OPTIONS_PARENT
+		(elemGeneral->getNodeName(), OPTIONS_NODE_MIX_TYPE);
+	
+	//getMixType
+	if (getDOMChildByName(elemGeneral, OPTIONS_NODE_MIX_TYPE, 
+							elemMixType,false) != E_SUCCESS)
+	{
+		LOG_NODE_NOT_FOUND(OPTIONS_NODE_MIX_TYPE);
+		return E_UNKNOWN;
+	}
+	
+	if(getDOMElementValue(elemMixType,tmpBuff,&tmpLen)==E_SUCCESS)
+	{
+		if(memcmp(tmpBuff,"FirstMix",8)==0)
+			m_bFirstMix=true;
+		else if (memcmp(tmpBuff,"MiddleMix",9)==0)
+			m_bMiddleMix=true;
+		else if (memcmp(tmpBuff,"LastMix",7)==0)
+			m_bLastMix=true;
+		
+		if ( appendMixInfo_internal(elemMixType, WITH_SUBTREE) != E_SUCCESS )
+		{
+			return E_UNKNOWN;
+		}
+	}
+	else
+	{
+		LOG_NODE_EMPTY(OPTIONS_NODE_MIX_TYPE);
+		return E_UNKNOWN;
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setMixName(DOMElement* elemGeneral)
+{
+	DOMElement* elemMixName = NULL;
+	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT32 tmpLen = TMP_BUFF_SIZE;
+	
+	if(elemGeneral == NULL) return E_UNKNOWN;
+	ASSERT_GENERAL_OPTIONS_PARENT
+		(elemGeneral->getNodeName(), OPTIONS_NODE_MIX_NAME);
+	
+	//Inserting the Name if given...
+	getDOMChildByName(elemGeneral, OPTIONS_NODE_MIX_NAME, elemMixName, false);
+	if(elemMixName != NULL)
+	{
+		if(getDOMElementValue(elemMixName, tmpBuff, &tmpLen)==E_SUCCESS)
+		{
+			m_strMixName = new char[tmpLen+1];
+			memset(m_strMixName, 0, tmpLen+1);
+			memcpy(m_strMixName, tmpBuff, tmpLen);
+			return appendMixInfo_internal(elemMixName, WITH_SUBTREE);
+		}
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setMixID(DOMElement* elemGeneral)
+{
+	DOMElement* elemMixID=NULL;
+	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT32 tmpLen = TMP_BUFF_SIZE;
+	size_t mixID_strlen = 0;
+	
+	if(elemGeneral == NULL) return E_UNKNOWN;
+	ASSERT_GENERAL_OPTIONS_PARENT
+		(elemGeneral->getNodeName(), OPTIONS_NODE_MIX_NAME);
+	
+	getDOMChildByName(elemGeneral, OPTIONS_NODE_MIX_ID, elemMixID, false);
+	if(elemMixID != NULL)
+	{
+		if(getDOMElementValue(elemMixID,tmpBuff,&tmpLen) == E_SUCCESS)
+		{
+			strtrim(tmpBuff);
+			mixID_strlen = strlen((char*)tmpBuff)+1;
+			m_strMixID = new char[strlen((char*)tmpBuff)+1];
+			memset(m_strMixID, 0, mixID_strlen);
+			memcpy(m_strMixID, tmpBuff, mixID_strlen);
+
+			return addMixIdToMixInfo();
+		}
+	}
+	return E_SUCCESS;
+	
+}
+/** 
+ * determines whether this mix is a dynamic mix or not 
+ * appears in <General></General> and is optional.
+ * */
+SINT32 CACmdLnOptions::setDynamicMix(DOMElement* elemGeneral)
+{
+	// LERNGRUPPE
+	// get Dynamic flag
+	DOMElement* elemDynamic=NULL;
+	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT32 tmpLen = TMP_BUFF_SIZE;
+	m_bDynamic = false;
+	
+	if(elemGeneral == NULL) return E_UNKNOWN;
+	ASSERT_GENERAL_OPTIONS_PARENT
+		(elemGeneral->getNodeName(), OPTIONS_NODE_DYNAMIC_MIX);
+	
+	getDOMChildByName(elemGeneral, OPTIONS_NODE_DYNAMIC_MIX, elemDynamic, false);
+	if(elemDynamic != NULL)
+	{
+		if(getDOMElementValue(elemDynamic, tmpBuff, &tmpLen)==E_SUCCESS)
+	    {
+			m_bDynamic = (strcmp("True",(char*)tmpBuff) == 0);
+	    }
+	}
+	if(m_bDynamic)
+	{
+		CAMsg::printMsg( LOG_DEBUG, "I am a dynamic mix\n");
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setCascadeNameFromOptions(DOMElement* elemGeneral)
+{
+	DOMElement* elemCascadeName=NULL;
+	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT32 tmpLen = TMP_BUFF_SIZE;
+	
+	if(elemGeneral == NULL) return E_UNKNOWN;
+	ASSERT_GENERAL_OPTIONS_PARENT
+		(elemGeneral->getNodeName(), OPTIONS_NODE_CASCADE_NAME);
+	
+	//getCascadeName
+	getDOMChildByName(elemGeneral, OPTIONS_NODE_CASCADE_NAME, elemCascadeName, false);
+	
+#ifdef DYNAMIC_MIX
+	bool bNeedCascadeNameFromMixID=false;
+#endif
+	if(getDOMElementValue(elemCascadeName,tmpBuff,&tmpLen)==E_SUCCESS)
+	{
+		setCascadeName(tmpBuff);
+	}
+#ifdef DYNAMIC_MIX
+		/* LERNGRUPPE: Dynamic Mixes must have a cascade name, as MiddleMixes may be reconfigured to be FirstMixes */
+	else
+	{
+		bNeedCascadeNameFromMixID=true;
+		setCascadeName(m_strMixID);
+	}
+#endif
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setUserID(DOMElement* elemGeneral)
+{
+	DOMElement* elemUID=NULL;
+	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT32 tmpLen = TMP_BUFF_SIZE;
+	
+	if(elemGeneral == NULL) return E_UNKNOWN;
+	ASSERT_GENERAL_OPTIONS_PARENT
+		(elemGeneral->getNodeName(), OPTIONS_NODE_USER_ID);
+	
+	//get Username to run as...
+	getDOMChildByName(elemGeneral, OPTIONS_NODE_USER_ID, elemUID,false);
+	
+	if(getDOMElementValue(elemUID,tmpBuff,&tmpLen)==E_SUCCESS)
+	{
+		m_strUser=new char[tmpLen+1];
+		memcpy(m_strUser,tmpBuff,tmpLen);
+		m_strUser[tmpLen]=0;
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setNrOfFileDescriptors(DOMElement* elemGeneral)
+{
+	DOMElement* elemNrFd=NULL;
+	UINT32 tmp = 0;
+	
+	if(elemGeneral == NULL) return E_UNKNOWN;
+	ASSERT_GENERAL_OPTIONS_PARENT
+		(elemGeneral->getNodeName(), OPTIONS_NODE_FD_NR);
+	
+	//get Number of File Descriptors to use
+	getDOMChildByName(elemGeneral, OPTIONS_NODE_FD_NR, elemNrFd, false);
+	
+	if(getDOMElementValue(elemNrFd,&tmp) == E_SUCCESS)
+	{
+		m_nrOfOpenFiles=tmp;
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setDaemonMode(DOMElement* elemGeneral)
+{
+	DOMElement* elemDaemonMode = NULL;
+	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT32 tmpLen = TMP_BUFF_SIZE;
+	
+	if(elemGeneral == NULL) return E_UNKNOWN;
+	ASSERT_GENERAL_OPTIONS_PARENT
+		(elemGeneral->getNodeName(), OPTIONS_NODE_DAEMON);
+	
+	//get Run as Daemon
+	getDOMChildByName(elemGeneral, OPTIONS_NODE_DAEMON, elemDaemonMode,false);
+	
+	if(getDOMElementValue(elemDaemonMode, tmpBuff, &tmpLen) == E_SUCCESS && 
+		memcmp(tmpBuff,"True",4)==0)
+	{
+		m_bDaemon=true;
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setMaxUsers(DOMElement* elemGeneral)
+{
+	DOMElement* elemMaxUsers=NULL;
+	UINT32 tmp = 0;
+	
+	if(elemGeneral == NULL) return E_UNKNOWN;
+	ASSERT_GENERAL_OPTIONS_PARENT
+		(elemGeneral->getNodeName(), OPTIONS_NODE_MAX_USERS);
+	
+	// get max users
+	getDOMChildByName(elemGeneral, OPTIONS_NODE_MAX_USERS, elemMaxUsers, false);
+	if(elemMaxUsers!=NULL)
+	{
+		if(getDOMElementValue(elemMaxUsers, &tmp)==E_SUCCESS)
+		{
+			m_maxNrOfUsers = tmp;
+		}
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
+{
+	//get Logging
+	DOMElement* elemLogging=NULL;
+	DOMElement* elemEncLog=NULL;
+	DOMElement* elem=NULL;
+	
+	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT32 tmpLen = TMP_BUFF_SIZE;
+	
+	if(elemGeneral == NULL) return E_UNKNOWN;
+	ASSERT_GENERAL_OPTIONS_PARENT
+		(elemGeneral->getNodeName(), OPTIONS_NODE_LOGGING);
+	
+	getDOMChildByName(elemGeneral, OPTIONS_NODE_LOGGING, elemLogging, false);
+	if(elemLogging != NULL)
+	{
+		getDOMChildByName(elemLogging, OPTIONS_NODE_LOGGING_FILE, elem,false);
+		if(getDOMElementValue(elem, tmpBuff, &tmpLen) == E_SUCCESS)
+			{
+				strtrim(tmpBuff);
+				m_strLogDir = new char[strlen((char*)tmpBuff)+1];
+				strcpy(m_strLogDir, (char*)tmpBuff);
+				getDOMElementAttribute
+					(elem, OPTIONS_ATTRIBUTE_LOGGING_MAXFILESIZE, m_maxLogFileSize);
+			}
+		getDOMChildByName(elemLogging, OPTIONS_NODE_SYSLOG, elem, false);
+		
+		tmpLen = TMP_BUFF_SIZE;
+		memset(tmpBuff, 0, tmpLen);
+		if( (getDOMElementValue(elem, tmpBuff, &tmpLen) == E_SUCCESS) &&
+			(memcmp(tmpBuff,"True",4) == 0) )
+		{
+			m_bSyslog = true;
+		}
+
+		//get Encrypted Log Info
+		if( getDOMChildByName
+				(elemLogging, OPTIONS_NODE_ENCRYPTED_LOG, elemEncLog,false) == E_SUCCESS )
+		{
+			m_bIsEncryptedLogEnabled = true;
+			getDOMChildByName(elemEncLog, OPTIONS_NODE_LOGGING_FILE, elem, false);
+			
+			tmpLen = TMP_BUFF_SIZE;
+			memset(tmpBuff, 0, tmpLen);
+			if( getDOMElementValue(elem, tmpBuff, &tmpLen) == E_SUCCESS )
+				{
+					strtrim(tmpBuff);
+					m_strEncryptedLogDir = new char[strlen((char*)tmpBuff)+1];
+					strcpy(m_strEncryptedLogDir, (char*)tmpBuff);
+				}
+			DOMElement* elemKeyInfo;
+			DOMElement* elemX509Data;
+			if(getDOMChildByName
+					(elemEncLog, OPTIONS_NODE_LOGGING_KEYINFO, elemKeyInfo, false) == E_SUCCESS &&
+			   getDOMChildByName
+					(elemKeyInfo, OPTIONS_NODE_LOGGING_X509DATA, elemX509Data, false) == E_SUCCESS )
+			{
+				m_pLogEncryptionCertificate =	
+					CACertificate::decode(elemX509Data->getFirstChild(), CERT_X509CERTIFICATE);
+			}
+		}
+		else
+		{
+			m_bIsEncryptedLogEnabled=false;
+		}
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setCertificateOptions(DOMElement* elemRoot)
+{
+	
+	DOMElement* elemCertificates;
+
+	if (getDOMChildByName
+			(elemRoot, OPTIONS_NODE_CERTIFICATES, elemCertificates, false) != E_SUCCESS)
+	{
+		LOG_NODE_NOT_FOUND(OPTIONS_NODE_CERTIFICATES);
+		return E_UNKNOWN;
+	}
+	
+	return invokeOptionSetters
+			(certificateOptionSetters, elemCertificates, CERTIFICATE_OPTIONS_NR);
+}
+
+SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
+{
+	DOMElement* elemOwnCert=NULL;
+	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT32 tmpLen = TMP_BUFF_SIZE;
+	
+	UINT8 passwd[500];
+	passwd[0]=0;
+	
+	if(elemCertificates == NULL) return E_UNKNOWN;
+	ASSERT_CERTIFICATES_OPTIONS_PARENT
+		(elemCertificates->getNodeName(), OPTIONS_NODE_OWN_CERTIFICATE);
+	
+	//Own Certiticate first
+	getDOMChildByName(elemCertificates, OPTIONS_NODE_OWN_CERTIFICATE, elemOwnCert, false);
+	if (elemOwnCert == NULL)
+	{
+		LOG_NODE_NOT_FOUND(OPTIONS_NODE_OWN_CERTIFICATE);
+		return E_UNKNOWN;
+	}
+
+	m_pSignKey = new CASignature();
+	
+	if(m_pSignKey->setSignKey
+			(elemOwnCert->getFirstChild(), SIGKEY_PKCS12) != E_SUCCESS)
+	{	
+		//Maybe not an empty passwd
+		printf("I need a passwd for the SignKey: ");
+		fflush(stdout);
+		readPasswd(passwd, 500);
+		if(m_pSignKey->setSignKey
+				(elemOwnCert->getFirstChild(),
+				 SIGKEY_PKCS12,(char*)passwd) != E_SUCCESS)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Could not read own signature key!\n");
+			delete m_pSignKey;
+			m_pSignKey=NULL;
+		}
+	}
+	
+	m_pOwnCertificate = 
+		CACertificate::decode(elemOwnCert->getFirstChild(), CERT_PKCS12, (char*)passwd);
+	if (m_pOwnCertificate == NULL)
+	{
+		CAMsg::printMsg(LOG_CRIT, "Could not decode mix certificate!\n");
+		return E_UNKNOWN;
+	}
+
+	if ( (m_pOwnCertificate->getSubjectKeyIdentifier(tmpBuff, &tmpLen) != E_SUCCESS) &&
+			(m_strMixID == NULL))
+	{
+		LOG_NODE_NOT_FOUND(OPTIONS_NODE_MIX_ID);
+		return E_UNKNOWN;			
+	}
+	strtrim(tmpBuff);
+	
+	if(m_strMixID != NULL )
+	{
+		if(strncmp(m_strMixID, (char*)tmpBuff, strlen((char*)tmpBuff) ) != 0)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Error, two different MixIDs specified!\n");
+			return E_UNKNOWN;
+		}
+	}
+	else
+	{
+		m_strMixID=new char[strlen((char*)tmpBuff)+1];
+		m_strMixID[strlen((char*)tmpBuff)]= (char) 0;
+		strcpy(m_strMixID,(char*) tmpBuff);
+		return addMixIdToMixInfo();
+	}
+	
+#ifdef DYNAMIC_MIX
+		/* LERNGRUPPE: Dynamic Mixes must have a cascade name, as MiddleMixes may be reconfigured to be FirstMixes */
+	if(bNeedCascadeNameFromMixID)
+	{
+		m_strCascadeName = new char[strlen(m_strMixID) + 1];
+		memset(m_strCascadeName, 0, strlen(m_strMixID) + 1);
+		strncpy(m_strCascadeName, m_strMixID, strlen(m_strMixID)+1);
+	}
+#endif
+	
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setOwnOperatorCertificate(DOMElement *elemCertificates)
+{
+	DOMElement* elemOpCert = NULL;
+	
+	if(elemCertificates == NULL) return E_UNKNOWN;
+	ASSERT_CERTIFICATES_OPTIONS_PARENT
+		(elemCertificates->getNodeName(), OPTIONS_NODE_OWN_OPERATOR_CERTIFICATE);
+	
+	//then Operator Certificate
+	if (getDOMChildByName
+		 (elemCertificates, OPTIONS_NODE_OWN_OPERATOR_CERTIFICATE, 
+		  elemOpCert, false) != E_SUCCESS)
+	{
+		LOG_NODE_NOT_FOUND(OPTIONS_NODE_OWN_OPERATOR_CERTIFICATE);
+		return E_UNKNOWN;
+	}
+	
+	m_OpCertsLength = 0;
+	if (elemOpCert != NULL)
+	{
+		DOMNodeList* opCertList = 
+			getElementsByTagName(elemOpCert, OPTIONS_NODE_ELEMENT_X509CERT);
+		m_OpCerts = new CACertificate*[opCertList->getLength()];
+		for (UINT32 i = 0; i < opCertList->getLength(); i++)
+		{
+			m_OpCerts[m_OpCertsLength] = 
+				CACertificate::decode(opCertList->item(i), CERT_X509CERTIFICATE);
+			if (m_OpCerts[m_OpCertsLength] != NULL)
+			{
+				m_OpCertsLength++;
+			}
+		}
+		if (m_OpCertsLength == 0)
+		{
+			LOG_NODE_NOT_FOUND(OPTIONS_NODE_ELEMENT_X509CERT);
+			return E_UNKNOWN;
+		}
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setNextMixCertificate(DOMElement *elemCertificates)
+{
+	DOMElement* elemNextCert = NULL;
+	
+	if(elemCertificates == NULL) return E_UNKNOWN;
+	ASSERT_CERTIFICATES_OPTIONS_PARENT
+		(elemCertificates->getNodeName(), OPTIONS_NODE_NEXT_MIX_CERTIFICATE);
+	
+	//nextMixCertificate if given
+	getDOMChildByName(elemCertificates, OPTIONS_NODE_NEXT_MIX_CERTIFICATE, elemNextCert,false);
+	if(elemNextCert!=NULL)
+	{
+		m_pNextMixCertificate=
+			CACertificate::decode(elemNextCert->getFirstChild(),CERT_X509CERTIFICATE);
+		if(m_pNextMixCertificate == NULL)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Could not decode the certificate of the next mix!\n");
+			return E_UNKNOWN;
+		}
+	}
+	return E_SUCCESS;
+
+}
+
+SINT32 CACmdLnOptions::setPrevMixCertificate(DOMElement *elemCertificates)
+{
+	//prevMixCertificate if given
+	DOMElement* elemPrevCert=NULL;
+	
+	if(elemCertificates == NULL) return E_UNKNOWN;
+	ASSERT_CERTIFICATES_OPTIONS_PARENT
+		(elemCertificates->getNodeName(), OPTIONS_NODE_PREV_MIX_CERTIFICATE);
+	
+	getDOMChildByName(elemCertificates,"PrevMixCertificate",elemPrevCert,false);
+	if(elemPrevCert!=NULL)
+	{
+		m_pPrevMixCertificate=
+			CACertificate::decode(elemPrevCert->getFirstChild(),CERT_X509CERTIFICATE);
+	}	
+	return E_SUCCESS;
+
+}
+
 /** Processes a XML configuration document. This sets the values of the
 	* options to the values found in the XML document.
 	* Note that only the values are changed, which are given in the XML document!
@@ -1469,255 +2155,29 @@ SINT32 CACmdLnOptions::readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* &
 	*/
 SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* docConfig)
 	{
+		SINT32 ret = E_SUCCESS;
 		if(docConfig==NULL)
 			return E_UNKNOWN;
 		DOMElement* elemRoot=docConfig->getDocumentElement();
-		DOMElement* elemGeneral=NULL;
-		if (getDOMChildByName(elemRoot,"General",elemGeneral,false) != E_SUCCESS)
+		
+		/* Initialize Mixinfo DOM structure so that neccessary 
+		 * option can be appended to it
+		 */
+		DOMElement* elemMix=createDOMElement(m_docMixInfo, MIX_INFO_NODE_PARENT);
+		m_docMixInfo->appendChild(elemMix);
+		
+		
+		/* all Options in <General> */
+		ret = invokeOptionSetters(mainOptionSetters, elemRoot, MAIN_OPTIONS_NR);
+		if(ret != E_SUCCESS)
 		{
-			CAMsg::printMsg(LOG_CRIT,"No \"General\" node found in configuration file!\n");
 			return E_UNKNOWN;
 		}
-
-		UINT8 tmpBuff[255];
-		UINT32 tmpLen=255;
-
-		//getMixType
+		
 		DOMElement* elem=NULL;
-		if (getDOMChildByName(elemGeneral,"MixType",elem,false) != E_SUCCESS)
-		{
-			CAMsg::printMsg(LOG_CRIT,"No \"MixType\" node found in configuration file!\n");
-			return E_UNKNOWN;
-		}
-		tmpLen=255;
-		if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS)
-		{
-			if(memcmp(tmpBuff,"FirstMix",8)==0)
-				m_bFirstMix=true;
-			else if (memcmp(tmpBuff,"MiddleMix",9)==0)
-				m_bMiddleMix=true;
-			else if (memcmp(tmpBuff,"LastMix",7)==0)
-				m_bLastMix=true;
-		}
-		else
-		{
-			CAMsg::printMsg(LOG_CRIT,"Node \"MixType\" is empty!\n");
-			return E_UNKNOWN;
-		}
-
-		// LERNGRUPPE
-		// get Dynamic flag
-		m_bDynamic = false;
-		getDOMChildByName(elemGeneral,"Dynamic",elem,false);
-		if(elem != NULL)
-			{
-    			if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS)
-    			{
-        			m_bDynamic = (strcmp("True",(char*)tmpBuff) == 0);
-    			}
-
-			}
-		if(m_bDynamic)
-			CAMsg::printMsg( LOG_DEBUG, "I am a dynamic mix\n");
-
-		//getCascadeName
-		getDOMChildByName(elemGeneral,"CascadeName",elem,false);
-		tmpLen=255;
-#ifdef DYNAMIC_MIX
-		bool bNeedCascadeNameFromMixID=false;
-#endif
-		if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS)
-			{
-				setCascadeName(tmpBuff);
-			}
-#ifdef DYNAMIC_MIX
-			/* LERNGRUPPE: Dynamic Mixes must have a cascade name, as MiddleMixes may be reconfigured to be FirstMixes */
-		else
-			{
-				bNeedCascadeNameFromMixID=true;
-				setCascadeName(m_strMixID);
-			}
-#endif
-		//get Username to run as...
-		getDOMChildByName(elemGeneral,"UserID",elem,false);
-		tmpLen=255;
-		if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS)
-		{
-			m_strUser=new char[tmpLen+1];
-			memcpy(m_strUser,tmpBuff,tmpLen);
-			m_strUser[tmpLen]=0;
-		}
-		//get Number of File Descriptors to use
-		getDOMChildByName(elemGeneral,"NrOfFileDescriptors",elem,false);
-		UINT32 tmp;
-		if(getDOMElementValue(elem,&tmp)==E_SUCCESS)
-			m_nrOfOpenFiles=tmp;
-		//get Run as Daemon
-		getDOMChildByName(elemGeneral,"Daemon",elem,false);
-		tmpLen=255;
-		if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS&&memcmp(tmpBuff,"True",4)==0)
-			m_bDaemon=true;
-
-		// get max users
-		DOMElement* elemMaxUsers=NULL;
-		getDOMChildByName(elemGeneral,"MaxUsers",elemMaxUsers,false);
-		if(elemMaxUsers!=NULL)
-		{
-			if(getDOMElementValue(elemMaxUsers, &tmp)==E_SUCCESS)
-			{
-				m_maxNrOfUsers = tmp;
-			}
-		}
-
-		//get Logging
-		DOMElement* elemLogging=NULL;
-		getDOMChildByName(elemGeneral,"Logging",elemLogging,false);
-		if(elemLogging!=NULL)
-			{
-				tmpLen=255;
-				getDOMChildByName(elemLogging,"File",elem,false);
-				if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS)
-					{
-						strtrim(tmpBuff);
-						m_strLogDir=new char[strlen((char*)tmpBuff)+1];
-						strcpy(m_strLogDir,(char*)tmpBuff);
-						getDOMElementAttribute(elem,"MaxFileSize",m_maxLogFileSize);
-					}
-				getDOMChildByName(elemLogging,"Syslog",elem,false);
-				tmpLen=255;
-				if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS&&memcmp(tmpBuff,"True",4)==0)
-				{
-					m_bSyslog=true;
-				}
-
-				DOMElement* elemEncLog;
-				//get Encrypted Log Info
-				if(getDOMChildByName(elemLogging,"EncryptedLog",elemEncLog,false)==E_SUCCESS)
-					{
-						m_bIsEncryptedLogEnabled=true;
-						getDOMChildByName(elemEncLog,"File",elem,false);
-						tmpLen=255;
-						if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS)
-							{
-								strtrim(tmpBuff);
-								m_strEncryptedLogDir=new char[strlen((char*)tmpBuff)+1];
-								strcpy(m_strEncryptedLogDir,(char*)tmpBuff);
-							}
-						DOMElement* elemKeyInfo;
-						DOMElement* elemX509Data;
-						if(getDOMChildByName(elemEncLog,"KeyInfo",elemKeyInfo,false)==E_SUCCESS&&
-							getDOMChildByName(elemKeyInfo,"X509Data",elemX509Data,false)==E_SUCCESS)
-							{
-								m_pLogEncryptionCertificate=CACertificate::decode(elemX509Data->getFirstChild(),CERT_X509CERTIFICATE);
-							}
-					}
-				else
-					m_bIsEncryptedLogEnabled=false;
-			}
-		//getCertificates if given...
-		DOMElement* elemCertificates;
-		getDOMChildByName(elemRoot,"Certificates",elemCertificates,false);
-		//Own Certiticate first
-		DOMElement* elemOwnCert;
-		getDOMChildByName(elemCertificates,"OwnCertificate",elemOwnCert,false);
-		if (elemOwnCert == NULL)
-			{
-				return E_UNKNOWN;
-			}
-
-		m_pSignKey=new CASignature();
-		UINT8 passwd[500];
-		passwd[0]=0;
-		if(m_pSignKey->setSignKey(elemOwnCert->getFirstChild(),SIGKEY_PKCS12)!=E_SUCCESS)
-		{//Maybe not an empty passwd
-			printf("I need a passwd for the SignKey: ");
-			fflush(stdout);
-			readPasswd(passwd,500);
-			if(m_pSignKey->setSignKey(elemOwnCert->getFirstChild(),SIGKEY_PKCS12,(char*)passwd)!=E_SUCCESS)
-			{
-				CAMsg::printMsg(LOG_CRIT,"Could not read own signature key!\n");
-				delete m_pSignKey;
-				m_pSignKey=NULL;
-			}
-		}
-		m_pOwnCertificate=CACertificate::decode(elemOwnCert->getFirstChild(),CERT_PKCS12,(char*)passwd);
-		if (m_pOwnCertificate == NULL)
-		{
-			CAMsg::printMsg(LOG_CRIT,"Could not decode mix certificate!\n");
-			return E_UNKNOWN;
-		}
-
-		//get MixID
-		tmpLen=255;
-		if (m_pOwnCertificate->getSubjectKeyIdentifier(tmpBuff, &tmpLen) != E_SUCCESS)
-		{
-			DOMElement* elemMixID=NULL;
-			getDOMChildByName(elemGeneral,"MixID",elemMixID,false);
-			if(elemMixID==NULL)
-			{
-				CAMsg::printMsg(LOG_CRIT,"Node \"MixID\" not found!\n");
-				return E_UNKNOWN;
-			}
-			if(getDOMElementValue(elemMixID,tmpBuff,&tmpLen)!=E_SUCCESS)
-			{
-				CAMsg::printMsg(LOG_CRIT,"Node \"MixID\" is empty!\n");
-				return E_UNKNOWN;
-			}
-		}
-		strtrim(tmpBuff);
-		m_strMixID=new char[strlen((char*)tmpBuff)+1];
-		strcpy(m_strMixID,(char*) tmpBuff);
-
-#ifdef DYNAMIC_MIX
-			/* LERNGRUPPE: Dynamic Mixes must have a cascade name, as MiddleMixes may be reconfigured to be FirstMixes */
-		if(bNeedCascadeNameFromMixID)
-			{
-				m_strCascadeName = new char[strlen(m_strMixID) + 1];
-				strncpy(m_strCascadeName, m_strMixID, strlen(m_strMixID)+1);
-			}
-#endif
-
-		//then Operator Certificate
-		DOMElement* elemOpCert;
-		if (getDOMChildByName(elemCertificates,"OperatorOwnCertificate",elemOpCert,false) != E_SUCCESS)
-		{
-			CAMsg::printMsg(LOG_CRIT,"Node \"OperatorOwnCertificate\" not found!\n");
-			return E_UNKNOWN;
-		}
-		//CAMsg::printMsg(LOG_DEBUG,"Node: %s\n",elemOpCert.getNodeName().transcode());
-
-		m_OpCertsLength = 0;
-		if (elemOpCert != NULL)
-		{
-			DOMNodeList* opCertList = getElementsByTagName(elemOpCert,"X509Certificate");
-			m_OpCerts = new CACertificate*[opCertList->getLength()];
-			for (UINT32 i = 0; i < opCertList->getLength(); i++)
-			{
-				m_OpCerts[m_OpCertsLength] = CACertificate::decode(opCertList->item(i),CERT_X509CERTIFICATE);
-				if (m_OpCerts[m_OpCertsLength] != NULL)
-				{
-					m_OpCertsLength++;
-				}
-			}
-			if (m_OpCertsLength == 0)
-			{
-				CAMsg::printMsg(LOG_CRIT,"Node \"X509Certificate\" of operator certificate not found!\n");
-				return E_UNKNOWN;
-			}
-		}
-
-
-		//nextMixCertificate if given
-		DOMElement* elemNextCert=NULL;
-		getDOMChildByName(elemCertificates,"NextMixCertificate",elemNextCert,false);
-		if(elemNextCert!=NULL)
-			m_pNextMixCertificate=CACertificate::decode(elemNextCert->getFirstChild(),CERT_X509CERTIFICATE);
-		//prevMixCertificate if given
-		DOMElement* elemPrevCert=NULL;
-		getDOMChildByName(elemCertificates,"PrevMixCertificate",elemPrevCert,false);
-		if(elemPrevCert!=NULL)
-			m_pPrevMixCertificate=CACertificate::decode(elemPrevCert->getFirstChild(),CERT_X509CERTIFICATE);
-
+		UINT8 tmpBuff[255];
+		UINT32 tmpLen=255, tmp = 0;
+		
 #ifdef PAYMENT
 // Added by Bastian Voigt:
 // Read PaymentInstance data (JPI Hostname, Port, Publickey) from configfile
@@ -2151,6 +2611,8 @@ SKIP_NEXT_MIX:
 		}
 #endif /* SERVER_MONITORING */
 
+		
+		
 		//Next Proxies and visible adresses
 		clearVisibleAddresses();
 		DOMElement* elemProxies=NULL;
@@ -2278,23 +2740,23 @@ SKIP_NEXT_MIX:
 
 		//-----------------------------------------------------------------------------
 		//construct a XML-String, which describes the Mix (send via Infoservice.Helo())
-		m_docMixInfo=createDOMDocument();
-		DOMElement* elemMix=createDOMElement(m_docMixInfo,"Mix");
-		setDOMElementAttribute(elemMix,"id",(UINT8*)m_strMixID);
-		m_docMixInfo->appendChild(elemMix);
+		//m_docMixInfo=createDOMDocument();
+		
+		
+		//m_docMixInfo->appendChild(elemMix);
 
 		//Inserting the Name if given...
-		getDOMChildByName(elemGeneral,"MixName",elem,false);
+		/*getDOMChildByName(elemGeneral,"MixName",elem,false);
 		tmpLen=255;
 		if(getDOMElementValue(elem,tmpBuff,&tmpLen)==E_SUCCESS)
 			{
 				DOMElement* elemName=createDOMElement(m_docMixInfo,"Name");
 				setDOMElementValue(elemName,tmpBuff);
 				elemMix->appendChild(elemName);
-			}
+			}*/
 
     //Inserting the min. cascade length if given...
-    getDOMChildByName(elemGeneral,"MinCascadeLength",elem,false);
+    /*getDOMChildByName(elemGeneral,"MinCascadeLength",elem,false);
     if(elem != NULL)
     {
     	elemMix->appendChild(m_docMixInfo->importNode(elem, true));
@@ -2312,7 +2774,7 @@ SKIP_NEXT_MIX:
     if(elem != NULL)
     {
     	elemMix->appendChild(m_docMixInfo->importNode(elem, true));
-    }
+    }*/
 
 		//Import the Description if given
 		DOMElement* elemMixDescription=NULL;

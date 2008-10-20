@@ -43,9 +43,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include "tre/regex.h"
 #endif
 
+#define TMP_BUFF_SIZE 255
 
-#define TARGET_MIX					1
-#define TARGET_HTTP_PROXY		2
+#define TARGET_MIX			1
+#define TARGET_HTTP_PROXY	2
 #define TARGET_SOCKS_PROXY	3
 
 // LERNGRUPPE moved this define from CACmdLnOptions.cpp
@@ -53,6 +54,80 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define DEFAULT_CONFIG_FILE "default.xml"
 #define MIN_INFOSERVICES 1
 // END LERNGRUPPE
+
+#define WITH_SUBTREE true
+#define WITHOUT_SUBTREE (!(WITHSUBTREE))
+
+/* NR of all Option types, i.e. General, Certificates, Networking, etc. */
+#define MAIN_OPTIONS_NR 2
+
+/* General Option definitions */
+#define OPTIONS_NODE_GENERAL "General"
+#define GENERAL_OPTIONS_NR 10
+
+#define OPTIONS_NODE_MIX_TYPE "MixType"
+#define OPTIONS_NODE_MIX_NAME "MixName"
+#define OPTIONS_NODE_MIX_ID	"MixID"
+#define OPTIONS_NODE_DYNAMIC_MIX "Dynamic"
+#define OPTIONS_NODE_CASCADE_NAME "CascadeName"
+#define OPTIONS_NODE_USER_ID "UserID"
+#define OPTIONS_NODE_FD_NR "NrOfFileDescriptors"
+#define OPTIONS_NODE_DAEMON "Daemon"
+#define OPTIONS_NODE_MAX_USERS "MaxUsers"
+#define OPTIONS_NODE_LOGGING "Logging"
+#define OPTIONS_NODE_LOGGING_FILE "File"
+#define OPTIONS_ATTRIBUTE_LOGGING_MAXFILESIZE "MaxFileSize"
+#define OPTIONS_NODE_SYSLOG "Syslog"
+#define OPTIONS_NODE_ENCRYPTED_LOG "EncryptedLog"
+#define OPTIONS_NODE_LOGGING_KEYINFO "KeyInfo"
+#define OPTIONS_NODE_LOGGING_X509DATA "X509Data"
+
+/* Certificate Option definitions */
+#define OPTIONS_NODE_CERTIFICATES "Certificates"
+#define CERTIFICATE_OPTIONS_NR 4
+
+#define OPTIONS_NODE_OWN_CERTIFICATE "OwnCertificate"
+#define OPTIONS_NODE_OWN_OPERATOR_CERTIFICATE "OperatorOwnCertificate"
+#define OPTIONS_NODE_ELEMENT_X509CERT "X509Certificate"
+#define OPTIONS_NODE_NEXT_MIX_CERTIFICATE "NextMixCertificate"
+#define OPTIONS_NODE_PREV_MIX_CERTIFICATE "PrevMixCertificate"
+
+/* Accounting Option definitions */
+#define OPTIONS_NODE_ACCOUNTING "Accounting"
+#define ACCOUNTING_OPTIONS_NR 0
+
+#define OPTIONS_NODE_NETWORK "Network"
+#define NETWORK_OPTIONS_NR 0
+
+#define OPTIONS_NODE_PROXIES "Proxies"
+#define OPTIONS_NODE_PROXY "Proxy"
+#define OPTIONS_NODE_VISIBLE_ADDRESSES "VisibleAddresses"
+#define OPTIONS_NODE_VISIBLE_ADDRESS "VisibleAddress"
+
+#define OPTIONS_NODE_TNCS "TermsAndConditionsList"
+#define OPTION_NODE_TNCS "TermsAndConditions"
+
+#define MIX_INFO_NODE_PARENT "Mix"
+
+#define LOG_NODE_NOT_FOUND(Nodename) \
+	CAMsg::printMsg(LOG_CRIT,"No \"%s\" node found in configuration file!\n", (Nodename))
+
+#define LOG_NODE_EMPTY(Nodename) \
+	CAMsg::printMsg(LOG_CRIT,"Node \"%s\" is empty!\n", (Nodename))
+
+#define LOG_NODE_WRONG_PARENT(Parentname, Childname) \
+	CAMsg::printMsg(LOG_CRIT,"%s is the wrong parent for Node \"%s\"\n", (Parentname), (Childname))
+
+#define ASSERT_PARENT_NODE_NAME(Parentname, NameToMatch, Childname) 	\
+	if(!equals((Parentname), (NameToMatch) )) 			\
+	{											 		\
+		LOG_NODE_WRONG_PARENT(Parentname, Childname);	\
+		return E_UNKNOWN;								\
+	}
+#define ASSERT_GENERAL_OPTIONS_PARENT(Parentname, Childname) \
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_GENERAL, Childname)
+#define ASSERT_CERTIFICATES_OPTIONS_PARENT(Parentname, Childname) \
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_CERTIFICATES, Childname)
 
 struct t_TargetInterface
 	{
@@ -64,6 +139,9 @@ struct t_TargetInterface
 typedef struct t_TargetInterface TargetInterface;
 
 THREAD_RETURN threadReConfigure(void *param);
+
+class CACmdLnOptions;
+typedef SINT32 (CACmdLnOptions::*optionSetter_pt)(DOMElement *);
 
 class CACmdLnOptions
     {
@@ -489,6 +567,7 @@ class CACmdLnOptions
 			bool m_bAcceptReconfiguration;
 			XERCES_CPP_NAMESPACE::DOMDocument* m_docMixInfo;
 			XERCES_CPP_NAMESPACE::DOMDocument* m_docMixXml;
+			XERCES_CPP_NAMESPACE::DOMDocument* m_docOpTnCs;
 			
 			UINT32 m_u32KeepAliveSendInterval;
 			UINT32 m_u32KeepAliveRecvInterval;
@@ -510,7 +589,8 @@ class CACmdLnOptions
     
 			//char*		m_strMixXml;
 			char*		m_strMixID;
-
+			char*		m_strMixName;
+			
 			bool m_bIsEncryptedLogEnabled;
 
 			TargetInterface*			m_arTargetInterfaces;
@@ -552,6 +632,12 @@ class CACmdLnOptions
 			UINT32 m_iPaymentSoftLimit;
 			UINT32 m_iPrepaidInterval; 
 			UINT32 m_iPaymentSettleInterval;
+			
+			optionSetter_pt *mainOptionSetters;
+			optionSetter_pt *generalOptionSetters;
+			optionSetter_pt *certificateOptionSetters;
+			optionSetter_pt *accountingOptionSetters;
+			optionSetter_pt *networkOptionSetters;
 #endif
 #ifdef SERVER_MONITORING
 		private:
@@ -575,5 +661,36 @@ class CACmdLnOptions
 #endif //ONLY_LOCAL_PROXY
 			SINT32 clearTargetInterfaces();
 			SINT32 clearListenerInterfaces();
+			
+			SINT32 setGeneralOptions(DOMElement* elemRoot);
+			SINT32 setMixType(DOMElement* elemGeneral);
+			SINT32 setMixName(DOMElement* elemGeneral);
+			SINT32 setMixID(DOMElement* elemGeneral);
+			SINT32 setDynamicMix(DOMElement* elemGeneral);
+			SINT32 setCascadeNameFromOptions(DOMElement* elemGeneral);
+			SINT32 setUserID(DOMElement* elemGeneral);
+			SINT32 setNrOfFileDescriptors(DOMElement* elemGeneral);
+			SINT32 setDaemonMode(DOMElement* elemGeneral);
+			SINT32 setMaxUsers(DOMElement* elemGeneral);
+			SINT32 setLoggingOptions(DOMElement* elemGeneral);
+			
+			SINT32 setCertificateOptions(DOMElement* elemRoot);
+			SINT32 setOwnCertificate(DOMElement *elemCertificates);
+			SINT32 setOwnOperatorCertificate(DOMElement *elemCertificates);
+			SINT32 setNextMixCertificate(DOMElement *elemCertificates);
+			SINT32 setPrevMixCertificate(DOMElement *elemCertificates);
+			
+			SINT32 appendMixInfo_internal(DOMNode* a_node, bool with_subtree);
+			inline SINT32 addMixIdToMixInfo();
+			
+			SINT32 invokeOptionSetters
+					(optionSetter_pt *optionsSetters, DOMElement* argument, SINT32 optionsSettersLength);
+			
+			void initMainOptionSetters();
+			void initGeneralOptionSetters();
+			void initCertificateOptionSetters();
+			void initAccountingOptionSetters();
+			void initNetworkOptionSetters();
 	};
 #endif
+
