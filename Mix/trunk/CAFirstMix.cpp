@@ -1405,7 +1405,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		
 		SAVE_STACK("CAFirstMix::doUserLogin", "Starting AI login procedure");
 		CAMsg::printMsg(LOG_DEBUG,"Starting AI login procedure.\n");
-		
+
 		MIXPACKET *paymentLoginPacket = new MIXPACKET;
 		tQueueEntry *aiAnswerQueueEntry=new tQueueEntry;
 		UINT32 qlen=sizeof(tQueueEntry);
