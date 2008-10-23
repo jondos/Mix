@@ -58,17 +58,15 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define WITH_SUBTREE true
 #define WITHOUT_SUBTREE (!(WITHSUBTREE))
 
-/* NR of all Option types, i.e. General, Certificates, Networking, etc. */
-#define MAIN_OPTIONS_NR 2
 
 /* General Option definitions */
 #define OPTIONS_NODE_GENERAL "General"
-#define GENERAL_OPTIONS_NR 10
 
 #define OPTIONS_NODE_MIX_TYPE "MixType"
 #define OPTIONS_NODE_MIX_NAME "MixName"
 #define OPTIONS_NODE_MIX_ID	"MixID"
 #define OPTIONS_NODE_DYNAMIC_MIX "Dynamic"
+#define OPTIONS_NODE_MIN_CASCADE_LENGTH "MinCascadeLength"
 #define OPTIONS_NODE_CASCADE_NAME "CascadeName"
 #define OPTIONS_NODE_USER_ID "UserID"
 #define OPTIONS_NODE_FD_NR "NrOfFileDescriptors"
@@ -80,31 +78,73 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_NODE_SYSLOG "Syslog"
 #define OPTIONS_NODE_ENCRYPTED_LOG "EncryptedLog"
 #define OPTIONS_NODE_LOGGING_KEYINFO "KeyInfo"
-#define OPTIONS_NODE_LOGGING_X509DATA "X509Data"
+
+#define OPTIONS_NODE_DESCRIPTION "Description"
 
 /* Certificate Option definitions */
-#define OPTIONS_NODE_CERTIFICATES "Certificates"
-#define CERTIFICATE_OPTIONS_NR 4
+#define OPTIONS_NODE_CERTIFICATE_LIST "Certificates"
 
 #define OPTIONS_NODE_OWN_CERTIFICATE "OwnCertificate"
 #define OPTIONS_NODE_OWN_OPERATOR_CERTIFICATE "OperatorOwnCertificate"
 #define OPTIONS_NODE_ELEMENT_X509CERT "X509Certificate"
 #define OPTIONS_NODE_NEXT_MIX_CERTIFICATE "NextMixCertificate"
+#define OPTIONS_NODE_NEXT_OPERATOR_CERTIFICATE "NextOperatorCertificate"
 #define OPTIONS_NODE_PREV_MIX_CERTIFICATE "PrevMixCertificate"
+#define OPTIONS_NODE_PREV_OPERATOR_CERTIFICATE "PrevOperatorCertificate"
+#define OPTIONS_NODE_X509DATA "X509Data"
+#define OPTIONS_NODE_SIGNATURE "Signature"
+
 
 /* Accounting Option definitions */
 #define OPTIONS_NODE_ACCOUNTING "Accounting"
-#define ACCOUNTING_OPTIONS_NR 0
+
+#define OPTIONS_NODE_PRICE_CERTIFICATE "PriceCertificate"
+#define OPTIONS_NODE_PAYMENT_INSTANCE CAXMLBI::getXMLElementName()
+#define OPTIONS_NODE_AI_SOFT_LIMIT "SoftLimit"
+#define OPTIONS_NODE_AI_HARD_LIMIT "HardLimit"
+#define OPTIONS_NODE_SETTLE_IVAL "SettleInterval"
+#define OPTIONS_NODE_PREPAID_IVAL "PrepaidInterval"
+#define OPTIONS_NODE_PREPAID_IVAL_KB "PrepaidIntervalKbytes"
+#define OPTIONS_NODE_AI_DB "Database"
+#define OPTIONS_NODE_AI_DB_HOST "Host"
+#define OPTIONS_NODE_AI_DB_PORT "Port"
+#define OPTIONS_NODE_AI_DB_NAME "DBName"
+#define OPTIONS_NODE_AI_DB_USER "Username"
+#define OPTIONS_NODE_AI_DB_PASSW "Password"
+
+#define OPTIONS_DEFAULT_PREPAID_IVAL 3000000 //3 MB as safe default if not explicitly set in config file
 
 #define OPTIONS_NODE_NETWORK "Network"
-#define NETWORK_OPTIONS_NR 0
-
-#define OPTIONS_NODE_PROXIES "Proxies"
+#define OPTIONS_NODE_INFOSERVICE_LIST "InfoServices"
+#define OPTIONS_NODE_INFOSERVICE "InfoService"
+#define OPTIONS_NODE_ALLOW_AUTO_CONF "AllowAutoConfiguration"
+#define OPTIONS_NODE_LISTENER_INTERFACES CAListenerInterface::XML_ELEMENT_CONTAINER_NAME
+#define OPTIONS_NODE_NEXT_MIX "NextMix"
+#define OPTIONS_NODE_NETWORK_PROTOCOL "NetworkProtocol"
+#define OPTIONS_NODE_IP "IP"
+#define OPTIONS_NODE_PROXY_LIST "Proxies"
 #define OPTIONS_NODE_PROXY "Proxy"
-#define OPTIONS_NODE_VISIBLE_ADDRESSES "VisibleAddresses"
+#define OPTIONS_NODE_PROXY_TYPE "ProxyType" 
+#define OPTIONS_NODE_SERVER_MONITORING "ServerMonitoring"
+#define OPTIONS_NODE_VISIBLE_ADDRESS_LIST "VisibleAddresses"
 #define OPTIONS_NODE_VISIBLE_ADDRESS "VisibleAddress"
+#define OPTIONS_NODE_LISTENER_INTERFACE_LIST CAListenerInterface::XML_ELEMENT_CONTAINER_NAME
+#define OPTIONS_NODE_LISTENER_INTERFACE CAListenerInterface::XML_ELEMENT_NAME
+#define OPTIONS_NODE_KEEP_ALIVE "KeepAlive"
+#define OPTIONS_NODE_KEEP_ALIVE_SEND_IVAL "SendInterval"
+#define OPTIONS_NODE_KEEP_ALIVE_RECV_IVAL "ReceiveInterval"
+#define OPTIONS_NODE_IP "IP"
+#define OPTIONS_NODE_HOST "Host"
+#define OPTIONS_NODE_PORT "Port"
+#define OPTIONS_NODE_FILE "File"
 
-#define OPTIONS_NODE_TNCS "TermsAndConditionsList"
+#define OPTIONS_NODE_RESSOURCES "Ressources"
+#define OPTIONS_NODE_UNLIMIT_TRAFFIC "UnlimitTraffic"
+#define OPTIONS_NODE_BYTES_PER_IVAL "BytesPerIntervall"
+#define OPTIONS_NODE_DELAY_IVAL "Intervall"
+#define OPTIONS_NODE_LATENCY "Latency"
+
+#define OPTION_NODE_TNCS_LIST "TermsAndConditionsList"
 #define OPTION_NODE_TNCS "TermsAndConditions"
 
 #define MIX_INFO_NODE_PARENT "Mix"
@@ -112,22 +152,33 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define LOG_NODE_NOT_FOUND(Nodename) \
 	CAMsg::printMsg(LOG_CRIT,"No \"%s\" node found in configuration file!\n", (Nodename))
 
-#define LOG_NODE_EMPTY(Nodename) \
-	CAMsg::printMsg(LOG_CRIT,"Node \"%s\" is empty!\n", (Nodename))
+#define LOG_NODE_EMPTY_OR_INVALID(Nodename) \
+	CAMsg::printMsg(LOG_CRIT,"Node \"%s\" is empty or has invalid content!\n", (Nodename))
 
 #define LOG_NODE_WRONG_PARENT(Parentname, Childname) \
-	CAMsg::printMsg(LOG_CRIT,"%s is the wrong parent for Node \"%s\"\n", (Parentname), (Childname))
+	CAMsg::printMsg(LOG_CRIT,"\"%s\" is the wrong parent for Node \"%s\"\n", (Parentname), (Childname))
+
 
 #define ASSERT_PARENT_NODE_NAME(Parentname, NameToMatch, Childname) 	\
 	if(!equals((Parentname), (NameToMatch) )) 			\
 	{											 		\
-		LOG_NODE_WRONG_PARENT(Parentname, Childname);	\
+		char *parentName = XMLString::transcode(Parentname); \
+		LOG_NODE_WRONG_PARENT(parentName, Childname);	\
+		XMLString::release(&parentName);				\
 		return E_UNKNOWN;								\
 	}
+
 #define ASSERT_GENERAL_OPTIONS_PARENT(Parentname, Childname) \
 	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_GENERAL, Childname)
+
 #define ASSERT_CERTIFICATES_OPTIONS_PARENT(Parentname, Childname) \
-	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_CERTIFICATES, Childname)
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_CERTIFICATE_LIST, Childname)
+
+#define ASSERT_ACCOUNTING_OPTIONS_PARENT(Parentname, Childname) \
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_ACCOUNTING, Childname)
+
+#define ASSERT_NETWORK_OPTIONS_PARENT(Parentname, Childname) \
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_NETWORK, Childname)
 
 struct t_TargetInterface
 	{
@@ -424,25 +475,25 @@ class CACmdLnOptions
 
 #if defined(DELAY_CHANNELS)||defined(DELAY_USERS)
 			UINT32 getDelayChannelUnlimitTraffic()
-				{
-					return m_u32DelayChannelUnlimitTraffic;
-				}	
+			{
+				return m_u32DelayChannelUnlimitTraffic;
+			}	
 			UINT32 getDelayChannelBucketGrow()
-				{
-					return m_u32DelayChannelBucketGrow;
-				}
+			{
+				return m_u32DelayChannelBucketGrow;
+			}
 			UINT32 getDelayChannelBucketGrowIntervall()
-				{
-					return m_u32DelayChannelBucketGrowIntervall;
-				}
+			{
+				return m_u32DelayChannelBucketGrowIntervall;
+			}
 #endif
 
 #if defined(DELAY_CHANNELS_LATENCY)
 				/** Channel Latency in ms*/
 			UINT32 getDelayChannelLatency()
-				{
-					return m_u32DelayChannelLatency;
-				}	
+			{
+				return m_u32DelayChannelLatency;
+			}	
 #endif
 
 
@@ -632,13 +683,15 @@ class CACmdLnOptions
 			UINT32 m_iPaymentSoftLimit;
 			UINT32 m_iPrepaidInterval; 
 			UINT32 m_iPaymentSettleInterval;
+		
 			
+#endif
 			optionSetter_pt *mainOptionSetters;
 			optionSetter_pt *generalOptionSetters;
 			optionSetter_pt *certificateOptionSetters;
 			optionSetter_pt *accountingOptionSetters;
 			optionSetter_pt *networkOptionSetters;
-#endif
+			
 #ifdef SERVER_MONITORING
 		private:
 			char *m_strMonitoringListenerHost;
@@ -661,12 +714,27 @@ class CACmdLnOptions
 #endif //ONLY_LOCAL_PROXY
 			SINT32 clearTargetInterfaces();
 			SINT32 clearListenerInterfaces();
+
 			
+			
+/* NR of all Option types, i.e. General, Certificates, Networking, etc. (excluding *mainOptionSetters) 
+ * these options are all direct children of <MixConfiguration>*/
+#define MAIN_OPTION_SETTERS_NR 7
 			SINT32 setGeneralOptions(DOMElement* elemRoot);
+			SINT32 setMixDescription(DOMElement* elemRoot); /* mix decription for the mix info */
+			SINT32 setCertificateOptions(DOMElement* elemRoot);
+			SINT32 setAccountingOptions(DOMElement *elemRoot);
+			SINT32 setNetworkOptions(DOMElement *elemRoot);
+			SINT32 setRessourceOptions(DOMElement *elemRoot);
+			SINT32 setTermsAndConditionsOptions(DOMElement *elemRoot);
+			
+			/* General Options */
+#define GENERAL_OPTIONS_NR 11
 			SINT32 setMixType(DOMElement* elemGeneral);
 			SINT32 setMixName(DOMElement* elemGeneral);
 			SINT32 setMixID(DOMElement* elemGeneral);
 			SINT32 setDynamicMix(DOMElement* elemGeneral);
+			SINT32 setMinCascadeLength(DOMElement* elemGeneral);
 			SINT32 setCascadeNameFromOptions(DOMElement* elemGeneral);
 			SINT32 setUserID(DOMElement* elemGeneral);
 			SINT32 setNrOfFileDescriptors(DOMElement* elemGeneral);
@@ -674,20 +742,40 @@ class CACmdLnOptions
 			SINT32 setMaxUsers(DOMElement* elemGeneral);
 			SINT32 setLoggingOptions(DOMElement* elemGeneral);
 			
-			SINT32 setCertificateOptions(DOMElement* elemRoot);
+			/* Certificate Options */
+#define CERTIFICATE_OPTIONS_NR 4
 			SINT32 setOwnCertificate(DOMElement *elemCertificates);
 			SINT32 setOwnOperatorCertificate(DOMElement *elemCertificates);
 			SINT32 setNextMixCertificate(DOMElement *elemCertificates);
 			SINT32 setPrevMixCertificate(DOMElement *elemCertificates);
-			
+
+			/* Payment Options */
+#define ACCOUNTING_OPTIONS_NR 7			
+			SINT32 setPriceCertificate(DOMElement *elemAccounting);
+			SINT32 setPaymentInstance(DOMElement *elemAccounting);
+			SINT32 setAccountingSoftLimit(DOMElement *elemAccounting);
+			SINT32 setAccountingHardLimit(DOMElement *elemAccounting);
+			SINT32 setPrepaidInterval(DOMElement *elemAccounting);
+			SINT32 setSettleInterval(DOMElement *elemAccounting);
+			SINT32 setAccountingDatabase(DOMElement *elemAccounting);
+	
+			/* Network Options */
+#define NETWORK_OPTIONS_NR 5		
+			SINT32 setInfoServices(DOMElement *elemNetwork);
+			SINT32 setListenerInterfaces(DOMElement *elemNetwork);
+			SINT32 setTargetInterfaces(DOMElement *elemNetwork);
+			SINT32 setServerMonitoring(DOMElement *elemNetwork);
+			SINT32 setKeepAliveTraffic(DOMElement *elemNetwork);
+
 			SINT32 appendMixInfo_internal(DOMNode* a_node, bool with_subtree);
 			inline SINT32 addMixIdToMixInfo();
 			
 			SINT32 invokeOptionSetters
-					(optionSetter_pt *optionsSetters, DOMElement* argument, SINT32 optionsSettersLength);
+					(optionSetter_pt *optionsSetters, DOMElement* target, SINT32 optionsSettersLength);
 			
 			void initMainOptionSetters();
 			void initGeneralOptionSetters();
+			void initMixDescriptionSetters();
 			void initCertificateOptionSetters();
 			void initAccountingOptionSetters();
 			void initNetworkOptionSetters();
