@@ -43,8 +43,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 extern CACmdLnOptions* pglobalOptions;
 
-const char * STRINGS_REQUEST_TYPES[2]={"POST","GET"};
-const char * STRINGS_REQUEST_COMMANDS[6]={"configure","helo","mixinfo/", "dynacascade", "cascade", "feedback"};
+const char * STRINGS_REQUEST_TYPES[NR_REQUEST_TYPES]={"POST","GET"};
+const char * STRINGS_REQUEST_COMMANDS[NR_REQUEST_COMMANDS]={"configure","helo","mixinfo/", "dynacascade", "cascade", "feedback", "tcopdata"};
 
 const UINT64 CAInfoService::MINUTE = 60;
 const UINT64 CAInfoService::SEND_LOOP_SLEEP = 60;
@@ -81,6 +81,9 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 		lastMixInfoUpdate -= CAInfoService::SEND_MIX_INFO_WAIT;
 		lastStatusUpdate -= CAInfoService::SEND_STATUS_INFO_WAIT;  
 		UINT32 statusSentErrorBurst = 0;
+		
+		/* befor loop starts: send operator terms & conditions */ 
+		pInfoService->sendMixTnCData();
 		
     while(pInfoService->isRunning())
 		{
@@ -624,6 +627,39 @@ SINT32 CAInfoService::sendStatus(const UINT8* a_strStatusXML,UINT32 a_len, const
 	}
 
 
+SINT32 CAInfoService::sendMixTnCData()
+{
+	SINT32 ret;
+	UINT32 **lengths_ptr = new UINT32*[1];
+	XMLSize_t nrOfTnCs = 0;
+	UINT32 i = 0;
+	UINT8 **tncData = getOperatorTnCsAsStrings(lengths_ptr, &nrOfTnCs);
+	
+	if(tncData != NULL)
+	{
+		for (;i < nrOfTnCs; i++) 
+		{
+#ifdef DEBUG
+			CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixTnCData(), object: %s\n", tncData[i]);
+#endif
+			ret |= sendHelo(tncData[i], (*lengths_ptr)[i], 
+						TMixHelo, (UINT8*)"Mix TnC Thread", 
+						REQUEST_COMMAND_TNC_DATA, NULL);
+			delete [] tncData[i];
+			tncData[i] = NULL;
+		}		
+		delete [] (*lengths_ptr);
+		delete [] lengths_ptr;
+		delete [] tncData;
+	}
+	else
+	{
+		CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixTnCData() -- No TnC data specified!\n");
+		return E_SUCCESS;
+	}
+	return ret;
+}
+
 /** POSTs the MIXINFO message for a mix to the InfoService.
 	*/
 /*SINT32 CAInfoService::sendMixInfo(const UINT8* pMixID)
@@ -633,7 +669,7 @@ SINT32 CAInfoService::sendStatus(const UINT8* a_strStatusXML,UINT32 a_len, const
 */
 SINT32 CAInfoService::sendMixHelo(SINT32 requestCommand,const UINT8* param)
 {
-	UINT32 len;
+	UINT32 len, tncLen;
 	SINT32 ret;
 	UINT8* strMixHeloXML=getMixHeloXMLAsString(len);
 	
@@ -644,40 +680,83 @@ SINT32 CAInfoService::sendMixHelo(SINT32 requestCommand,const UINT8* param)
 	}
 	
 	ret = sendHelo(strMixHeloXML, len, TMixHelo, (UINT8*)"Mix Helo Thread", requestCommand, param);
+	
+	
 	delete[] strMixHeloXML;
 	strMixHeloXML = NULL;
 	return ret;
 }
 
+/**
+ * returns a string array with all signed Terms and Condition-Objects
+ * NOTE: this method has a side-effect: the DOMNodes are all signed and thus modified
+ * @param lengths contains the lengths of each corresponding object. Its memory 
+ * 			is allocated by this method and has to be freed explicitly by calling 
+ * 			delete []
+ * @param nrOfTnCs is the length of the returned array
+ * @retval a list with all Terms and conditions object which has to be freed explicitly 
+ * 			by calling delete []
+ */ 
+UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrOfTnCs)
+{
+	
+	XERCES_CPP_NAMESPACE::DOMNodeList *docTnCsList =
+		pglobalOptions->getTermsAndConditions();
+	UINT8 **elementList = NULL;
+	DOMNode *iterator = NULL;
+	XMLSize_t i = 0;
+	
+	if(docTnCsList != NULL)
+	{
+		(*nrOfTnCs) = docTnCsList->getLength();
+		elementList = new UINT8 *[(*nrOfTnCs)];
+		(*lengths) = new UINT32[(*nrOfTnCs)];
+		for (; i < (*nrOfTnCs); i++) 
+		{
+			iterator = docTnCsList->item(i); 
+			elementList[i] = xmlDocToStringWithSignature(iterator, (*lengths)[i]);
+		}
+		return elementList;
+	}
+	
+	return NULL;
+}
 
 UINT8* CAInfoService::getMixHeloXMLAsString(UINT32& a_len)
+{
+	XERCES_CPP_NAMESPACE::DOMDocument* docMixInfo=NULL;
+	if( (pglobalOptions->getMixXml(docMixInfo) != E_SUCCESS) || 
+		(docMixInfo == NULL) )
 	{
-    a_len = 0;
-
-		UINT32 sendBuffLen;
-		UINT8* sendBuff=NULL;
-		XERCES_CPP_NAMESPACE::DOMDocument* docMixInfo=NULL;
-		if(pglobalOptions->getMixXml(docMixInfo)!=E_SUCCESS)
-			{
-				goto ERR;
-			}
-		if(m_pSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
-			{
-				goto ERR;
-			}
-		
-		sendBuff=DOM_Output::dumpToMem(docMixInfo,&sendBuffLen);
-		if(sendBuff==NULL)
-			goto ERR;
-		a_len=sendBuffLen;
-		return sendBuff;	
-			
-ERR:
-		delete []sendBuff;
-		sendBuff = NULL;
 		return NULL;
 	}
+	return xmlDocToStringWithSignature(docMixInfo, a_len);
+}
 
+UINT8* CAInfoService::xmlDocToStringWithSignature(DOMNode *a_node, UINT32& a_len)
+{
+	a_len = 0;
+
+	UINT32 sendBuffLen = 0;
+	UINT8* sendBuff = NULL;
+	
+	if( a_node == NULL)
+	{
+		return NULL;
+	}
+	if(m_pSignature->signXML(a_node, m_pcertstoreOwnCerts) != E_SUCCESS)
+	{
+		return NULL;
+	}
+	
+	sendBuff = DOM_Output::dumpToMem(a_node, &sendBuffLen);
+	if(sendBuff == NULL)
+	{
+		return NULL;
+	}
+	a_len = sendBuffLen;
+	return sendBuff;	
+}
 
 /** POSTs the HELO message for a mix to the InfoService.
 	*/
@@ -688,13 +767,13 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
     SINT32 ret = E_SUCCESS;
     UINT32 len = 0;
 
-		CASocket oSocket(true);
-		UINT8 hostname[255];
-		UINT8 buffHeader[255];
-		CAHttpClient httpClient;
+	CASocket oSocket(true);
+	UINT8 hostname[255];
+	UINT8 buffHeader[255];
+	CAHttpClient httpClient;
 
-		UINT64 currentTimeout = MIX_TO_INFOSERVICE_TIMEOUT;
-		UINT64 startupTime, currentMillis;
+	UINT64 currentTimeout = MIX_TO_INFOSERVICE_TIMEOUT;
+	UINT64 startupTime, currentMillis;
 
     UINT32 requestType = REQUEST_TYPE_POST;
     bool receiveAnswer = false;
@@ -705,44 +784,44 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
 		}
 
     if(requestCommand<0)
-			{
+	{
         if(m_bConfiguring)
-					{
-						requestCommand = REQUEST_COMMAND_CONFIGURE;
-						receiveAnswer = true;
-					}
+		{
+			requestCommand = REQUEST_COMMAND_CONFIGURE;
+			receiveAnswer = true;
+		}
         else
-					{
-						requestCommand = REQUEST_COMMAND_HELO;
-						receiveAnswer = true;
-					}
-			}
-		else if(requestCommand==REQUEST_COMMAND_MIXINFO)
-			{
-				requestType=REQUEST_TYPE_GET;
-				receiveAnswer = true;
-			}
+		{
+			requestCommand = REQUEST_COMMAND_HELO;
+			receiveAnswer = true;
+		}
+	}
+	else if(requestCommand==REQUEST_COMMAND_MIXINFO)
+	{
+		requestType=REQUEST_TYPE_GET;
+		receiveAnswer = true;
+	}
 	
-		if(a_pSocketAddress->getIPAsStr(hostname, 255)!=E_SUCCESS)
-			{
-				goto ERR;
-			}
+	if(a_pSocketAddress->getIPAsStr(hostname, 255)!=E_SUCCESS)
+	{
+		goto ERR;
+	}
 		
     oSocket.setRecvBuff(255);
-		if(oSocket.connect(*a_pSocketAddress, MIX_TO_INFOSERVICE_TIMEOUT)==E_SUCCESS)
+	if(oSocket.connect(*a_pSocketAddress, MIX_TO_INFOSERVICE_TIMEOUT)==E_SUCCESS)
+	{
+		httpClient.setSocket(&oSocket);
+		const char* strRequestCommand=STRINGS_REQUEST_COMMANDS[requestCommand];
+		const char* strRequestType=STRINGS_REQUEST_TYPES[requestType];
+		CAMsg::printMsg(LOG_DEBUG,"InfoService: Sending [%s] %s to InfoService %s:%d.\r\n", strRequestType,strRequestCommand, hostname, a_pSocketAddress->getPort());
+		if(requestCommand==REQUEST_COMMAND_MIXINFO)
 		{
-			httpClient.setSocket(&oSocket);
-			const char* strRequestCommand=STRINGS_REQUEST_COMMANDS[requestCommand];
-			const char* strRequestType=STRINGS_REQUEST_TYPES[requestType];
-			CAMsg::printMsg(LOG_DEBUG,"InfoService: Sending [%s] %s to InfoService %s:%d.\r\n", strRequestType,strRequestCommand, hostname, a_pSocketAddress->getPort());
-			if(requestCommand==REQUEST_COMMAND_MIXINFO)
-   			{
-				sprintf((char*)buffHeader,"%s /%s%s HTTP/1.0\r\nContent-Length: %u\r\n\r\n", strRequestType, strRequestCommand, param,a_len);
-   			}
-			else
-			{
-				sprintf((char*)buffHeader,"%s /%s HTTP/1.0\r\nContent-Length: %u\r\n\r\n", strRequestType, strRequestCommand, a_len);
-			}
+			sprintf((char*)buffHeader,"%s /%s%s HTTP/1.0\r\nContent-Length: %u\r\n\r\n", strRequestType, strRequestCommand, param,a_len);
+		}
+		else
+		{
+			sprintf((char*)buffHeader,"%s /%s HTTP/1.0\r\nContent-Length: %u\r\n\r\n", strRequestType, strRequestCommand, a_len);
+		}
 			
 		getcurrentTimeMillis(startupTime);
 		if (oSocket.sendFullyTimeOut(buffHeader,strlen((char*)buffHeader), currentTimeout, SEND_INFO_TIMEOUT_MS)!=E_SUCCESS)
@@ -758,33 +837,33 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
 			goto ERR;
 		}
 
-    if(receiveAnswer)
-      {
+		if(receiveAnswer)
+		{
+			getcurrentTimeMillis(currentMillis);	
+			currentTimeout -= (currentMillis - startupTime);
+			if(currentTimeout <= 0 || httpClient.parseHTTPHeader(&len) != E_SUCCESS)
+			{
+				goto ERR;
+			}
+				
+			if(len > 0)
+			{
 				getcurrentTimeMillis(currentMillis);	
 				currentTimeout -= (currentMillis - startupTime);
-				if(currentTimeout <= 0 || httpClient.parseHTTPHeader(&len) != E_SUCCESS)
-				{
-					goto ERR;
-				}
 				
-	      if(len > 0)
-            {
-            	getcurrentTimeMillis(currentMillis);	
-				currentTimeout -= (currentMillis - startupTime);
-				
-                recvBuff = new UINT8[len+1];                
-                if (currentTimeout <= 0 || 
+			    recvBuff = new UINT8[len+1];                
+			    if (currentTimeout <= 0 || 
 					oSocket.receiveFullyT(recvBuff, len, currentTimeout) != E_SUCCESS)
-                {
+			    {
 					delete []recvBuff;
-                    recvBuff=NULL;
-                    goto ERR;
-                }
+			        recvBuff=NULL;
+			        goto ERR;
+			    }
 				recvBuff[len]=0;
 				CAMsg::printMsg(LOG_DEBUG,"Received from Infoservice:\n");
 				CAMsg::printMsg(LOG_DEBUG,(char*)recvBuff);
 				CAMsg::printMsg(LOG_DEBUG,"\n");
-            }
+			}
         }
         oSocket.close();
 
@@ -807,23 +886,23 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
                 else if(equals(root->getNodeName(),"Mix"))
                 {
                     if(m_expectedMixRelPos < 0)
-											{
-												XMLCh* id=XMLString::transcode("id");
-												char* tmpStr=XMLString::transcode(root->getAttribute(id));
+					{
+						XMLCh* id=XMLString::transcode("id");
+						char* tmpStr=XMLString::transcode(root->getAttribute(id));
                         CAMsg::printMsg(LOG_DEBUG,"InfoService: Setting new previous mix: %s\n",tmpStr);
 												XMLString::release(&tmpStr);
 												XMLString::release(&id);
                         pglobalOptions->setPrevMix(doc);
-											}
+					}
                     else if(m_expectedMixRelPos > 0)
-											{
-												XMLCh* id=XMLString::transcode("id");
-												char* tmpStr=XMLString::transcode(root->getAttribute(id));
+					{
+						XMLCh* id=XMLString::transcode("id");
+						char* tmpStr=XMLString::transcode(root->getAttribute(id));
                         CAMsg::printMsg(LOG_DEBUG,"InfoService: Setting new next mix: %s\n",tmpStr);
 												XMLString::release(&id);
 												XMLString::release(&tmpStr);
                         pglobalOptions->setNextMix(doc);
-											}
+					}
                 }
                 CAMsg::printMsg(LOG_DEBUG,"InfoService::sendMixHelo(): XML infoservice doc 0x%x not needed anymore.\n", 
                 		doc);

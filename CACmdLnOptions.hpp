@@ -144,8 +144,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_NODE_DELAY_IVAL "Intervall"
 #define OPTIONS_NODE_LATENCY "Latency"
 
-#define OPTION_NODE_TNCS_LIST "TermsAndConditionsList"
-#define OPTION_NODE_TNCS "TermsAndConditions"
+#define OPTION_NODE_TNCS_LIST "TermsAndConditionsOperatorDataList"
+#define OPTION_NODE_TNCS "TermsAndConditionsOperatorData"
 
 #define MIX_INFO_NODE_PARENT "Mix"
 
@@ -407,6 +407,8 @@ class CACmdLnOptions
 			//SINT32 getMixXml(UINT8* strxml,UINT32* len);
 			SINT32 getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo);
 			
+			XERCES_CPP_NAMESPACE::DOMNodeList *getTermsAndConditions();
+			
 			UINT32 getKeepAliveSendInterval()
 				{
 				return m_u32KeepAliveSendInterval;
@@ -618,7 +620,7 @@ class CACmdLnOptions
 			bool m_bAcceptReconfiguration;
 			XERCES_CPP_NAMESPACE::DOMDocument* m_docMixInfo;
 			XERCES_CPP_NAMESPACE::DOMDocument* m_docMixXml;
-			XERCES_CPP_NAMESPACE::DOMDocument* m_docOpTnCs;
+			DOMDocument* m_docOpTnCs;
 			
 			UINT32 m_u32KeepAliveSendInterval;
 			UINT32 m_u32KeepAliveRecvInterval;
@@ -726,7 +728,7 @@ class CACmdLnOptions
 			SINT32 setAccountingOptions(DOMElement *elemRoot);
 			SINT32 setNetworkOptions(DOMElement *elemRoot);
 			SINT32 setRessourceOptions(DOMElement *elemRoot);
-			SINT32 setTermsAndConditionsOptions(DOMElement *elemRoot);
+			SINT32 setTermsAndConditions(DOMElement *elemRoot);
 			
 			/* General Options */
 #define GENERAL_OPTIONS_NR 11
