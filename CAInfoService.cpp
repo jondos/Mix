@@ -714,6 +714,7 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 		for (; i < (*nrOfTnCs); i++) 
 		{
 			iterator = docTnCsList->item(i); 
+			setDOMElementAttribute(iterator, "lastUpdate", time(NULL));
 			elementList[i] = xmlDocToStringWithSignature(iterator, (*lengths)[i]);
 		}
 		return elementList;
