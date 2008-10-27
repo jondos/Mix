@@ -144,8 +144,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_NODE_DELAY_IVAL "Intervall"
 #define OPTIONS_NODE_LATENCY "Latency"
 
-#define OPTION_NODE_TNCS_LIST "TermsAndConditionsOperatorDataList"
-#define OPTION_NODE_TNCS "TermsAndConditionsOperatorData"
+#define OPTION_NODE_TNCS_LIST "TermsAndConditionsList"
+#define OPTION_NODE_TNCS "TermsAndConditions"
 
 #define MIX_INFO_NODE_PARENT "Mix"
 

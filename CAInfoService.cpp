@@ -44,7 +44,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 extern CACmdLnOptions* pglobalOptions;
 
 const char * STRINGS_REQUEST_TYPES[NR_REQUEST_TYPES]={"POST","GET"};
-const char * STRINGS_REQUEST_COMMANDS[NR_REQUEST_COMMANDS]={"configure","helo","mixinfo/", "dynacascade", "cascade", "feedback", "tcopdata"};
+const char * STRINGS_REQUEST_COMMANDS[NR_REQUEST_COMMANDS]={"configure","helo","mixinfo/", "dynacascade", "cascade", "feedback", "tc"};
 
 const UINT64 CAInfoService::MINUTE = 60;
 const UINT64 CAInfoService::SEND_LOOP_SLEEP = 60;
