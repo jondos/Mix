@@ -162,6 +162,8 @@ void CACmdLnOptions::initMainOptionSetters()
 		&CACmdLnOptions::setNetworkOptions;
 	mainOptionSetters[++count]= 
 		&CACmdLnOptions::setRessourceOptions;
+	mainOptionSetters[++count]= 
+		&CACmdLnOptions::setTermsAndConditions;
 }
 
 void CACmdLnOptions::initGeneralOptionSetters()
@@ -1554,28 +1556,42 @@ UINT16 CACmdLnOptions::getMonitoringListenerPort()
 	* @retval E_UNKNOWN in case of an error
 */
 SINT32 CACmdLnOptions::getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo)
+{
+	if(m_docMixInfo == NULL)
 	{
-		if(m_docMixInfo == NULL)
-		{
-			CAMsg::printMsg(LOG_CRIT,"No mixinfo document initialized!\n");
-			return E_UNKNOWN;
-		}
-		docMixInfo=m_docMixInfo;
-		//insert (or update) the Timestamp
-		DOMElement* elemTimeStamp=NULL;
-		DOMElement* elemRoot=docMixInfo->getDocumentElement();
-		if(getDOMChildByName(elemRoot,"LastUpdate",elemTimeStamp,false)!=E_SUCCESS)
-		{
-			elemTimeStamp=createDOMElement(docMixInfo,"LastUpdate");
-			elemRoot->appendChild(elemTimeStamp);
-		}
-		UINT64 currentMillis;
-		getcurrentTimeMillis(currentMillis);
-		UINT8 tmpStrCurrentMillis[50];
-		print64(tmpStrCurrentMillis,currentMillis);
-		setDOMElementValue(elemTimeStamp,tmpStrCurrentMillis);
-		return E_SUCCESS;
+		CAMsg::printMsg(LOG_CRIT,"No mixinfo document initialized!\n");
+		return E_UNKNOWN;
 	}
+	docMixInfo=m_docMixInfo;
+	//insert (or update) the Timestamp
+	DOMElement* elemTimeStamp=NULL;
+	DOMElement* elemRoot=docMixInfo->getDocumentElement();
+	if(getDOMChildByName(elemRoot,"LastUpdate",elemTimeStamp,false)!=E_SUCCESS)
+	{
+		elemTimeStamp=createDOMElement(docMixInfo,"LastUpdate");
+		elemRoot->appendChild(elemTimeStamp);
+	}
+	UINT64 currentMillis;
+	getcurrentTimeMillis(currentMillis);
+	UINT8 tmpStrCurrentMillis[50];
+	print64(tmpStrCurrentMillis,currentMillis);
+	setDOMElementValue(elemTimeStamp,tmpStrCurrentMillis);
+	return E_SUCCESS;
+}
+
+/* a reference to the Terms and conditions document stored by this class.
+ * this method does not return a copy of the doc so don't release it.
+ */
+XERCES_CPP_NAMESPACE::DOMNodeList* CACmdLnOptions::getTermsAndConditions()
+{
+	DOMElement *docElement = NULL;
+	if(m_docOpTnCs == NULL) 
+	{
+		return NULL;
+	}
+	docElement = m_docOpTnCs->getDocumentElement();
+	return (docElement == NULL) ? NULL : getElementsByTagName(docElement, OPTION_NODE_TNCS);
+}
 
 /** Tries to read the XML configuration file \c configFile and parses (but not process) it.
 	* Returns the parsed document as \c DOM_Document.
@@ -3138,20 +3154,11 @@ SINT32 CACmdLnOptions::setKeepAliveTraffic(DOMElement *elemNetwork)
 	ASSERT_NETWORK_OPTIONS_PARENT
 		(elemNetwork->getNodeName(), OPTIONS_NODE_SERVER_MONITORING);
 	
-	
 	getDOMChildByName(elemNetwork, OPTIONS_NODE_KEEP_ALIVE, elemKeepAlive, false);
-	if(elemKeepAlive != NULL)
-	{
-		getDOMChildByName
-			(elemKeepAlive, OPTIONS_NODE_KEEP_ALIVE_SEND_IVAL, elemKeepAliveSendInterval, false);
-		getDOMChildByName
-			(elemKeepAlive, OPTIONS_NODE_KEEP_ALIVE_RECV_IVAL, elemKeepAliveRecvInterval, false);
-		
-		getDOMElementValue
-			(elemKeepAliveSendInterval, m_u32KeepAliveSendInterval, KEEP_ALIVE_TRAFFIC_SEND_WAIT_TIME);
-		getDOMElementValue
-			(elemKeepAliveRecvInterval, m_u32KeepAliveRecvInterval, KEEP_ALIVE_TRAFFIC_RECV_WAIT_TIME);
-	}
+	getDOMChildByName(elemKeepAlive, OPTIONS_NODE_KEEP_ALIVE_SEND_IVAL, elemKeepAliveSendInterval, false);
+	getDOMChildByName(elemKeepAlive, OPTIONS_NODE_KEEP_ALIVE_RECV_IVAL, elemKeepAliveRecvInterval, false);
+	getDOMElementValue(elemKeepAliveSendInterval, m_u32KeepAliveSendInterval, KEEP_ALIVE_TRAFFIC_SEND_WAIT_TIME);
+	getDOMElementValue(elemKeepAliveRecvInterval, m_u32KeepAliveRecvInterval, KEEP_ALIVE_TRAFFIC_RECV_WAIT_TIME);
 	return E_SUCCESS;
 }
 
@@ -3212,11 +3219,25 @@ SINT32 CACmdLnOptions::setRessourceOptions(DOMElement *elemRoot)
 	return E_SUCCESS;
 }
 
-SINT32 CACmdLnOptions::setTermsAndConditionsOptions(DOMElement *elemRoot)
+SINT32 CACmdLnOptions::setTermsAndConditions(DOMElement *elemRoot)
 {
+	SINT32 ret = E_SUCCESS;
+	DOMElement *elemTnCs = NULL;
+	//DOMNode *elemTnCsImported = NULL;
 	if(elemRoot == NULL)
 	{
 		return E_UNKNOWN;
+	}
+	ret = getDOMChildByName(elemRoot, OPTION_NODE_TNCS_LIST, elemTnCs, true);
+	if(elemTnCs != NULL)
+	{
+		if(elemTnCs == NULL)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Could not create the terms and conditions framework document.\n");
+			return E_UNKNOWN;
+		}
+		m_docOpTnCs = createDOMDocument();
+		m_docOpTnCs->appendChild(m_docOpTnCs->importNode(elemTnCs, WITH_SUBTREE));
 	}
 	return E_SUCCESS;
 }

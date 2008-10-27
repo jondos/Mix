@@ -35,15 +35,18 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CACmdLnOptions.hpp"
 #include "CAXMLBI.hpp"
 
+#define NR_REQUEST_TYPES 2
 #define REQUEST_TYPE_POST 0
 #define REQUEST_TYPE_GET	1
 
+#define NR_REQUEST_COMMANDS 7
 #define REQUEST_COMMAND_CONFIGURE 0
 #define REQUEST_COMMAND_HELO			1
 #define REQUEST_COMMAND_MIXINFO		2
 #define REQUEST_COMMAND_DYNACASCADE		3
 #define REQUEST_COMMAND_CASCADE		4
 #define REQUEST_COMMAND_STATUS		5
+#define REQUEST_COMMAND_TNC_DATA		6
 
 class CAInfoService
 	{
@@ -115,7 +118,12 @@ class CAInfoService
 			SINT32 sendCascadeHelo(const UINT8* xml,UINT32 len,const CASocketAddrINet* a_socketAddress) const;
 			
 			SINT32 sendStatus(const UINT8* strStatusXML,UINT32 len,const CASocketAddrINet* a_socketAddress) const;
-			UINT8* getMixHeloXMLAsString(UINT32& len);
+			UINT8 **getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrOfTnCs);
+			SINT32 sendMixTnCData();
+			
+			UINT8 *getMixHeloXMLAsString(UINT32& len);
+			UINT8 *xmlDocToStringWithSignature(DOMNode *a_node, UINT32& a_len);
+			
 			SINT32 sendMixHelo(const UINT8* strMixHeloXML,UINT32 len,SINT32 requestCommand,const UINT8* param,
 								const CASocketAddrINet* a_socketAddress);
 			// added by ronin <ronin2@web.de>
