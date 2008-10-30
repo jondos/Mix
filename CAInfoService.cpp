@@ -208,8 +208,10 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 			CAMsg::printMsg(LOG_DEBUG,"InfoService: Next update in %i seconds...interval %i\n", nextUpdate, interval);
 			loops = 0;
 #else
-			CAMsg::printMsg(LOG_DEBUG,"InfoService: Next update in %i seconds...\n", nextUpdate);
-			
+			if(nextUpdate > 20)
+			{
+				CAMsg::printMsg(LOG_DEBUG,"InfoService: Next update in %i seconds...\n", nextUpdate);
+			}
 			/* We can interrupt this thread if the mix is shutting down */
 			pInfoService->m_pLoopCV->lock();
 			pInfoService->m_pLoopCV->wait(nextUpdate * 1000);

@@ -1161,9 +1161,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			m_pIPList->removeIP(peerIP);
 			return E_UNKNOWN;
 		}
-		//#ifdef DEBUG
+		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"User login: received first symmetric key from client\n");
-		//#endif
+		#endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "received first symmetric key");
 		
 		xml_len=ntohs(xml_len);
@@ -1182,9 +1182,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			return E_UNKNOWN;
 		}
 		
-		//#ifdef DEBUG
+		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"User login: received second symmetric key from client\n");
-		//#endif
+		#endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "received second symmetric key");
 		
 		XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(xml_buff+2,xml_len);
@@ -1404,8 +1404,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 #ifdef PAYMENT
 		
 		SAVE_STACK("CAFirstMix::doUserLogin", "Starting AI login procedure");
+#ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG,"Starting AI login procedure.\n");
-
+#endif
 		MIXPACKET *paymentLoginPacket = new MIXPACKET;
 		tQueueEntry *aiAnswerQueueEntry=new tQueueEntry;
 		UINT32 qlen=sizeof(tQueueEntry);
@@ -1415,7 +1416,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		{
 			if(pNewUser->receive(paymentLoginPacket, AI_LOGIN_SO_TIMEOUT) != MIXPACKET_SIZE)
 			{
-				CAMsg::printMsg(LOG_DEBUG,"AI login: client receive timeout.\n");
+				CAMsg::printMsg(LOG_NOTICE,"AI login: client receive timeout.\n");
 				aiLoginStatus = AUTH_LOGIN_FAILED;
 				break;
 			}
@@ -1437,7 +1438,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 					{
 						if(ai_ret == E_TIMEDOUT )
 						{
-							CAMsg::printMsg(LOG_DEBUG,"timeout occured during AI login.");
+							CAMsg::printMsg(LOG_NOTICE,"timeout occured during AI login.");
 						}
 						aiLoginStatus = AUTH_LOGIN_FAILED;
 						goto loop_break;
@@ -1471,17 +1472,17 @@ loop_break:
 		{
 			if(!(aiLoginStatus & AUTH_LOGIN_SKIP_SETTLEMENT))
 			{
-				//#ifdef DEBUG
+#ifdef DEBUG
 				CAMsg::printMsg(LOG_DEBUG,"AI login messages successfully exchanged: now starting settlement for user account balancing check\n");
-				//#endif
+#endif
 				aiLoginStatus = CAAccountingInstance::settlementTransaction();
 			}
-//#ifdef DEBUG
+#ifdef DEBUG
 			else
 			{
 				CAMsg::printMsg(LOG_DEBUG,"AI login messages successfully exchanged: skipping settlement, user has valid prepaid amount\n");
 			}
-//#endif
+#endif
 		}
 		
 		if(!(aiLoginStatus & AUTH_LOGIN_FAILED)) 
@@ -1522,7 +1523,9 @@ loop_break:
 		
 		if((aiLoginStatus & AUTH_LOGIN_FAILED))
 		{
+#ifdef DEBUG
 			CAMsg::printMsg(LOG_INFO,"User AI login failed: deleting socket %x\n", pNewUser);
+#endif
 			m_pChannelList->remove(pNewUser);
 			delete pNewUser;
 			pNewUser = NULL;
@@ -1534,7 +1537,9 @@ loop_break:
 		 * for second time causing a segfault. 
 		 */
 		m_pChannelList->pushTimeoutEntry(pHashEntry);
+#ifdef DEBUG
 		CAMsg::printMsg(LOG_INFO,"User AI login successful\n");
+#endif
 #endif
 		
 #ifdef WITH_CONTROL_CHANNELS_TEST
