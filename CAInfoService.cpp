@@ -82,9 +82,6 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 		lastStatusUpdate -= CAInfoService::SEND_STATUS_INFO_WAIT;  
 		UINT32 statusSentErrorBurst = 0;
 		
-		/* befor loop starts: send operator terms & conditions */ 
-		pInfoService->sendMixTnCData();
-		
     while(pInfoService->isRunning())
 		{
 #ifdef DYNAMIC_MIX		
@@ -113,7 +110,8 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 					statusSentErrorBurst++;
 					CAMsg::printMsg(LOG_DEBUG,"InfoService: Could not send Status information.\n");
 				}
-					
+				/* send terms and conditions */	
+				pInfoService->sendMixTnCData();
 			}
 			
 			// check every minute if configuring, every 10 minutes otherwise

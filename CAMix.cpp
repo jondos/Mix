@@ -270,6 +270,9 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
     	{
     		setDOMElementAttribute(elemRoot,"maxUsers", maxUsers);
     	}
+#ifdef MANIOQ
+    	setDOMElementAttribute(elemRoot,"context", (UINT8*) "org.manioq");
+#endif
     }
     
     UINT8 id[50];
