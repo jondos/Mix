@@ -147,7 +147,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTION_NODE_TNCS_LIST "TermsAndConditionsList"
 #define OPTION_NODE_TNCS "TermsAndConditions"
 
-#define MIX_INFO_NODE_PARENT "Mix"
+#define MIXINFO_NODE_PARENT "Mix"
+#define MIXINFO_NODE_MIX_NAME "Name"
+#define MIXINFO_ATTRIBUTE_MIX_ID "id"
 
 #define LOG_NODE_NOT_FOUND(Nodename) \
 	CAMsg::printMsg(LOG_CRIT,"No \"%s\" node found in configuration file!\n", (Nodename))

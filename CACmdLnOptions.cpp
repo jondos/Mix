@@ -1641,6 +1641,7 @@ SINT32 CACmdLnOptions::readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* &
  * mixinfo structure when the options are parsed. Don't get confused
  * with the method addMixInfo of class CAMix which also includes
  * setting a timestamp. 
+ * if NULL is specified as name the name of a-node is used
  */
 SINT32 CACmdLnOptions::appendMixInfo_internal(DOMNode* a_node, bool with_subtree)
 {
@@ -1664,6 +1665,7 @@ SINT32 CACmdLnOptions::appendMixInfo_internal(DOMNode* a_node, bool with_subtree
 	}
 	
 	importedNode = m_docMixInfo->importNode(a_node, with_subtree);
+
 	if(importedNode != NULL)
 	{
 		appendedNode = m_docMixInfo->getDocumentElement()->appendChild(importedNode);
@@ -1684,7 +1686,7 @@ inline SINT32 CACmdLnOptions::addMixIdToMixInfo()
 	if( (m_docMixInfo != NULL) && (m_strMixID != NULL) )
 	{
 		return setDOMElementAttribute
-				(m_docMixInfo->getDocumentElement(), "id", (UINT8*) m_strMixID);
+				(m_docMixInfo->getDocumentElement(), MIXINFO_ATTRIBUTE_MIX_ID, (UINT8*) m_strMixID);
 	}
 	else
 	{
@@ -1817,7 +1819,21 @@ SINT32 CACmdLnOptions::setMixName(DOMElement* elemGeneral)
 			m_strMixName = new char[tmpLen+1];
 			memset(m_strMixName, 0, tmpLen+1);
 			memcpy(m_strMixName, tmpBuff, tmpLen);
-			return appendMixInfo_internal(elemMixName, WITH_SUBTREE);
+			
+			//... just because the the mixname config-element does not match the 
+			// corresponding mixinfo element.
+			DOMElement* elemMixInfoName = createDOMElement(m_docMixInfo, MIXINFO_NODE_MIX_NAME);
+			setDOMElementValue(elemMixInfoName, (UINT8*) m_strMixName);
+			if(m_docMixInfo->getDocumentElement() != NULL)
+			{
+				m_docMixInfo->getDocumentElement()->appendChild(elemMixInfoName);
+			}
+			else
+			{
+				//Should never happen
+				return E_UNKNOWN;
+			}
+			//return appendMixInfo_internal(elemMixName, WITH_SUBTREE);
 		}
 	}
 	return E_SUCCESS;
@@ -3259,7 +3275,7 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 	/* Initialize Mixinfo DOM structure so that neccessary 
 	 * option can be appended to it.
 	 */
-	DOMElement* elemMix=createDOMElement(m_docMixInfo, MIX_INFO_NODE_PARENT);
+	DOMElement* elemMix=createDOMElement(m_docMixInfo, MIXINFO_NODE_PARENT);
 	m_docMixInfo->appendChild(elemMix);
 	
 	/* invoke all main option setters  
