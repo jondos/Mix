@@ -1,32 +1,32 @@
 /*
-Copyright (c) 2000, The JAP-Team 
+Copyright (c) 2000, The JAP-Team
 All rights reserved.
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-	- Redistributions of source code must retain the above copyright notice, 
+	- Redistributions of source code must retain the above copyright notice,
 	  this list of conditions and the following disclaimer.
 
-	- Redistributions in binary form must reproduce the above copyright notice, 
-	  this list of conditions and the following disclaimer in the documentation and/or 
+	- Redistributions in binary form must reproduce the above copyright notice,
+	  this list of conditions and the following disclaimer in the documentation and/or
 		other materials provided with the distribution.
 
-	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors 
-	  may be used to endorse or promote products derived from this software without specific 
-		prior written permission. 
+	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors
+	  may be used to endorse or promote products derived from this software without specific
+		prior written permission.
 
-	
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS 
-OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
-OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
-IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 #include "StdAfx.h"
-#ifndef ONLY_LOCAL_PROXY 
+#ifndef ONLY_LOCAL_PROXY
 #include "CAInfoService.hpp"
 #include "CASocket.hpp"
 #include "CACmdLnOptions.hpp"
@@ -58,7 +58,7 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 	{
 		INIT_STACK;
 		BEGIN_STACK("CAInfoService::InfoLoop");
-		
+
 		CAMsg::printMsg(LOG_DEBUG, "CAInfoService - InfoLoop() started\n");
 		CAInfoService* pInfoService=(CAInfoService*)p;
 		bool bIsFirst=true; //send our own certifcate only the first time
@@ -71,20 +71,20 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 		UINT32 nextUpdate;
 		bool bPreventLoop = false;
 		UINT32 temp;
-#ifdef DYNAMIC_MIX		
+#ifdef DYNAMIC_MIX
 		UINT32 loops = 4;
 		UINT32 interval = 0;
-#endif	
-		lastCascadeUpdate=lastMixInfoUpdate=lastStatusUpdate=(UINT32)time(NULL); 
+#endif
+		lastCascadeUpdate=lastMixInfoUpdate=lastStatusUpdate=(UINT32)time(NULL);
 		// tell the algorithm it is time to update
-		lastCascadeUpdate -= CAInfoService::SEND_CASCADE_INFO_WAIT; 
+		lastCascadeUpdate -= CAInfoService::SEND_CASCADE_INFO_WAIT;
 		lastMixInfoUpdate -= CAInfoService::SEND_MIX_INFO_WAIT;
-		lastStatusUpdate -= CAInfoService::SEND_STATUS_INFO_WAIT;  
+		lastStatusUpdate -= CAInfoService::SEND_STATUS_INFO_WAIT;
 		UINT32 statusSentErrorBurst = 0;
-		
+
     while(pInfoService->isRunning())
 		{
-#ifdef DYNAMIC_MIX		
+#ifdef DYNAMIC_MIX
 			/** Spliting the wait time into parts allows faster reconfiguration of dynamic mixes */
 			if(loops < 4)
 			{
@@ -110,14 +110,14 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 					statusSentErrorBurst++;
 					CAMsg::printMsg(LOG_DEBUG,"InfoService: Could not send Status information.\n");
 				}
-				/* send terms and conditions */	
+				/* send terms and conditions */
 				pInfoService->sendMixTnCData();
 			}
-			
+
 			// check every minute if configuring, every 10 minutes otherwise
 			currentTime=time(NULL);
 		    if (currentTime >= (lastCascadeUpdate + CAInfoService::SEND_CASCADE_INFO_WAIT) || pInfoService->isConfiguring())
-			{				
+			{
 				if (pglobalOptions->isFirstMix() || (pglobalOptions->isLastMix() && pInfoService->isConfiguring()))
 				{
 					if(pInfoService->sendCascadeHelo()!=E_SUCCESS)
@@ -151,7 +151,7 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 			// Check regulary for new cascade information
 			/** @todo Implement a reasonable interval, as cascades are created only once a day at most.
 				* This could be used for semi-dynamic cascades too.
-				* Note that increasing the delay might cause problems in CAMix::start (MiddleMixes entering 
+				* Note that increasing the delay might cause problems in CAMix::start (MiddleMixes entering
 				*::init and so on
 				*/
 			if( pglobalOptions->isDynamic() )
@@ -183,15 +183,15 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 					}
 			}
 			else
-			{ 
+			{
 				bPreventLoop = false;
 				nextUpdate = CAInfoService::SEND_LOOP_SLEEP;
 			}*/
-			
-			/* Not the optimal solution; would be best, if infoservice send 
-			 * routines can be called by other threads if certain events occur, i.e. 
-			 * cascade reconnection, etc. 
-			 */ 
+
+			/* Not the optimal solution; would be best, if infoservice send
+			 * routines can be called by other threads if certain events occur, i.e.
+			 * cascade reconnection, etc.
+			 */
 			if ( bOneUpdateDone && (statusSentErrorBurst > 0) )
 			{
 				//TODO: handle case when status sent error burst exceeds an upper limit */
@@ -214,14 +214,14 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 			pInfoService->m_pLoopCV->lock();
 			pInfoService->m_pLoopCV->wait(nextUpdate * 1000);
 			pInfoService->m_pLoopCV->unlock();
-			
+
 			//sSleep(nextUpdate);
 #endif
 		}
 		FINISH_STACK("CAInfoService::InfoLoop");
 		THREAD_RETURN_SUCCESS;
 	}
-	
+
 
 struct CAInfoService::InfoServiceHeloMsg
 {
@@ -237,7 +237,7 @@ THREAD_RETURN CAInfoService::TCascadeHelo(void *p)
 {
 	INIT_STACK;
 	BEGIN_STACK("CAInfoService::TCascadeHelo");
-	
+
 	InfoServiceHeloMsg* message = (InfoServiceHeloMsg*)p;
 	if (message->is->sendCascadeHelo(message->strXML, message->len, message->addr) == E_SUCCESS)
 	{
@@ -246,13 +246,13 @@ THREAD_RETURN CAInfoService::TCascadeHelo(void *p)
 	}
 	FINISH_STACK("CAInfoService::TCascadeHelo");
 	THREAD_RETURN_SUCCESS;
-}	
+}
 
 THREAD_RETURN CAInfoService::TCascadeStatus(void *p)
 {
 	INIT_STACK;
 	BEGIN_STACK("CAInfoService::TCascadeStatus");
-	
+
 	InfoServiceHeloMsg* message = (InfoServiceHeloMsg*)p;
 	if (message->is->sendStatus(message->strXML, message->len, message->addr) == E_SUCCESS)
 	{
@@ -261,13 +261,13 @@ THREAD_RETURN CAInfoService::TCascadeStatus(void *p)
 	}
 	FINISH_STACK("CAInfoService::TCascadeStatus");
 	THREAD_RETURN_SUCCESS;
-}	
+}
 
 THREAD_RETURN CAInfoService::TMixHelo(void *p)
 {
 	INIT_STACK;
 	BEGIN_STACK("CAInfoService::TMixHelo");
-	
+
 	InfoServiceHeloMsg* message = (InfoServiceHeloMsg*)p;
 	if (message->is->sendMixHelo(message->strXML, message->len, message->requestCommand, message->param, message->addr) == E_SUCCESS)
 	{
@@ -276,10 +276,10 @@ THREAD_RETURN CAInfoService::TMixHelo(void *p)
 	}
 	FINISH_STACK("CAInfoService::TMixHelo");
 	THREAD_RETURN_SUCCESS;
-}	
-	
-	
-	
+}
+
+
+
 #ifdef DYNAMIC_MIX
 
 bool CAInfoService::newCascadeAvailable()
@@ -294,7 +294,7 @@ bool CAInfoService::newCascadeAvailable()
 	UINT8 bufMixId[60];
 	UINT32 mixIdLen = 60;
 	pglobalOptions->getMixId( bufMixId, mixIdLen );
-	sprintf((char*)buff, "/newcascadeinformationavailable/%s",bufMixId ); 
+	sprintf((char*)buff, "/newcascadeinformationavailable/%s",bufMixId );
 	if( pglobalOptions->getRandomInfoService(address) != E_SUCCESS)
 	{
 		CAMsg::printMsg( LOG_ERR, "Unable to get a random InfoService - This will cause problems! Check your configuration!\n");
@@ -318,29 +318,29 @@ bool CAInfoService::newCascadeAvailable()
 EXIT:
 	delete address;
 	address = NULL;
-	return ret;	
+	return ret;
 }
 
 /**
   * LERNGRUPPE
   * Asks a random InfoService if there exist new cascade information for this mix.
   * If so, the reconfiguration is started
-  * @retval E_UNKOWN if an error occurs 
+  * @retval E_UNKOWN if an error occurs
   * @retval E_SUCCESS otherwise
   */
 SINT32 CAInfoService::dynamicCascadeConfiguration()
 {
 	SINT32 ret = E_UNKNOWN;
 	CADynamicCascadeConfigurator *configurator = NULL;
-	
+
 	if(!newCascadeAvailable())
 		return E_SUCCESS;
 
 	/** @todo maybe use a mutex here so that no second dynamicCascadeConfiguration can begin */
-	if(m_bReconfig) return E_SUCCESS;		
+	if(m_bReconfig) return E_SUCCESS;
 	CAMsg::printMsg( LOG_DEBUG, "Starting dynamic reconfiguration...\n");
 	m_bReconfig = true;
-		
+
 	configurator = new CADynamicCascadeConfigurator( m_pSignature, m_pMix );
 	ret = configurator->configure();
 	/** @todo Is this really safe? State of configuration is unknown here, reset should work though */
@@ -350,11 +350,11 @@ SINT32 CAInfoService::dynamicCascadeConfiguration()
 		pglobalOptions->resetPrevMix();
 		pglobalOptions->setCascadeProposal(NULL, 0);
 		m_pMix->dynaReconfigure(false);
-	}	
+	}
 	m_bReconfig = false;
 	delete configurator;
 	configurator = NULL;
-	
+
 	return ret;
 }
 #endif
@@ -409,7 +409,7 @@ SINT32 CAInfoService::setSignature(CASignature* pSig, CACertificate* pOwnCert,
 								CACertificate** a_opCerts, UINT32 a_opCertsLength)
 	{
 		m_pSignature=pSig;
-		
+
 		delete m_pcertstoreOwnCerts;
 		m_pcertstoreOwnCerts=new CACertStore();
 
@@ -452,7 +452,7 @@ SINT32 CAInfoService::start()
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG, "CAInfoService::start() - starting InfoService thread\n");
 		#endif
-		
+
 		return m_pthreadRunLoop->start(this);
 	}
 
@@ -465,7 +465,7 @@ SINT32 CAInfoService::stop()
 				m_pLoopCV->lock();
 				m_pLoopCV->signal();
 				m_pLoopCV->unlock();
-				
+
 				m_pthreadRunLoop->join();
 			}
 		return E_SUCCESS;
@@ -477,25 +477,25 @@ SINT32 CAInfoService::sendStatus(bool bIncludeCerts)
 	{
 		return E_SUCCESS;
 	}
-	
-	
+
+
 	if( !(m_pMix->isConnected()) && !bIncludeCerts )
 	{
-#ifdef DEBUG		
+#ifdef DEBUG
 		CAMsg::printMsg(LOG_INFO, "Mix not connected. Skipping status\n");
 #endif
 		return E_UNKNOWN;
 	}
-	
+
 	UINT32 len;
 	SINT32 ret;
 	UINT8* strStatusXML=getStatusXMLAsString(bIncludeCerts,len);
-	
+
 	if(strStatusXML==NULL)
 	{
 		return E_UNKNOWN;
 	}
-	
+
 	ret = sendHelo(strStatusXML, len, TCascadeStatus, (UINT8*)"Status Thread", REQUEST_COMMAND_STATUS);
 	delete[] strStatusXML;
 	strStatusXML = NULL;
@@ -508,11 +508,11 @@ UINT8* CAInfoService::getStatusXMLAsString(bool bIncludeCerts,UINT32& len)
 	{
 		SINT32 tmpUser,tmpRisk,tmpTraffic;
 		UINT64 tmpPackets;
-			
+
 		//httpClient.setSocket(&oSocket);
 		UINT8 strMixId[255];
 		pglobalOptions->getMixId(strMixId,255);
-		
+
 		tmpUser=tmpTraffic=tmpRisk=-1;
 		set64(tmpPackets,(UINT32)-1);
 		getLevel(&tmpUser,&tmpRisk,&tmpTraffic);
@@ -540,7 +540,7 @@ UINT8* CAInfoService::getStatusXMLAsString(bool bIncludeCerts,UINT32& len)
 #define XML_MIX_CASCADE_STATUS "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
 <MixCascadeStatus LastUpdate=\"%s\" currentRisk=\"%i\" id=\"%s\" mixedPackets=\"%s\" nrOfActiveUsers=\"%i\" trafficSituation=\"%i\"\
 ></MixCascadeStatus>"
-				
+
 		UINT32 buffLen=8192;
 		UINT8* buff=new UINT8[buffLen];
 		memset(buff, 0, buffLen);
@@ -585,8 +585,8 @@ SINT32 CAInfoService::sendStatus(const UINT8* a_strStatusXML,UINT32 a_len, const
 		UINT8 hostname[255];
 		UINT64 currentTimeout = MIX_TO_INFOSERVICE_TIMEOUT;
 		UINT64 startupTime, currentMillis;
-		
-		
+
+
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG, "CAInfoService::sendStatus()\n");
 		#endif
@@ -599,26 +599,26 @@ SINT32 CAInfoService::sendStatus(const UINT8* a_strStatusXML,UINT32 a_len, const
 		{
 			return E_UNKNOWN;
 		}
-		
+
 		if(oSocket.connect(*a_pSocketAddress, MIX_TO_INFOSERVICE_TIMEOUT)!=E_SUCCESS)
 		{
 			return E_UNKNOWN;
 		}
-		
+
 		if(a_pSocketAddress->getIPAsStr(hostname, 255) == E_SUCCESS)
 		{
 			CAMsg::printMsg(LOG_DEBUG, "InfoService: Sending current status to InfoService %s:%d.\n", hostname, a_pSocketAddress->getPort());
 			sprintf((char*)buffHeader,"POST /feedback HTTP/1.0\r\nContent-Length: %u\r\n\r\n",a_len);
-			
-			getcurrentTimeMillis(startupTime);			
+
+			getcurrentTimeMillis(startupTime);
 			oSocket.sendFullyTimeOut(buffHeader,strlen((char*)buffHeader), currentTimeout, SEND_INFO_TIMEOUT_MS);
-			
-			getcurrentTimeMillis(currentMillis);	
+
+			getcurrentTimeMillis(currentMillis);
 			currentTimeout -= (currentMillis - startupTime);
 			ret=oSocket.sendFullyTimeOut(a_strStatusXML, a_len, currentTimeout, SEND_INFO_TIMEOUT_MS);
 		}
 
-		oSocket.close();	
+		oSocket.close();
 		if(ret==E_SUCCESS)
 		{
 			return E_SUCCESS;
@@ -634,20 +634,20 @@ SINT32 CAInfoService::sendMixTnCData()
 	XMLSize_t nrOfTnCs = 0;
 	UINT32 i = 0;
 	UINT8 **tncData = getOperatorTnCsAsStrings(lengths_ptr, &nrOfTnCs);
-	
+
 	if(tncData != NULL)
 	{
-		for (;i < nrOfTnCs; i++) 
+		for (;i < nrOfTnCs; i++)
 		{
 #ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixTnCData(), object: %s\n", tncData[i]);
 #endif
-			ret |= sendHelo(tncData[i], (*lengths_ptr)[i], 
-						TMixHelo, (UINT8*)"Mix TnC Thread", 
+			ret |= sendHelo(tncData[i], (*lengths_ptr)[i],
+						TMixHelo, (UINT8*)"Mix TnC Thread",
 						REQUEST_COMMAND_TNC_DATA, NULL);
 			delete [] tncData[i];
 			tncData[i] = NULL;
-		}		
+		}
 		delete [] (*lengths_ptr);
 		delete [] lengths_ptr;
 		delete [] tncData;
@@ -672,16 +672,16 @@ SINT32 CAInfoService::sendMixHelo(SINT32 requestCommand,const UINT8* param)
 	UINT32 len, tncLen;
 	SINT32 ret;
 	UINT8* strMixHeloXML=getMixHeloXMLAsString(len);
-	
+
 	if(strMixHeloXML==NULL)
 	{
 		CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixHelo() -- Error: getMixHeloXMLAsString() returned NULL!\n");
 		return E_UNKNOWN;
 	}
-	
+
 	ret = sendHelo(strMixHeloXML, len, TMixHelo, (UINT8*)"Mix Helo Thread", requestCommand, param);
-	
-	
+
+
 	delete[] strMixHeloXML;
 	strMixHeloXML = NULL;
 	return ret;
@@ -690,73 +690,73 @@ SINT32 CAInfoService::sendMixHelo(SINT32 requestCommand,const UINT8* param)
 /**
  * returns a string array with all signed Terms and Condition-Objects
  * NOTE: this method has a side-effect: the DOMNodes are all signed and thus modified
- * @param lengths contains the lengths of each corresponding object. Its memory 
- * 			is allocated by this method and has to be freed explicitly by calling 
+ * @param lengths contains the lengths of each corresponding object. Its memory
+ * 			is allocated by this method and has to be freed explicitly by calling
  * 			delete []
  * @param nrOfTnCs is the length of the returned array
- * @retval a list with all Terms and conditions object which has to be freed explicitly 
+ * @retval a list with all Terms and conditions object which has to be freed explicitly
  * 			by calling delete []
- */ 
+ */
 UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrOfTnCs)
 {
-	
+
 	XERCES_CPP_NAMESPACE::DOMNodeList *docTnCsList =
 		pglobalOptions->getTermsAndConditions();
 	UINT8 **elementList = NULL;
 	DOMNode *iterator = NULL;
 	XMLSize_t i = 0;
-	
+
 	if(docTnCsList != NULL)
 	{
 		(*nrOfTnCs) = docTnCsList->getLength();
 		elementList = new UINT8 *[(*nrOfTnCs)];
 		(*lengths) = new UINT32[(*nrOfTnCs)];
-		for (; i < (*nrOfTnCs); i++) 
+		for (; i < (*nrOfTnCs); i++)
 		{
-			iterator = docTnCsList->item(i); 
+			iterator = docTnCsList->item(i);
 			setDOMElementAttribute(iterator, "lastUpdate", time(NULL));
-			elementList[i] = xmlDocToStringWithSignature(iterator, (*lengths)[i]);
+			elementList[i] = xmlDocToStringWithSignature(iterator, (*lengths)[i], NULL);
 		}
 		return elementList;
 	}
-	
+
 	return NULL;
 }
 
 UINT8* CAInfoService::getMixHeloXMLAsString(UINT32& a_len)
 {
 	XERCES_CPP_NAMESPACE::DOMDocument* docMixInfo=NULL;
-	if( (pglobalOptions->getMixXml(docMixInfo) != E_SUCCESS) || 
+	if( (pglobalOptions->getMixXml(docMixInfo) != E_SUCCESS) ||
 		(docMixInfo == NULL) )
 	{
 		return NULL;
 	}
-	return xmlDocToStringWithSignature(docMixInfo, a_len);
+	return xmlDocToStringWithSignature(docMixInfo, a_len, m_pcertstoreOwnCerts);
 }
 
-UINT8* CAInfoService::xmlDocToStringWithSignature(DOMNode *a_node, UINT32& a_len)
+UINT8* CAInfoService::xmlDocToStringWithSignature(DOMNode *a_node, UINT32& a_len, CACertStore* pIncludeCerts)
 {
 	a_len = 0;
 
 	UINT32 sendBuffLen = 0;
 	UINT8* sendBuff = NULL;
-	
+
 	if( a_node == NULL)
 	{
 		return NULL;
 	}
-	if(m_pSignature->signXML(a_node, m_pcertstoreOwnCerts) != E_SUCCESS)
+	if(m_pSignature->signXML(a_node, pIncludeCerts) != E_SUCCESS)
 	{
 		return NULL;
 	}
-	
+
 	sendBuff = DOM_Output::dumpToMem(a_node, &sendBuffLen);
 	if(sendBuff == NULL)
 	{
 		return NULL;
 	}
 	a_len = sendBuffLen;
-	return sendBuff;	
+	return sendBuff;
 }
 
 /** POSTs the HELO message for a mix to the InfoService.
@@ -802,12 +802,12 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
 		requestType=REQUEST_TYPE_GET;
 		receiveAnswer = true;
 	}
-	
+
 	if(a_pSocketAddress->getIPAsStr(hostname, 255)!=E_SUCCESS)
 	{
 		goto ERR;
 	}
-		
+
     oSocket.setRecvBuff(255);
 	if(oSocket.connect(*a_pSocketAddress, MIX_TO_INFOSERVICE_TIMEOUT)==E_SUCCESS)
 	{
@@ -823,7 +823,7 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
 		{
 			sprintf((char*)buffHeader,"%s /%s HTTP/1.0\r\nContent-Length: %u\r\n\r\n", strRequestType, strRequestCommand, a_len);
 		}
-			
+
 		getcurrentTimeMillis(startupTime);
 		if (oSocket.sendFullyTimeOut(buffHeader,strlen((char*)buffHeader), currentTimeout, SEND_INFO_TIMEOUT_MS)!=E_SUCCESS)
 		{
@@ -840,20 +840,20 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
 
 		if(receiveAnswer)
 		{
-			getcurrentTimeMillis(currentMillis);	
+			getcurrentTimeMillis(currentMillis);
 			currentTimeout -= (currentMillis - startupTime);
 			if(currentTimeout <= 0 || httpClient.parseHTTPHeader(&len) != E_SUCCESS)
 			{
 				goto ERR;
 			}
-				
+
 			if(len > 0)
 			{
-				getcurrentTimeMillis(currentMillis);	
+				getcurrentTimeMillis(currentMillis);
 				currentTimeout -= (currentMillis - startupTime);
-				
-			    recvBuff = new UINT8[len+1];                
-			    if (currentTimeout <= 0 || 
+
+			    recvBuff = new UINT8[len+1];
+			    if (currentTimeout <= 0 ||
 					oSocket.receiveFullyT(recvBuff, len, currentTimeout) != E_SUCCESS)
 			    {
 					delete []recvBuff;
@@ -905,7 +905,7 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
                         pglobalOptions->setNextMix(doc);
 					}
                 }
-                CAMsg::printMsg(LOG_DEBUG,"InfoService::sendMixHelo(): XML infoservice doc 0x%x not needed anymore.\n", 
+                CAMsg::printMsg(LOG_DEBUG,"InfoService::sendMixHelo(): XML infoservice doc 0x%x not needed anymore.\n",
                 		doc);
             }
             else
@@ -913,7 +913,7 @@ SINT32 CAInfoService::sendMixHelo(const UINT8* a_strMixHeloXML,UINT32 a_len,SINT
                 CAMsg::printMsg(LOG_CRIT,"InfoService: Error parsing answer from InfoService!\n");
             }
         }
-		return E_SUCCESS;	
+		return E_SUCCESS;
 	}
 	else
 	{
@@ -932,7 +932,7 @@ SINT32 CAInfoService::sendHelo(UINT8* a_strXML, UINT32 a_len, THREAD_RETURN (*a_
 	CAListenerInterface** socketAddresses = pglobalOptions->getInfoServices(nrAddresses);
 	CAThread** threads = new CAThread*[nrAddresses];
 	InfoServiceHeloMsg** messages = new InfoServiceHeloMsg*[nrAddresses];
-	
+
 	for (UINT32 i = 0; i < nrAddresses; i++)
 	{
 		messages[i] = new InfoServiceHeloMsg();
@@ -946,7 +946,7 @@ SINT32 CAInfoService::sendHelo(UINT8* a_strXML, UINT32 a_len, THREAD_RETURN (*a_
 		threads[i]->setMainLoop((THREAD_RETURN (*)(void *))a_thread);
 		threads[i]->start((void*)(messages[i]), false, true);
 	}
-	
+
 	for (UINT32 i = 0; i < nrAddresses; i++)
 	{
 		if (threads[i]->join() == E_SUCCESS)
@@ -960,24 +960,24 @@ SINT32 CAInfoService::sendHelo(UINT8* a_strXML, UINT32 a_len, THREAD_RETURN (*a_
 		delete threads[i];
 		threads[i] = NULL;
 	}
-	
+
 	delete[] messages;
 	messages = NULL;
 	delete[] threads;
 	threads = NULL;
-	
+
 	return returnValue;
 }
 
 
 
 SINT32 CAInfoService::sendCascadeHelo()
-{	
+{
 	if(pglobalOptions->isMiddleMix())
   	{
 		return E_SUCCESS;
   	}
-  	
+
 	UINT32 len;
 	SINT32 ret;
 	UINT8* strCascadeHeloXML=getCascadeHeloXMLAsString(len);
@@ -985,7 +985,7 @@ SINT32 CAInfoService::sendCascadeHelo()
 	{
 		return E_UNKNOWN;
 	}
-	
+
 	if( !(m_pMix->isConnected()) )
 	{
 #ifdef DEBUG
@@ -993,7 +993,7 @@ SINT32 CAInfoService::sendCascadeHelo()
 #endif
 		return E_UNKNOWN;
 	}
-	
+
 	ret = sendHelo(strCascadeHeloXML, len, TCascadeHelo, (UINT8*)"Cascade Helo Thread", REQUEST_COMMAND_CASCADE);
 	delete[] strCascadeHeloXML;
 	strCascadeHeloXML = NULL;
@@ -1001,14 +1001,14 @@ SINT32 CAInfoService::sendCascadeHelo()
 }
 
 UINT8* CAInfoService::getCascadeHeloXMLAsString(UINT32& a_len)
-	{	
+	{
 		a_len=0;
  		UINT32 sendBuffLen;
 		UINT8* sendBuff=NULL;
 		XERCES_CPP_NAMESPACE::DOMDocument* docMixInfo=NULL;
 		DOMElement* elemTimeStamp=NULL;
 		DOMElement* elemRoot=NULL;
-		
+
 	  if(m_pMix->getMixCascadeInfo(docMixInfo)!=E_SUCCESS)
 		{
 	    CAMsg::printMsg(LOG_INFO,"InfoService: Cascade not yet configured.\n");
@@ -1016,7 +1016,7 @@ UINT8* CAInfoService::getCascadeHeloXMLAsString(UINT32& a_len)
 		}
 		//insert (or update) the Timestamp
 		elemRoot=docMixInfo->getDocumentElement();
-		
+
 		if(getDOMChildByName(elemRoot,"LastUpdate",elemTimeStamp,false)!=E_SUCCESS)
 			{
 				elemTimeStamp=createDOMElement(docMixInfo,"LastUpdate");
@@ -1027,24 +1027,24 @@ UINT8* CAInfoService::getCascadeHeloXMLAsString(UINT32& a_len)
 		UINT8 tmpStrCurrentMillis[50];
 		print64(tmpStrCurrentMillis,currentMillis);
 		setDOMElementValue(elemTimeStamp,tmpStrCurrentMillis);
-		
+
 		if (m_serial != 0)
 		{
 			print64(tmpStrCurrentMillis, m_serial);
 			setDOMElementAttribute(elemRoot, "serial", tmpStrCurrentMillis);
 		}
-		
+
 		if(m_pSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
 		{
 			goto ERR;
 		}
-				
+
 		sendBuff=DOM_Output::dumpToMem(docMixInfo,&sendBuffLen);
 		if(sendBuff==NULL)
 			goto ERR;
 
 		a_len=sendBuffLen;
-		return sendBuff;		
+		return sendBuff;
 ERR:
 		delete []sendBuff;
 		sendBuff = NULL;
@@ -1060,7 +1060,7 @@ ERR:
  * @retval E_UNKNOWN on any error
 	*/
 SINT32 CAInfoService::sendCascadeHelo(const UINT8* a_strCascadeHeloXML,UINT32 a_len,const CASocketAddrINet* a_pSocketAddress) const
-{	
+{
 	if(pglobalOptions->isMiddleMix() || (pglobalOptions->isLastMix() && !m_bConfiguring))
 	{
 		return E_SUCCESS;
@@ -1070,12 +1070,12 @@ SINT32 CAInfoService::sendCascadeHelo(const UINT8* a_strCascadeHeloXML,UINT32 a_
 	UINT8 buffHeader[255];
 	UINT64 currentTimeout = MIX_TO_INFOSERVICE_TIMEOUT;
 	UINT64 startupTime, currentMillis;
-	
+
 	if (a_pSocketAddress == NULL)
 	{
 		return E_UNKNOWN;
 	}
-	
+
 	if(a_pSocketAddress->getIPAsStr(hostname, 255)!=E_SUCCESS)
 	{
 		goto ERR;
@@ -1101,13 +1101,13 @@ SINT32 CAInfoService::sendCascadeHelo(const UINT8* a_strCascadeHeloXML,UINT32 a_
 		{
 			sprintf((char*)buffHeader,"POST /cascade HTTP/1.0\r\nContent-Length: %u\r\n\r\n",a_len);
 		}
-		
+
 		getcurrentTimeMillis(startupTime);
 		if(	oSocket.sendFullyTimeOut(buffHeader, strlen((char*)buffHeader), currentTimeout, SEND_INFO_TIMEOUT_MS)!=E_SUCCESS)
 		{
 			goto ERR;
 		}
-		getcurrentTimeMillis(currentMillis);	
+		getcurrentTimeMillis(currentMillis);
 		currentTimeout -= (currentMillis - startupTime);
 		if (currentTimeout <= 0 ||
 		    oSocket.sendFullyTimeOut(a_strCascadeHeloXML, a_len, currentTimeout, SEND_INFO_TIMEOUT_MS)!=E_SUCCESS)
@@ -1116,7 +1116,7 @@ SINT32 CAInfoService::sendCascadeHelo(const UINT8* a_strCascadeHeloXML,UINT32 a_
 		}
 		//Receive answer --> 200 Ok or failure
 		//HTTP/1.1 200 Ok
-		getcurrentTimeMillis(currentMillis);	
+		getcurrentTimeMillis(currentMillis);
 		currentTimeout -= (currentMillis - startupTime);
 		if(currentTimeout <= 0 ||
 		   oSocket.receiveFullyT(buffHeader, 12, currentTimeout)!=E_SUCCESS)
@@ -1128,7 +1128,7 @@ SINT32 CAInfoService::sendCascadeHelo(const UINT8* a_strCascadeHeloXML,UINT32 a_
 			goto ERR;
 		}
 		oSocket.close();
-		return E_SUCCESS;	
+		return E_SUCCESS;
 	}
 ERR:
 	oSocket.close();
@@ -1206,7 +1206,7 @@ SINT32 CAInfoService::handleConfigEvent(XERCES_CPP_NAMESPACE::DOMDocument* doc) 
             CAMsg::printMsg(LOG_CRIT,"InfoService: Error retrieving mix info from InfoService!\n");
             return ret;
         }
-    
+
 		}
 		*/
     return E_SUCCESS;
@@ -1228,7 +1228,7 @@ SINT32 CAInfoService::getPaymentInstance(const UINT8* a_pstrPIID,CAXMLBI** a_pXM
 			returnValue = currentValue;
 		}
 	}
-	return returnValue;	
+	return returnValue;
 }
 
 
@@ -1255,16 +1255,16 @@ SINT32 CAInfoService::getPaymentInstance(const UINT8* a_pstrPIID,CAXMLBI** a_pXM
 		{
 			return E_UNKNOWN;
 		}
-	
+
 		address.setAddr(hostname,a_socketAddress->getPort());
-	
+
 		if(socket.connect(address)!=E_SUCCESS)
 			return E_UNKNOWN;
-	
+
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG, "CAInfoService::getPaymentInstance() - connected to InfoService %s:%d\n",hostname, a_socketAddress->getPort());
 		#endif
-	
+
 		//Send request
 		httpClient.setSocket(&socket);
 		sprintf((char*) request, "/paymentinstance/%s", (char*) a_pstrPIID);
@@ -1272,12 +1272,12 @@ SINT32 CAInfoService::getPaymentInstance(const UINT8* a_pstrPIID,CAXMLBI** a_pXM
 		httpClient.parseHTTPHeader(&contentLength, &status);
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG, "CAInfoService::getPaymentInstance() - Request sent, HTTP status: %i, content length: %i\n", status, contentLength);
-		#endif	
+		#endif
 		if(status!=200||contentLength>0x00FFFF)
 			{
 				return E_UNKNOWN;
 			}
-			
+
 		UINT8* content=new UINT8[contentLength+1];
 		if(httpClient.getContent(content, &contentLength)!=E_SUCCESS)
 			{
