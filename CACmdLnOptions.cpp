@@ -1566,9 +1566,9 @@ SINT32 CACmdLnOptions::getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo
 	//insert (or update) the Timestamp
 	DOMElement* elemTimeStamp=NULL;
 	DOMElement* elemRoot=docMixInfo->getDocumentElement();
-	if(getDOMChildByName(elemRoot,"LastUpdate",elemTimeStamp,false)!=E_SUCCESS)
+	if(getDOMChildByName(elemRoot, UNIVERSAL_NODE_LAST_UPDATE, elemTimeStamp, false)!=E_SUCCESS)
 	{
-		elemTimeStamp=createDOMElement(docMixInfo,"LastUpdate");
+		elemTimeStamp=createDOMElement(docMixInfo, UNIVERSAL_NODE_LAST_UPDATE);
 		elemRoot->appendChild(elemTimeStamp);
 	}
 	UINT64 currentMillis;

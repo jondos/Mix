@@ -640,7 +640,8 @@ SINT32 CAInfoService::sendMixTnCData()
 		for (;i < nrOfTnCs; i++)
 		{
 #ifdef DEBUG
-			CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixTnCData(), object: %s\n", tncData[i]);
+			CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixTnCData(), object: %s, len: %u\n", 
+					tncData[i], (*lengths_ptr)[i]);
 #endif
 			ret |= sendHelo(tncData[i], (*lengths_ptr)[i],
 						TMixHelo, (UINT8*)"Mix TnC Thread",
@@ -714,7 +715,7 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 		for (; i < (*nrOfTnCs); i++)
 		{
 			iterator = docTnCsList->item(i);
-			setDOMElementAttribute(iterator, "lastUpdate", time(NULL));
+			setCurrentTimeMilliesAsDOMAttribute(iterator);
 			elementList[i] = xmlDocToStringWithSignature(iterator, (*lengths)[i], NULL);
 		}
 		return elementList;
