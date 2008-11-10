@@ -582,16 +582,32 @@ DOMText* createDOMText(XERCES_CPP_NAMESPACE::DOMDocument* pOwnerDoc,const char *
 	}
 
 SINT32 setDOMElementAttribute(DOMNode* pElem,const char* attrName,const UINT8* value)
-	{
-		if(pElem==NULL||pElem->getNodeType()!=DOMNode::ELEMENT_NODE||attrName==NULL||value==NULL)
+{
+	if(pElem==NULL||pElem->getNodeType()!=DOMNode::ELEMENT_NODE||attrName==NULL||value==NULL)
+		return E_UNKNOWN;
+	XMLCh* name=XMLString::transcode(attrName);
+	XMLCh* val=XMLString::transcode((const char*)value);
+	((DOMElement*)pElem)->setAttribute(name,val);
+	XMLString::release(&name);
+	XMLString::release(&val);
+	return E_SUCCESS;
+}
+
+SINT32 setCurrentTimeMilliesAsDOMAttribute(DOMNode *pElem)
+{
+		if( pElem == NULL || pElem->getNodeType() != DOMNode::ELEMENT_NODE )
+		{
 			return E_UNKNOWN;
-		XMLCh* name=XMLString::transcode(attrName);
-		XMLCh* val=XMLString::transcode((const char*)value);
-		((DOMElement*)pElem)->setAttribute(name,val);
-		XMLString::release(&name);
-		XMLString::release(&val);
+		}
+		UINT64 currentMillis;
+		getcurrentTimeMillis(currentMillis);
+		UINT8 tmpStrCurrentMillis[50];
+		print64(tmpStrCurrentMillis,currentMillis);
+		setDOMElementAttribute
+			(pElem,UNIVERSAL_ATTRIBUTE_LAST_UPDATE, tmpStrCurrentMillis );
 		return E_SUCCESS;
-	}
+
+}
 
 #ifndef ONLY_LOCAL_PROXY
 DOMNodeList* getElementsByTagName(DOMElement* pElem,const char* const name)
@@ -652,18 +668,18 @@ SINT32 setDOMElementValue(DOMElement* pElem,const UINT8* value)
 		//Remove all "old" text Elements...
 		DOMNode* pChild=pElem->getFirstChild();
 		while(pChild!=NULL)
-			{
-				if(pChild->getNodeType()==DOMNode::TEXT_NODE)
+		{
+			if(pChild->getNodeType()==DOMNode::TEXT_NODE)
+				{
+					DOMNode* n=pElem->removeChild(pChild);
+					if (n != NULL)
 					{
-						DOMNode* n=pElem->removeChild(pChild);
-						if (n != NULL)
-						{
-							n->release();
-							n = NULL;
-						}
+						n->release();
+						n = NULL;
 					}
-				pChild=pChild->getNextSibling();
-			}
+				}
+			pChild=pChild->getNextSibling();
+		}
 		pElem->appendChild(pText);
 		return E_SUCCESS;
 	}
