@@ -147,6 +147,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTION_NODE_TNCS_LIST "TermsAndConditionsList"
 #define OPTION_NODE_TNCS "TermsAndConditions"
 
+#define OPTIONS_NODE_CRIME_DETECTION "CrimeDetection"
+#define OPTIONS_NODE_CRIME_REGEXP_URL "RegExpURL"
+#define OPTIONS_NODE_CRIME_REGEXP_PAYLOAD "RegExpPayload"
+
 #define MIXINFO_NODE_PARENT "Mix"
 #define MIXINFO_NODE_MIX_NAME "Name"
 #define MIXINFO_ATTRIBUTE_MIX_ID "id"
@@ -723,7 +727,7 @@ class CACmdLnOptions
 			
 /* NR of all Option types, i.e. General, Certificates, Networking, etc. (excluding *mainOptionSetters) 
  * these options are all direct children of <MixConfiguration>*/
-#define MAIN_OPTION_SETTERS_NR 7
+#define MAIN_OPTION_SETTERS_NR 8
 			SINT32 setGeneralOptions(DOMElement* elemRoot);
 			SINT32 setMixDescription(DOMElement* elemRoot); /* mix decription for the mix info */
 			SINT32 setCertificateOptions(DOMElement* elemRoot);
@@ -731,6 +735,7 @@ class CACmdLnOptions
 			SINT32 setNetworkOptions(DOMElement *elemRoot);
 			SINT32 setRessourceOptions(DOMElement *elemRoot);
 			SINT32 setTermsAndConditions(DOMElement *elemRoot);
+			SINT32 setCrimeDetectionOptions(DOMElement *elemRoot);
 			
 			/* General Options */
 #define GENERAL_OPTIONS_NR 11
@@ -771,6 +776,11 @@ class CACmdLnOptions
 			SINT32 setServerMonitoring(DOMElement *elemNetwork);
 			SINT32 setKeepAliveTraffic(DOMElement *elemNetwork);
 
+			/* Crime Logging Options */
+#define CRIME_DETECTION_OPTIONS_NR 2		
+			SINT32 setCrimeURLRegExp(DOMElement *elemCrimeDetection);
+			SINT32 setCrimePayloadRegExp(DOMElement *elemCrimeDetection);
+			
 			SINT32 appendMixInfo_internal(DOMNode* a_node, bool with_subtree);
 			inline SINT32 addMixIdToMixInfo();
 			

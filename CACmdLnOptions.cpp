@@ -102,6 +102,13 @@ CACmdLnOptions::CACmdLnOptions()
 		m_iMonitoringListenerPort = 0xFFFF;
 #endif
 
+#ifdef LOG_CRIME
+		m_arCrimeRegExpsURL=NULL;
+		m_nCrimeRegExpsURL=0;
+		m_arCrimeRegExpsPayload=NULL;
+		m_nCrimeRegExpsPayload=0;
+#endif
+		
 #ifdef DYNAMIC_MIX
 		m_strLastCascadeProposal = NULL;
 #endif
@@ -132,6 +139,7 @@ CACmdLnOptions::CACmdLnOptions()
 #if defined(DELAY_CHANNELS_LATENCY)
 		m_u32DelayChannelLatency = DELAY_CHANNEL_LATENCY;
 #endif
+	
 		/* initialize pointer to option setter functions */
 		initMainOptionSetters();
 		initGeneralOptionSetters();
@@ -164,6 +172,8 @@ void CACmdLnOptions::initMainOptionSetters()
 		&CACmdLnOptions::setRessourceOptions;
 	mainOptionSetters[++count]= 
 		&CACmdLnOptions::setTermsAndConditions;
+	mainOptionSetters[++count]= 
+		&CACmdLnOptions::setCrimeDetectionOptions;
 }
 
 void CACmdLnOptions::initGeneralOptionSetters()
@@ -3258,6 +3268,102 @@ SINT32 CACmdLnOptions::setTermsAndConditions(DOMElement *elemRoot)
 	return E_SUCCESS;
 }
 
+SINT32 CACmdLnOptions::setCrimeDetectionOptions(DOMElement *elemRoot)
+{
+//#ifdef LOG_CRIME
+	DOMElement* elemCrimeDetection = NULL;
+	if (getDOMChildByName
+			(elemRoot, OPTIONS_NODE_CRIME_DETECTION, elemCrimeDetection, false) != E_SUCCESS)
+	{
+		LOG_NODE_NOT_FOUND(OPTIONS_NODE_CRIME_DETECTION);
+		return E_UNKNOWN;
+	}
+	
+	CAMsg::printMsg(LOG_INFO,"Loading Crime Detection Data....\n");
+	
+	if(elemCrimeDetection != NULL)
+	{
+		/*DOM_NodeList nlRegExp = elemCrimeDetection.getElementsByTagName("RegExpURL");
+		m_arCrimeRegExpsURL=new regex_t[nlRegExp.getLength()];
+		for(UINT32 i=0;i<nlRegExp.getLength();i++)
+		{
+			DOM_Node tmpChild=nlRegExp.item(i);
+			UINT32 lenRegExp=4096;
+			UINT8 buffRegExp[4096];
+			if(getDOMElementValue(tmpChild,buffRegExp,&lenRegExp)==E_SUCCESS)
+			{
+				if(regcomp(&m_arCrimeRegExpsURL[m_nCrimeRegExpsURL],(char*)buffRegExp,REG_EXTENDED|REG_ICASE|REG_NOSUB)!=0)
+				{
+					CAMsg::printMsg(LOG_CRIT,"Could not compile URL regexp: %s\n",buffRegExp);
+					exit(-1);
+				}
+				CAMsg::printMsg(LOG_DEBUG,"Looking for crime URL RegExp: %s\n",buffRegExp);
+
+				m_nCrimeRegExpsURL++;
+			}
+		}*/
+	}
+	else
+	{
+		return E_UNKNOWN;
+	}
+	CAMsg::printMsg(LOG_DEBUG,"Loading Crime Detection Data finished\n");
+	
+	//return invokeOptionSetters
+	//	(networkOptionSetters, elemNetwork, NETWORK_OPTIONS_NR);
+//#endif
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setCrimeURLRegExp(DOMElement *elemCrimeDetection)
+{
+//#ifdef LOG_CRIME
+	if(elemCrimeDetection == NULL) return E_UNKNOWN;
+	ASSERT_NETWORK_OPTIONS_PARENT
+		(elemCrimeDetection->getNodeName(), OPTIONS_NODE_CRIME_REGEXP_URL);
+//#endif
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setCrimePayloadRegExp(DOMElement *elemCrimeDetection)
+{
+//#ifdef LOG_CRIME
+	if(elemCrimeDetection == NULL) return E_UNKNOWN;
+	ASSERT_NETWORK_OPTIONS_PARENT
+		(elemCrimeDetection->getNodeName(), OPTIONS_NODE_CRIME_REGEXP_PAYLOAD);
+	
+	DOMNodeList *nlRegExp = 
+		getElementsByTagName(elemCrimeDetection, OPTIONS_NODE_CRIME_REGEXP_PAYLOAD);
+		
+	if(nlRegExp != NULL)
+	{
+		m_arCrimeRegExpsPayload = new regex_t[nlRegExp->getLength()];
+		for(UINT32 i = 0; i < nlRegExp->getLength(); i++)
+		{
+			DOMNode *tmpChild = nlRegExp->item(i);
+			
+			UINT32 lenRegExp = 4096;
+			UINT8 buffRegExp[4096];
+			
+			if(getDOMElementValue(tmpChild, buffRegExp, &lenRegExp)==E_SUCCESS)
+			{
+				if(regcomp(&m_arCrimeRegExpsPayload[m_nCrimeRegExpsPayload],(char*)buffRegExp,REG_EXTENDED|REG_ICASE|REG_NOSUB)!=0)
+				{
+					CAMsg::printMsg(LOG_CRIT,"Could not compile payload regexp: %s\n",buffRegExp);
+					exit(-1);
+				}
+				CAMsg::printMsg(LOG_DEBUG,"Looking for crime Payload RegExp: %s\n",buffRegExp);
+	
+				m_nCrimeRegExpsPayload++;
+			}
+		}
+	}
+	
+//#endif
+	return E_SUCCESS;
+}
+
+
 /** Processes a XML configuration document. This sets the values of the
 	* options to the values found in the XML document.
 	* Note that only the values are changed, which are given in the XML document!
@@ -3294,61 +3400,6 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 	setDOMElementValue(elemVersion,(UINT8*)MIX_VERSION);
 	elemSoftware->appendChild(elemVersion);
 	elemMix->appendChild(elemSoftware);
-
-
-#ifdef LOG_CRIME
-	m_arCrimeRegExpsURL=NULL;
-	m_nCrimeRegExpsURL=0;
-	m_arCrimeRegExpsPayload=NULL;
-	m_nCrimeRegExpsPayload=0;
-	CAMsg::printMsg(LOG_INFO,"Loading Crime Detection Data....\n");
-	DOM_Element elemCrimeDetection;
-	getDOMChildByName(elemRoot,(UINT8*)"CrimeDetection",elemCrimeDetection,false);
-	if(elemCrimeDetection!=NULL)
-	{
-		DOM_NodeList nlRegExp;
-		nlRegExp=elemCrimeDetection.getElementsByTagName("RegExpURL");
-		m_arCrimeRegExpsURL=new regex_t[nlRegExp.getLength()];
-		for(UINT32 i=0;i<nlRegExp.getLength();i++)
-		{
-			DOM_Node tmpChild=nlRegExp.item(i);
-			UINT32 lenRegExp=4096;
-			UINT8 buffRegExp[4096];
-			if(getDOMElementValue(tmpChild,buffRegExp,&lenRegExp)==E_SUCCESS)
-			{
-				if(regcomp(&m_arCrimeRegExpsURL[m_nCrimeRegExpsURL],(char*)buffRegExp,REG_EXTENDED|REG_ICASE|REG_NOSUB)!=0)
-				{
-					CAMsg::printMsg(LOG_CRIT,"Could not compile URL regexp: %s\n",buffRegExp);
-					exit(-1);
-				}
-				CAMsg::printMsg(LOG_DEBUG,"Looking for crime URL RegExp: %s\n",buffRegExp);
-
-				m_nCrimeRegExpsURL++;
-			}
-		}
-
-		nlRegExp=elemCrimeDetection.getElementsByTagName("RegExpPayload");
-		m_arCrimeRegExpsPayload=new regex_t[nlRegExp.getLength()];
-		for(UINT32 i=0;i<nlRegExp.getLength();i++)
-		{
-			DOM_Node tmpChild=nlRegExp.item(i);
-			UINT32 lenRegExp=4096;
-			UINT8 buffRegExp[4096];
-			if(getDOMElementValue(tmpChild,buffRegExp,&lenRegExp)==E_SUCCESS)
-			{
-				if(regcomp(&m_arCrimeRegExpsPayload[m_nCrimeRegExpsPayload],(char*)buffRegExp,REG_EXTENDED|REG_ICASE|REG_NOSUB)!=0)
-				{
-					CAMsg::printMsg(LOG_CRIT,"Could not compile payload regexp: %s\n",buffRegExp);
-					exit(-1);
-				}
-				CAMsg::printMsg(LOG_DEBUG,"Looking for crime Payload RegExp: %s\n",buffRegExp);
-
-				m_nCrimeRegExpsPayload++;
-			}
-		}
-	}
-	CAMsg::printMsg(LOG_DEBUG,"Loading Crime Detection Data finished\n");
-#endif
 
 #ifdef COUNTRY_STATS
 		DOMElement* elemCountryStats=NULL;
