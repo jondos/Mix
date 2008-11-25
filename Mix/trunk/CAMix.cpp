@@ -68,10 +68,10 @@ SINT32 CAMix::start()
 			CAMsg::printMsg(LOG_DEBUG, "CAMix start: creating InfoService object\n");
 			m_pInfoService=new CAInfoService(this);
         
-			UINT32 opCertLength;
-			CACertificate** opCerts = pglobalOptions->getOpCertificates(opCertLength);
+			//UINT32 opCertLength;
+			CACertificate* opCert = pglobalOptions->getOpCertificate();
 			CACertificate* pOwnCert=pglobalOptions->getOwnCertificate();
-			m_pInfoService->setSignature(m_pSignature, pOwnCert, opCerts, opCertLength);
+			m_pInfoService->setSignature(m_pSignature, pOwnCert, opCert);
 			delete pOwnCert;
 			pOwnCert = NULL;
 			UINT64 currentMillis;
@@ -81,17 +81,9 @@ SINT32 CAMix::start()
 			}
 			m_pInfoService->setSerial(currentMillis);
 			
-			if(opCerts!=NULL)
-				{
-					for(UINT32 i=0;i<opCertLength;i++)
-					{
-						delete opCerts[i];
-						opCerts[i] = NULL;
-					}
-					delete[] opCerts;
-					opCerts = NULL;
-				}
-	
+			delete opCert;	
+			opCert = NULL;
+				
 	        bool allowReconf = pglobalOptions->acceptReconfiguration();
 	        bool needReconf = needAutoConfig();
 	
@@ -425,36 +417,28 @@ SINT32 CAMix::signXML(DOMNode* a_element)
 			}
     
     // Operator Certificates
-    UINT32 opCertsLength;
-    CACertificate** opCert=pglobalOptions->getOpCertificates(opCertsLength);
+    CACertificate* opCert = pglobalOptions->getOpCertificate();
     if(opCert==NULL)
-			{
+	{
         CAMsg::printMsg(LOG_DEBUG,"Op Test Cert is NULL!\n");
-			}
-		else
-			{
-				// Own  Mix Certificates first, then Operator Certificates
-				for(SINT32 i = opCertsLength - 1;  i >=0; i--)
-					{
-						tmpCertStore->add(opCert[i]); 	
-					}
-				}
+	}
+	else
+	{
+		// Own  Mix Certificates first, then Operator Certificates
+		tmpCertStore->add(opCert); 		
+	}
     tmpCertStore->add(ownCert);
     
     if(m_pSignature->signXML(a_element, tmpCertStore)!=E_SUCCESS)
-			{
-				return E_UNKNOWN;
-			}
+	{
+		return E_UNKNOWN;
+	}
     delete ownCert;
     ownCert = NULL;
     
-	for(UINT32 i=0;i<opCertsLength;i++)
-	{
-		delete opCert[i];
-		opCert[i] = NULL;
-	}
-	delete[] opCert;
+	delete opCert;
 	opCert = NULL;
+	
     delete tmpCertStore;	
     tmpCertStore = NULL;
     
