@@ -37,9 +37,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "xml/DOM_Output.hpp"
 #include "CABase64.hpp"
 #include "CADynaNetworking.hpp"
-#ifdef LOG_CRIME
+//#ifdef LOG_CRIME
 	#include "tre/regex.h"
-#endif
+//#endif
 
 CACmdLnOptions::CACmdLnOptions()
   {
@@ -54,7 +54,7 @@ CACmdLnOptions::CACmdLnOptions()
 		m_pcsReConfigure=new CAMutex();
 		m_pSignKey=NULL;
 		m_pOwnCertificate=NULL;
-		m_OpCerts=NULL;
+		m_OpCert=NULL;
 		m_pPrevMixCertificate=NULL;
 		m_pNextMixCertificate=NULL;
 		m_bCompressedLogs=false;
@@ -466,20 +466,9 @@ void CACmdLnOptions::clean()
 
 		delete m_pOwnCertificate;
 		m_pOwnCertificate=NULL;
-		// deleting whole array and array elements
-		if (m_OpCerts != NULL)
-		{
-			if (m_OpCertsLength > 0)
-			{
-				for (UINT32 i = 0; i < m_OpCertsLength; i++)
-				{
-					delete m_OpCerts[i];
-					m_OpCerts[i] = NULL;
-				}
-			}
-			delete[] m_OpCerts;
-		}
-		m_OpCerts=NULL;
+		
+		delete m_OpCert;	
+		m_OpCert=NULL;
 
 		delete m_pNextMixCertificate;
 		m_pNextMixCertificate=NULL;
@@ -1457,6 +1446,16 @@ SINT32 CACmdLnOptions::getPaymentSettleInterval(UINT32 *pInterval)
 
 #endif /* ifdef PAYMENT */
 
+SINT32 CACmdLnOptions::getOperatorSubjectKeyIdentifier(UINT8 *buffer, UINT32 *length)
+{
+	if(m_OpCert == NULL)
+	{
+		(*length) = 0;
+		return E_UNKNOWN;
+	}
+	return m_OpCert->getSubjectKeyIdentifier(buffer, length);
+	
+}
 
 #ifndef ONLY_LOCAL_PROXY
 CAListenerInterface** CACmdLnOptions::getInfoServices(UINT32& r_size)
@@ -1605,15 +1604,16 @@ SINT32 CACmdLnOptions::getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo
 /* a reference to the Terms and conditions document stored by this class.
  * this method does not return a copy of the doc so don't release it.
  */
-XERCES_CPP_NAMESPACE::DOMNodeList* CACmdLnOptions::getTermsAndConditions()
+XERCES_CPP_NAMESPACE::DOMElement* CACmdLnOptions::getTermsAndConditions()
 {
-	DOMElement *docElement = NULL;
-	if(m_docOpTnCs == NULL)
+	//DOMElement *docElement = NULL;
+	if(m_docOpTnCs == NULL) 
 	{
 		return NULL;
 	}
-	docElement = m_docOpTnCs->getDocumentElement();
-	return (docElement == NULL) ? NULL : getElementsByTagName(docElement, OPTION_NODE_TNCS);
+	return m_docOpTnCs->getDocumentElement();
+	//docElement = m_docOpTnCs->getDocumentElement();
+	//return (docElement == NULL) ? NULL : getElementsByTagName(docElement, OPTION_NODE_TNCS);
 }
 
 /** Tries to read the XML configuration file \c configFile and parses (but not process) it.
@@ -2255,7 +2255,8 @@ SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
 SINT32 CACmdLnOptions::setOwnOperatorCertificate(DOMElement *elemCertificates)
 {
 	DOMElement* elemOpCert = NULL;
-
+	DOMElement *opCertX509 = NULL;
+	
 	if(elemCertificates == NULL) return E_UNKNOWN;
 	ASSERT_CERTIFICATES_OPTIONS_PARENT
 		(elemCertificates->getNodeName(), OPTIONS_NODE_OWN_OPERATOR_CERTIFICATE);
@@ -2269,22 +2270,14 @@ SINT32 CACmdLnOptions::setOwnOperatorCertificate(DOMElement *elemCertificates)
 		return E_UNKNOWN;
 	}
 
-	m_OpCertsLength = 0;
 	if (elemOpCert != NULL)
 	{
-		DOMNodeList* opCertList =
-			getElementsByTagName(elemOpCert, OPTIONS_NODE_ELEMENT_X509CERT);
-		m_OpCerts = new CACertificate*[opCertList->getLength()];
-		for (UINT32 i = 0; i < opCertList->getLength(); i++)
+		getDOMChildByName(elemOpCert, OPTIONS_NODE_ELEMENT_X509CERT, opCertX509, true);
+		if( opCertX509 != NULL)
 		{
-			m_OpCerts[m_OpCertsLength] =
-				CACertificate::decode(opCertList->item(i), CERT_X509CERTIFICATE);
-			if (m_OpCerts[m_OpCertsLength] != NULL)
-			{
-				m_OpCertsLength++;
-			}
+			m_OpCert = CACertificate::decode(opCertX509, CERT_X509CERTIFICATE);
 		}
-		if (m_OpCertsLength == 0)
+		else
 		{
 			LOG_NODE_NOT_FOUND(OPTIONS_NODE_ELEMENT_X509CERT);
 			return E_UNKNOWN;
@@ -3382,6 +3375,7 @@ SINT32 CACmdLnOptions::setCrimePayloadRegExp(DOMElement *elemCrimeDetection)
 SINT32 setRegExpressions(DOMElement *rootElement, const char* const childElementName,
 		regex_t **regExContainer, UINT32* regExNr)
 {
+#ifdef LOG_CRIME
 	if( (rootElement == NULL) || (childElementName == NULL) ||
 		(regExNr == NULL) || (regExContainer == NULL) )
 	{
@@ -3418,6 +3412,7 @@ SINT32 setRegExpressions(DOMElement *rootElement, const char* const childElement
 			}
 		}
 	}
+#endif
 	return E_SUCCESS;
 }
 

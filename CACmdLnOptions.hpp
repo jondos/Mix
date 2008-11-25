@@ -39,9 +39,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAListenerInterface.hpp"
 #include "CAXMLBI.hpp"
 #include "CAXMLPriceCert.hpp"
-#ifdef LOG_CRIME
+//#ifdef LOG_CRIME
 	#include "tre/regex.h"
-#endif
+//#endif
 
 #define TMP_BUFF_SIZE 255
 #define REGEXP_BUFF_SIZE 4096
@@ -149,6 +149,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define OPTION_NODE_TNCS_LIST "TermsAndConditionsList"
 #define OPTION_NODE_TNCS "TermsAndConditions"
+#define OPTION_ATTRIBUTE_TNC_DATE "date"
+#define OPTION_ATTRIBUTE_TNC_SERIAL "serial"
+#define OPTION_ATTRIBUTE_TNC_LOCALE "locale"
+#define OPTION_ATTRIBUTE_TNC_ID "id"
 
 #define OPTIONS_NODE_CRIME_DETECTION "CrimeDetection"
 
@@ -324,25 +328,20 @@ class CACmdLnOptions
 #ifdef COUNTRY_STATS
 			SINT32 getCountryStatsDBConnectionLoginData(char** db_host,char**db_user,char**db_passwd);
 #endif
-			/** Returns a COPY of the Operator Certificate that mix.
+			/** Returns a COPY of the Operator Certificate of that mix.
 				* @return opCerts
 				*/
-			CACertificate** getOpCertificates(UINT32& r_length) const
+			CACertificate* getOpCertificate() const
 			{
-				if(m_OpCerts!=NULL && m_OpCertsLength > 0)
+				if( m_OpCert != NULL )
 				{
-					CACertificate** opCerts = new CACertificate*[m_OpCertsLength];
-					for (UINT32 i = 0; i < m_OpCertsLength; i++)
-					{
-						opCerts[i] = m_OpCerts[i]->clone();
-					}
-					r_length = m_OpCertsLength;
-					return opCerts;
+					return m_OpCert->clone();
 				}
-				r_length = 0;
 				return NULL;
 			}
-
+			
+			SINT32 getOperatorSubjectKeyIdentifier(UINT8 *buffer, UINT32 *length);
+			
 			bool hasPrevMixTestCertificate()
 				{
 					return m_pPrevMixCertificate!=NULL;
@@ -417,7 +416,7 @@ class CACmdLnOptions
 			//SINT32 getMixXml(UINT8* strxml,UINT32* len);
 			SINT32 getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo);
 
-			XERCES_CPP_NAMESPACE::DOMNodeList *getTermsAndConditions();
+			XERCES_CPP_NAMESPACE::DOMElement *getTermsAndConditions();
 
 			UINT32 getKeepAliveSendInterval()
 				{
@@ -446,7 +445,7 @@ class CACmdLnOptions
 
 			SINT32 getUser(UINT8* user,UINT32 len);
 			SINT32 getPidFile(UINT8* pidfile,UINT32 len);
-
+			
 #ifdef SERVER_MONITORING
 			char *getMonitoringListenerHost();
 			UINT16 getMonitoringListenerPort();
@@ -616,8 +615,8 @@ class CACmdLnOptions
 			CAXMLPriceCert*	m_pPriceCertificate;
 #endif
 
-			CACertificate** m_OpCerts;
-			UINT32 m_OpCertsLength;
+			CACertificate* m_OpCert;
+			//UINT32 m_OpCertsLength;
 
 			CACertificate*	m_pPrevMixCertificate;
 			CACertificate*	m_pNextMixCertificate;
