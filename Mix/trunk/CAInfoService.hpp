@@ -40,13 +40,18 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define REQUEST_TYPE_GET	1
 
 #define NR_REQUEST_COMMANDS 7
-#define REQUEST_COMMAND_CONFIGURE 0
-#define REQUEST_COMMAND_HELO			1
+#define REQUEST_COMMAND_CONFIGURE	0
+#define REQUEST_COMMAND_HELO		1
 #define REQUEST_COMMAND_MIXINFO		2
-#define REQUEST_COMMAND_DYNACASCADE		3
+#define REQUEST_COMMAND_DYNACASCADE	3
 #define REQUEST_COMMAND_CASCADE		4
 #define REQUEST_COMMAND_STATUS		5
-#define REQUEST_COMMAND_TNC_DATA		6
+#define REQUEST_COMMAND_TNC_DATA	6
+
+#define ATTRIBUTE_SERIAL "serial"
+
+#define LOCALE_DEFAULT LOCALE_EN
+#define LOCALE_EN "en"
 
 class CAInfoService
 	{
@@ -119,7 +124,7 @@ class CAInfoService
 
 			SINT32 sendStatus(const UINT8* strStatusXML,UINT32 len,const CASocketAddrINet* a_socketAddress) const;
 			UINT8 **getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrOfTnCs);
-			SINT32 sendMixTnCData();
+			SINT32 sendOperatorTnCData();
 
 			UINT8 *getMixHeloXMLAsString(UINT32& len);
 			UINT8 *xmlDocToStringWithSignature(DOMNode *a_node, UINT32& a_len, CACertStore* pIncludeCerts);

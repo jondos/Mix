@@ -79,8 +79,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_NODE_SYSLOG "Syslog"
 #define OPTIONS_NODE_ENCRYPTED_LOG "EncryptedLog"
 #define OPTIONS_NODE_LOGGING_KEYINFO "KeyInfo"
-
 #define OPTIONS_NODE_DESCRIPTION "Description"
+/* values for the operator OPTIONS_NODE_MIX_NAME */
+#define OPTIONS_VALUE_OPERATOR_NAME "Name.Operator"
+#define OPTIONS_VALUE_MIX_NAME "Name.Mix"
 
 /* Certificate Option definitions */
 #define OPTIONS_NODE_CERTIFICATE_LIST "Certificates"
@@ -139,6 +141,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_NODE_HOST "Host"
 #define OPTIONS_NODE_PORT "Port"
 #define OPTIONS_NODE_FILE "File"
+#define OPTIONS_NODE_PERFORMANCE_TEST "PerformanceTest"
+#define OPTIONS_ATTRIBUTE_PERFTEST_ENABLED "enabled"
 
 #define OPTIONS_NODE_RESSOURCES "Ressources"
 
@@ -161,6 +165,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define MIXINFO_NODE_PARENT "Mix"
 #define MIXINFO_NODE_MIX_NAME "Name"
+#define MIXINFO_NODE_SOFTWARE "Software"
+#define MIXINFO_NODE_VERSION "Version"
+
 #define MIXINFO_ATTRIBUTE_MIX_ID "id"
 
 #define LOG_NODE_NOT_FOUND(Nodename) \
@@ -455,6 +462,9 @@ class CACmdLnOptions
 			bool isFirstMix();
 			bool isMiddleMix();
 			bool isLastMix();
+			
+			bool isPerformanceTestEnabled();
+			
 			bool isSock5sSupported()
 			{
 				return m_bSocksSupport;
@@ -633,6 +643,8 @@ class CACmdLnOptions
 
 			UINT32 m_u32KeepAliveSendInterval;
 			UINT32 m_u32KeepAliveRecvInterval;
+			
+			bool m_perfTestEnabled;
 #endif //ONLY_LOCAL_PROXY
 
 			bool		m_bLocalProxy,m_bFirstMix,m_bMiddleMix,m_bLastMix;
@@ -697,7 +709,6 @@ class CACmdLnOptions
 
 
 #endif
-
 			optionSetter_pt *mainOptionSetters;
 			optionSetter_pt *generalOptionSetters;
 			optionSetter_pt *certificateOptionSetters;
@@ -774,13 +785,14 @@ class CACmdLnOptions
 			SINT32 setAccountingDatabase(DOMElement *elemAccounting);
 
 			/* Network Options */
-#define NETWORK_OPTIONS_NR 5
+#define NETWORK_OPTIONS_NR 6
 			SINT32 setInfoServices(DOMElement *elemNetwork);
 			SINT32 setListenerInterfaces(DOMElement *elemNetwork);
 			SINT32 setTargetInterfaces(DOMElement *elemNetwork);
 			SINT32 setServerMonitoring(DOMElement *elemNetwork);
 			SINT32 setKeepAliveTraffic(DOMElement *elemNetwork);
-
+			SINT32 setPerformanceTestEnabled(DOMElement *elemNetwork);
+			
 			/* Crime Logging Options */
 #define CRIME_DETECTION_OPTIONS_NR 2
 			SINT32 setCrimeURLRegExp(DOMElement *elemCrimeDetection);

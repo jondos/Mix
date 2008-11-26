@@ -74,6 +74,7 @@ CACmdLnOptions::CACmdLnOptions()
 		m_strUser=NULL;
 		m_strCascadeName=NULL;
 		m_strLogDir=NULL;
+		m_perfTestEnabled=true;
 		setZero64(m_maxLogFileSize);
 		m_strEncryptedLogDir=NULL;
 		m_arTargetInterfaces=NULL;
@@ -257,6 +258,8 @@ void CACmdLnOptions::initNetworkOptionSetters()
 		&CACmdLnOptions::setServerMonitoring;
 	networkOptionSetters[++count]=
 		&CACmdLnOptions::setKeepAliveTraffic;
+	networkOptionSetters[++count]=
+		&CACmdLnOptions::setPerformanceTestEnabled;
 }
 
 void CACmdLnOptions::initCrimeDetectionOptionSetters()
@@ -1527,36 +1530,43 @@ SINT32 CACmdLnOptions::getPidFile(UINT8* pidfile,UINT32 len)
 
 
 SINT32 CACmdLnOptions::getUser(UINT8* user,UINT32 len)
-  {
-		if(m_strUser==NULL||user==NULL)
-				return E_UNKNOWN;
-		if(len<=(UINT32)strlen(m_strUser))
-				{
-					return E_UNKNOWN;
-				}
-		strcpy((char*)user,m_strUser);
-		return E_SUCCESS;
-  }
+{
+	if(m_strUser==NULL||user==NULL)
+	{
+		return E_UNKNOWN;
+	}
+	if(len<=(UINT32)strlen(m_strUser))
+	{
+			return E_UNKNOWN;
+	}
+	strcpy((char*)user,m_strUser);
+	return E_SUCCESS;
+}
 
 bool CACmdLnOptions::isFirstMix()
-  {
-		return m_bFirstMix;
-  }
+{
+	return m_bFirstMix;
+}
 
 bool CACmdLnOptions::isMiddleMix()
-    {
-			return m_bMiddleMix;
-    }
+{
+		return m_bMiddleMix;
+}
 
 bool CACmdLnOptions::isLastMix()
-    {
-			return m_bLastMix;
-    }
+{
+		return m_bLastMix;
+}
 
 bool CACmdLnOptions::isLocalProxy()
-    {
-			return m_bLocalProxy;
-    }
+{
+		return m_bLocalProxy;
+}
+
+bool CACmdLnOptions::isPerformanceTestEnabled()
+{
+	return m_perfTestEnabled;
+}
 
 #ifdef SERVER_MONITORING
 char *CACmdLnOptions::getMonitoringListenerHost()
@@ -3194,6 +3204,28 @@ SINT32 CACmdLnOptions::setKeepAliveTraffic(DOMElement *elemNetwork)
 	return E_SUCCESS;
 }
 
+SINT32 CACmdLnOptions::setPerformanceTestEnabled(DOMElement *elemNetwork)
+{
+	DOMElement *elemTestEnabled = NULL;
+	if(elemNetwork == NULL) return E_UNKNOWN;
+	ASSERT_NETWORK_OPTIONS_PARENT
+		(elemNetwork->getNodeName(), OPTIONS_NODE_PERFORMANCE_TEST);
+	
+	getDOMChildByName(elemNetwork, OPTIONS_NODE_PERFORMANCE_TEST, elemTestEnabled, false);
+	if(elemTestEnabled != NULL)
+	{
+		getDOMElementAttribute(elemTestEnabled, OPTIONS_ATTRIBUTE_PERFTEST_ENABLED, m_perfTestEnabled);
+	}
+	
+	CAMsg::printMsg(LOG_INFO,"Performance test is%s enabled.\n", (m_perfTestEnabled ? "" : " not") );
+	
+	return E_SUCCESS;
+}
+
+/***************************************
+ * ressource option setter function(s) *
+ *         (delay options)             *
+ ***************************************/
 SINT32 CACmdLnOptions::setRessourceOptions(DOMElement *elemRoot)
 {
 #if defined (DELAY_CHANNELS) ||defined(DELAY_USERS)||defined(DELAY_CHANNELS_LATENCY)
@@ -3251,6 +3283,9 @@ SINT32 CACmdLnOptions::setRessourceOptions(DOMElement *elemRoot)
 	return E_SUCCESS;
 }
 
+/*************************************************
+ * terms and condition option setter function(s) *
+ *************************************************/
 SINT32 CACmdLnOptions::setTermsAndConditions(DOMElement *elemRoot)
 {
 	SINT32 ret = E_SUCCESS;
@@ -3274,6 +3309,9 @@ SINT32 CACmdLnOptions::setTermsAndConditions(DOMElement *elemRoot)
 	return E_SUCCESS;
 }
 
+/*******************************************
+ * crime detection option setter functions *
+ *******************************************/
 SINT32 CACmdLnOptions::setCrimeDetectionOptions(DOMElement *elemRoot)
 {
 #ifdef LOG_CRIME
@@ -3451,8 +3489,8 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 	}
 
 	//Set Software-Version...
-	DOMElement* elemSoftware=createDOMElement(m_docMixInfo,"Software");
-	DOMElement* elemVersion=createDOMElement(m_docMixInfo,"Version");
+	DOMElement* elemSoftware=createDOMElement(m_docMixInfo, MIXINFO_NODE_SOFTWARE);
+	DOMElement* elemVersion=createDOMElement(m_docMixInfo, MIXINFO_NODE_VERSION);
 	setDOMElementValue(elemVersion,(UINT8*)MIX_VERSION);
 	elemSoftware->appendChild(elemVersion);
 	elemMix->appendChild(elemSoftware);
