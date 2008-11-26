@@ -1835,10 +1835,11 @@ SINT32 CACmdLnOptions::setMixType(DOMElement* elemGeneral)
 
 SINT32 CACmdLnOptions::setMixName(DOMElement* elemGeneral)
 {
-	DOMElement* elemMixName = NULL;
+	DOMElement *elemMixName = NULL, *elemMixInfoName = NULL;
 	UINT8 tmpBuff[TMP_BUFF_SIZE];
 	UINT32 tmpLen = TMP_BUFF_SIZE;
-
+	UINT8 *typeValue = (UINT8 *) OPTIONS_VALUE_NAMETYPE_DEFAULT;
+	
 	if(elemGeneral == NULL) return E_UNKNOWN;
 	ASSERT_GENERAL_OPTIONS_PARENT
 		(elemGeneral->getNodeName(), OPTIONS_NODE_MIX_NAME);
@@ -1847,27 +1848,60 @@ SINT32 CACmdLnOptions::setMixName(DOMElement* elemGeneral)
 	getDOMChildByName(elemGeneral, OPTIONS_NODE_MIX_NAME, elemMixName, false);
 	if(elemMixName != NULL)
 	{
-		if(getDOMElementValue(elemMixName, tmpBuff, &tmpLen)==E_SUCCESS)
+		if(getDOMElementValue(elemMixName, tmpBuff, &tmpLen) == E_SUCCESS)
 		{
 			m_strMixName = new char[tmpLen+1];
 			memset(m_strMixName, 0, tmpLen+1);
 			memcpy(m_strMixName, tmpBuff, tmpLen);
-
-			//... just because the the mixname config-element does not match the
-			// corresponding mixinfo element.
-			DOMElement* elemMixInfoName = createDOMElement(m_docMixInfo, MIXINFO_NODE_MIX_NAME);
-			setDOMElementValue(elemMixInfoName, (UINT8*) m_strMixName);
-			if(m_docMixInfo->getDocumentElement() != NULL)
-			{
-				m_docMixInfo->getDocumentElement()->appendChild(elemMixInfoName);
-			}
-			else
-			{
-				//Should never happen
-				return E_UNKNOWN;
-			}
-			//return appendMixInfo_internal(elemMixName, WITH_SUBTREE);
 		}
+		tmpLen = TMP_BUFF_SIZE;
+		getDOMElementAttribute(elemMixName, OPTIONS_ATTRIBUTE_NAME_TYPE, tmpBuff, &tmpLen);
+	}
+	else
+	{
+		tmpLen = 0;
+		m_strMixName = NULL;
+	}
+	
+	/* now append the values to the mix info 
+	 * conditions: 
+	 * - if name is set, m_strMixname points to it.
+	 * - if name type is set then it is in tmpBuff.
+	 */
+	elemMixInfoName = createDOMElement(m_docMixInfo, MIXINFO_NODE_MIX_NAME);
+	
+	/* if name is set */
+	if(m_strMixName != NULL)
+	{
+		setDOMElementValue(elemMixInfoName, (UINT8*) m_strMixName);
+	}
+	
+	if( tmpLen != 0 ) /* if name type is set */
+	{
+		if( strncasecmp( ((char *)tmpBuff), 
+					OPTIONS_VALUE_OPERATOR_NAME, 
+					strlen(OPTIONS_VALUE_OPERATOR_NAME)) == 0 ) /* type is operator name*/
+		{
+			typeValue = (UINT8 *) OPTIONS_VALUE_OPERATOR_NAME;
+		}
+		else if( strncasecmp( ((char *)tmpBuff), 
+					OPTIONS_VALUE_MIX_NAME, 
+					strlen(OPTIONS_VALUE_MIX_NAME)) == 0 ) /* type is mix name*/
+		{
+			typeValue = (UINT8 *) OPTIONS_VALUE_MIX_NAME;
+		}
+	}
+	setDOMElementAttribute(elemMixInfoName, 
+			OPTIONS_ATTRIBUTE_NAME_TYPE, typeValue);
+	
+	if(m_docMixInfo->getDocumentElement() != NULL)
+	{
+		m_docMixInfo->getDocumentElement()->appendChild(elemMixInfoName);
+	}
+	else
+	{
+		//Should never happen
+		return E_UNKNOWN;
 	}
 	return E_SUCCESS;
 }
