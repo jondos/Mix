@@ -34,6 +34,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define LAST_UPDATE "LastUpdate"
 
+#define STR_VALUE_TRUE "true"
+#define STR_VALUE_FALSE "false"
+
 UINT32 strtrim(UINT8*);
 
 SINT32 memtrim(UINT8* out,const UINT8* in,UINT32 len);
@@ -163,7 +166,11 @@ SINT32 setDOMElementValue(DOMElement* pElem,const UINT8* value);
 
 SINT32 getDOMElementValue(const DOMElement * const pElem,double* value);
 
-SINT32 setDOMElementAttribute(DOMNode* pElem,const char* attrName,SINT32 value);
+SINT32 setDOMElementAttribute(DOMNode* pElem,const char* attrName, bool value);
+SINT32 setDOMElementAttribute(DOMNode* pElem,const char* attrName, SINT32 value);
+SINT32 setDOMElementAttribute(DOMNode* pElem,const char* attrName, UINT32 value);
+SINT32 setDOMElementAttribute(DOMNode* pElem, const char* attrName, UINT64 value);
+
 SINT32 setDOMElementValue(DOMElement* pElem,double floatValue);
 
 SINT32 getDOMElementAttribute(const DOMNode * const pElem,const char* attrName,SINT64& value);

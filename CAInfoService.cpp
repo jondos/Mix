@@ -111,7 +111,7 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 					CAMsg::printMsg(LOG_DEBUG,"InfoService: Could not send Status information.\n");
 				}
 				/* send terms and conditions */
-				pInfoService->sendMixTnCData();
+				pInfoService->sendOperatorTnCData();
 			}
 
 			// check every minute if configuring, every 10 minutes otherwise
@@ -367,7 +367,7 @@ CAInfoService::CAInfoService()
 		m_pcertstoreOwnCerts=NULL;
 		m_minuts=0;
 		m_lastMixedPackets=0;
-    m_expectedMixRelPos = 0;
+		m_expectedMixRelPos = 0;
     	m_pLoopCV = new CAConditionVariable();
 		m_pthreadRunLoop=new CAThread((UINT8*)"InfoServiceThread");
 #ifdef DYNAMIC_MIX
@@ -624,9 +624,9 @@ SINT32 CAInfoService::sendStatus(const UINT8* a_strStatusXML,UINT32 a_len, const
 	}
 
 
-SINT32 CAInfoService::sendMixTnCData()
+SINT32 CAInfoService::sendOperatorTnCData()
 {
-	SINT32 ret;
+	SINT32 ret = E_SUCCESS;
 	UINT32 *lengths_ptr = NULL;
 	XMLSize_t nrOfTnCs = 0;
 	UINT32 i = 0;
@@ -636,10 +636,10 @@ SINT32 CAInfoService::sendMixTnCData()
 	{
 		for (;i < nrOfTnCs; i++)
 		{
-//#ifdef DEBUG
-			CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixTnCData(), object: %s, len: %u, size: %u\n", 
-					tncData[i], lengths_ptr[i], nrOfTnCs);
-//#endif
+#ifdef DEBUG
+			CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixTnCData(), object: %s, len: %u\n", 
+					tncData[i], lengths_ptr[i]);
+#endif
 			if( tncData[i] != NULL )
 			{
 				ret |= sendHelo(tncData[i], lengths_ptr[i],
@@ -759,16 +759,27 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 	(*lengths) = new UINT32[(*nrOfTnCs)];
 	for (; i < (*nrOfTnCs); i++)
 	{
+		//after every loop turn locale is exlicitely reset to 3 because ...
 		locale_len = 3;
 		iterator = docTnCsList->item(i);
+		//... it is modified by getDOMElementAttribute
 		getDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_LOCALE, locale, &locale_len);
 		if(locale_len == 0)
 		{
 			elementList[i] = NULL;
 			continue;
 		}
+		//only append the locale code to the id when it is
+		//not the default locale
+		if( strncasecmp((char *)locale, LOCALE_DEFAULT, 2) == 0 )
+		{
+			id[tmpOpSKILen] = 0;
+		}
+		else
+		{
+			memcpy((id+tmpOpSKILen), locale, locale_len);
+		}
 		
-		memcpy((id+tmpOpSKILen), locale, locale_len);
 		if(setDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_ID, id) != E_SUCCESS)
 		{
 			elementList[i] = NULL;
@@ -788,11 +799,22 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 
 UINT8* CAInfoService::getMixHeloXMLAsString(UINT32& a_len)
 {
-	XERCES_CPP_NAMESPACE::DOMDocument* docMixInfo=NULL;
+	XERCES_CPP_NAMESPACE::DOMDocument* docMixInfo = NULL;
+	XERCES_CPP_NAMESPACE::DOMElement* mixInfoRoot = NULL;
+	
 	if( (pglobalOptions->getMixXml(docMixInfo) != E_SUCCESS) ||
 		(docMixInfo == NULL) )
 	{
 		return NULL;
+	}
+	
+	if(m_serial != 0)
+	{
+		mixInfoRoot = docMixInfo->getDocumentElement();
+		if( mixInfoRoot != NULL )
+		{
+			setDOMElementAttribute(mixInfoRoot, ATTRIBUTE_SERIAL, m_serial);
+		}
 	}
 	return xmlDocToStringWithSignature(docMixInfo, a_len, m_pcertstoreOwnCerts);
 }
@@ -1072,7 +1094,7 @@ UINT8* CAInfoService::getCascadeHeloXMLAsString(UINT32& a_len)
 		DOMElement* elemTimeStamp=NULL;
 		DOMElement* elemRoot=NULL;
 
-	  if(m_pMix->getMixCascadeInfo(docMixInfo)!=E_SUCCESS)
+		if(m_pMix->getMixCascadeInfo(docMixInfo)!=E_SUCCESS)
 		{
 	    CAMsg::printMsg(LOG_INFO,"InfoService: Cascade not yet configured.\n");
 			goto ERR;
@@ -1081,20 +1103,20 @@ UINT8* CAInfoService::getCascadeHeloXMLAsString(UINT32& a_len)
 		elemRoot=docMixInfo->getDocumentElement();
 
 		if(getDOMChildByName(elemRoot,"LastUpdate",elemTimeStamp,false)!=E_SUCCESS)
-			{
-				elemTimeStamp=createDOMElement(docMixInfo,"LastUpdate");
-				elemRoot->appendChild(elemTimeStamp);
-			}
+		{
+			elemTimeStamp=createDOMElement(docMixInfo,"LastUpdate");
+			elemRoot->appendChild(elemTimeStamp);
+		}
 		UINT64 currentMillis;
 		getcurrentTimeMillis(currentMillis);
 		UINT8 tmpStrCurrentMillis[50];
-		print64(tmpStrCurrentMillis,currentMillis);
-		setDOMElementValue(elemTimeStamp,tmpStrCurrentMillis);
+		print64(tmpStrCurrentMillis, currentMillis);
+		setDOMElementValue(elemTimeStamp, tmpStrCurrentMillis);
 
 		if (m_serial != 0)
 		{
 			print64(tmpStrCurrentMillis, m_serial);
-			setDOMElementAttribute(elemRoot, "serial", tmpStrCurrentMillis);
+			setDOMElementAttribute(elemRoot, ATTRIBUTE_SERIAL, tmpStrCurrentMillis);
 		}
 
 		if(m_pSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
