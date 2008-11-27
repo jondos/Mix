@@ -1811,15 +1811,20 @@ SINT32 CACmdLnOptions::setMixType(DOMElement* elemGeneral)
 		return E_UNKNOWN;
 	}
 
-	if(getDOMElementValue(elemMixType,tmpBuff,&tmpLen)==E_SUCCESS)
+	if( getDOMElementValue(elemMixType,tmpBuff,&tmpLen) == E_SUCCESS )
 	{
-		if(memcmp(tmpBuff,"FirstMix",8)==0)
-			m_bFirstMix=true;
-		else if (memcmp(tmpBuff,"MiddleMix",9)==0)
-			m_bMiddleMix=true;
-		else if (memcmp(tmpBuff,"LastMix",7)==0)
-			m_bLastMix=true;
-
+		if(memcmp(tmpBuff,"FirstMix",8) == 0)
+		{
+			m_bFirstMix = true;
+		}
+		else if (memcmp(tmpBuff,"MiddleMix",9) == 0)
+		{
+			m_bMiddleMix = true;
+		}
+		else if (memcmp(tmpBuff,"LastMix",7) == 0)
+		{
+			m_bLastMix = true;
+		}
 		if ( appendMixInfo_internal(elemMixType, WITH_SUBTREE) != E_SUCCESS )
 		{
 			return E_UNKNOWN;
@@ -1838,7 +1843,8 @@ SINT32 CACmdLnOptions::setMixName(DOMElement* elemGeneral)
 	DOMElement *elemMixName = NULL, *elemMixInfoName = NULL;
 	UINT8 tmpBuff[TMP_BUFF_SIZE];
 	UINT32 tmpLen = TMP_BUFF_SIZE;
-	UINT8 *typeValue = (UINT8 *) OPTIONS_VALUE_NAMETYPE_DEFAULT;
+	UINT8 *typeValue = NULL;  //(UINT8 *) OPTIONS_VALUE_NAMETYPE_DEFAULT; 
+	//uncomment the above line to enable a default name type 
 	
 	if(elemGeneral == NULL) return E_UNKNOWN;
 	ASSERT_GENERAL_OPTIONS_PARENT
@@ -1891,8 +1897,11 @@ SINT32 CACmdLnOptions::setMixName(DOMElement* elemGeneral)
 			typeValue = (UINT8 *) OPTIONS_VALUE_MIX_NAME;
 		}
 	}
-	setDOMElementAttribute(elemMixInfoName, 
+	if(typeValue != NULL)
+	{
+		setDOMElementAttribute(elemMixInfoName, 
 			OPTIONS_ATTRIBUTE_NAME_TYPE, typeValue);
+	}
 	
 	if(m_docMixInfo->getDocumentElement() != NULL)
 	{
