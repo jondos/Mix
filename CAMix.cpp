@@ -272,16 +272,20 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
     pglobalOptions->getMixId(id,50);
 
     UINT8 name[255];
-    if(pglobalOptions->getCascadeName(name,255)!=E_SUCCESS)
+    m_docMixCascadeInfo->appendChild(elemRoot);
+    DOMElement* elem = NULL;
+    
+    if(pglobalOptions->getCascadeName(name,255) == E_SUCCESS)
+    {
+    	elem = createDOMElement(m_docMixCascadeInfo,"Name");
+    	setDOMElementValue(elem,name);
+    	elemRoot->appendChild(elem);
+	}
+    else
     {
     	CAMsg::printMsg(LOG_ERR,"No cascade name given!\n");
-			return E_UNKNOWN;
-		}
-    m_docMixCascadeInfo->appendChild(elemRoot);
-    DOMElement* elem=createDOMElement(m_docMixCascadeInfo,"Name");
-		setDOMElementValue(elem,name);
-    elemRoot->appendChild(elem);
-
+    }
+    
     elem=createDOMElement(m_docMixCascadeInfo,"Network");
     elemRoot->appendChild(elem);
     DOMElement* elemListenerInterfaces=createDOMElement(m_docMixCascadeInfo,"ListenerInterfaces");
