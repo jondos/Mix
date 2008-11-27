@@ -1861,7 +1861,7 @@ SINT32 CACmdLnOptions::setMixName(DOMElement* elemGeneral)
 			memcpy(m_strMixName, tmpBuff, tmpLen);
 		}
 		tmpLen = TMP_BUFF_SIZE;
-		getDOMElementAttribute(elemMixName, OPTIONS_ATTRIBUTE_NAME_TYPE, tmpBuff, &tmpLen);
+		getDOMElementAttribute(elemMixName, OPTIONS_ATTRIBUTE_NAME_FOR_CASCADE, tmpBuff, &tmpLen);
 	}
 	else
 	{
@@ -1900,7 +1900,7 @@ SINT32 CACmdLnOptions::setMixName(DOMElement* elemGeneral)
 	if(typeValue != NULL)
 	{
 		setDOMElementAttribute(elemMixInfoName, 
-			OPTIONS_ATTRIBUTE_NAME_TYPE, typeValue);
+			OPTIONS_ATTRIBUTE_NAME_FOR_CASCADE, typeValue);
 	}
 	
 	if(m_docMixInfo->getDocumentElement() != NULL)
