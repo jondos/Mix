@@ -745,14 +745,14 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 	}
 	
 	UINT32 locale_len = 3;
-	UINT8 id[tmpOpSKILen+locale_len];
+	UINT8 id[tmpOpSKILen+locale_len+1];
 	UINT8 locale[locale_len];
 	
 	locale[locale_len-1]=0;
 	
 	memcpy(id, tmpOpSKIBuff, tmpOpSKILen);
 	id[tmpOpSKILen]=0;
-	id[tmpOpSKILen+(locale_len-1)] = 0;
+	id[tmpOpSKILen+(locale_len-1)+1] = 0;
 	
 	(*nrOfTnCs) = docTnCsList->getLength();
 	elementList = new UINT8 *[(*nrOfTnCs)];
@@ -777,7 +777,8 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 		}
 		else
 		{
-			memcpy((id+tmpOpSKILen), locale, locale_len);
+			id[tmpOpSKILen] = '_';
+			memcpy((id+tmpOpSKILen+1), locale, locale_len);
 		}
 		
 		if(setDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_ID, id) != E_SUCCESS)
