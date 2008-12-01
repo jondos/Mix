@@ -792,7 +792,7 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 			continue;
 		}
 		setCurrentTimeMilliesAsDOMAttribute(iterator);
-		elementList[i] = xmlDocToStringWithSignature(iterator, (*lengths)[i]);
+		elementList[i] = xmlDocToStringWithSignature(iterator, (*lengths)[i], m_pcertstoreOwnCerts);
 	}
 	return elementList;
 	
