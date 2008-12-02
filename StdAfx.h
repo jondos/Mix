@@ -62,7 +62,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define DYNAMIC_MIX
 //#define SDTFA // specific logic needed by SDTFA, http://www.sdtfa.com
 
-//#define LASTMIX_CHECK_MEMORY // only for internal debugging purpose 
+//#define LASTMIX_CHECK_MEMORY // only for internal debugging purpose
 
 //#define PRINT_THREAD_STACK_TRACE //Usefull for debugging output of stack trace if mix dies...
 #if !defined(PRINT_THREAD_STACK_TRACE) && defined (DEBUG)&& ! defined(ONLY_LOCAL_PROXY)
@@ -167,9 +167,16 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define NUM_LOGIN_WORKER_TRHEADS 10//How many working threads for login *do not change this until you really know that you are doing!* ??
 #define MAX_LOGIN_QUEUE 500 //how many waiting entries in the login queue *do not change this until you really know that you are doing!*??
 
-#define MAX_USER_SEND_QUEUE 100000 //How many bytes could be in each User's send queue, before we suspend the belonging channels
-#define MAX_DATA_PER_CHANNEL 100000
-#define USER_SEND_BUFFER_RESUME 10000
+#if defined(PAYMENT) || defined(MANIOQ)
+	#define MAX_USER_SEND_QUEUE 100000 //How many bytes could be in each User's send queue, before we suspend the belonging channels
+	#define MAX_DATA_PER_CHANNEL 100000
+	#define USER_SEND_BUFFER_RESUME 10000
+#else
+	//EXPERIMENTAL: reduce user-buffers for free mixes by factor 10
+	#define MAX_USER_SEND_QUEUE 10000 //How many bytes could be in each User's send queue, before we suspend the belonging channels
+	#define MAX_DATA_PER_CHANNEL 10000
+	#define USER_SEND_BUFFER_RESUME 1000
+#endif
 
 #define PAYMENT_ACCOUNT_CERT_TIMEOUT 180 //Timeout for receiving the Payment certificate in seconds
 #define CLEANUP_THREAD_SLEEP_INTERVAL 60 //sleep interval for payment blocked ip list
@@ -178,11 +185,18 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define FLOW_CONTROL_SENDME_HARD_LIMIT 95 //last mix stops sending after this unack packets
 #define FLOW_CONTROL_SENDME_SOFT_LIMIT 80 //last mix sends request for 'SENDME' after this unack packets
 
-#define MAX_READ_FROM_PREV_MIX_QUEUE_SIZE 10000000
-#define MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE 10000000 //How many bytes could be in the incoming queue ??
-#define MAX_MIXIN_SEND_QUEUE_SIZE 10000000
-#define MAX_NEXT_MIX_QUEUE_SIZE 10000000
-
+#if defined(PAYMENT) || defined(MANIOQ)
+	#define MAX_READ_FROM_PREV_MIX_QUEUE_SIZE 10000000
+	#define MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE 10000000 //How many bytes could be in the incoming queue ??
+	#define MAX_MIXIN_SEND_QUEUE_SIZE 10000000
+	#define MAX_NEXT_MIX_QUEUE_SIZE 10000000
+#else
+	//EXPERIMENTAL: reduce intermix-buffers for free mixes by factor 10
+	#define MAX_READ_FROM_PREV_MIX_QUEUE_SIZE 1000000
+	#define MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE 1000000 //How many bytes could be in the incoming queue ??
+	#define MAX_MIXIN_SEND_QUEUE_SIZE 1000000
+	#define MAX_NEXT_MIX_QUEUE_SIZE 1000000
+#endif
 //#define FORCED_DELAY
 //#define MIN_LATENCY 250
 
@@ -221,7 +235,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	//For Visual C++    #if defined(_MSC_VER)
 	//For Borland C++    #if defined(__BCPLUSPLUS__)
 	#define _CRT_SECURE_NO_DEPRECATE
-	#define _CRT_SECURE_NO_WARNINGS    
+	#define _CRT_SECURE_NO_WARNINGS
 	#if _MSC_VER > 1000
 		#pragma once
 	#endif // _MSC_VER > 1000
@@ -350,7 +364,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include <memory.h>
 	#include <sys/resource.h>
 	#include <sys/wait.h>
-	#include <termios.h> 
+	#include <termios.h>
 
 	#include <ctype.h>
     typedef struct sockaddr SOCKADDR;
