@@ -102,8 +102,8 @@ CAAccountingInstance::CAAccountingInstance(CAMix* callingMix)
 			m_pJpiVerifyingInstance = pglobalOptions->getBI()->getVerifier();
 			m_pPiInterface->setPIServerConfiguration(pglobalOptions->getBI());
 		}
-		pglobalOptions->getPaymentHardLimit(&m_iHardLimitBytes);
-		pglobalOptions->getPaymentSoftLimit(&m_iSoftLimitBytes);
+		m_iHardLimitBytes = pglobalOptions->getPaymentHardLimit();
+		m_iSoftLimitBytes = pglobalOptions->getPaymentSoftLimit();
 
 		prepareCCRequest(callingMix, m_AiName);
 
@@ -655,8 +655,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 
 			if (prepaidBytes < 0 ||  prepaidBytes <= ms_pInstance->m_iHardLimitBytes)
 			{
-				UINT32 prepaidInterval;
-				pglobalOptions->getPrepaidInterval(&prepaidInterval);
+				UINT32 prepaidInterval = pglobalOptions->getPrepaidInterval();
 
 				if ((pAccInfo->authFlags & AUTH_HARD_LIMIT_REACHED) == 0)
 				{
@@ -752,6 +751,10 @@ SINT32 CAAccountingInstance::getPrepaidBytes(tAiAccountingInfo* pAccInfo)
 	}
 
 	SINT32 prepaidBytes;
+#ifdef DEBUG
+	CAMsg::printMsg(LOG_INFO, "Calculating TransferredBytes: %Lu  ConfirmedBytes: %Lu\n", 
+			pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
+#endif
 	if (pAccInfo->confirmedBytes > pAccInfo->transferredBytes)
 	{
 		prepaidBytes = pAccInfo->confirmedBytes - pAccInfo->transferredBytes;
@@ -764,8 +767,7 @@ SINT32 CAAccountingInstance::getPrepaidBytes(tAiAccountingInfo* pAccInfo)
 
 			CAMsg::printMsg(LOG_CRIT, "PrepaidBytes are way to high! Maybe a hacker attack? Or CC did get lost?\n");
 			CAMsg::printMsg(LOG_INFO, "TransferredBytes: %s  ConfirmedBytes: %s\n", tmp, tmp2);
-			UINT32 prepaidInterval;
-			pglobalOptions->getPrepaidInterval(&prepaidInterval);
+			UINT32 prepaidInterval = pglobalOptions->getPrepaidInterval();
 			prepaidBytes = (SINT32)prepaidInterval;
 			pAccInfo->transferredBytes = pAccInfo->confirmedBytes - prepaidInterval;
 		}
@@ -855,7 +857,7 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
 	BEGIN_STACK("CAAccountingInstance::sendCCRequest");
 
 	XERCES_CPP_NAMESPACE::DOMDocument* doc=NULL;
-    UINT32 prepaidInterval;
+    UINT32 prepaidInterval = pglobalOptions->getPrepaidInterval();
 
     pAccInfo->authFlags |= AUTH_SENT_CC_REQUEST;
 
@@ -865,7 +867,6 @@ SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
     	return E_SUCCESS;
     }
 
-    pglobalOptions->getPrepaidInterval(&prepaidInterval);
     // prepaid bytes are "confirmed bytes - transfered bytes"
     //UINT64 bytesToConfirm = pAccInfo->confirmedBytes + (prepaidInterval) - (pAccInfo->confirmedBytes - pAccInfo->transferredBytes);
     pAccInfo->bytesToConfirm = (prepaidInterval) + pAccInfo->transferredBytes;
@@ -1636,11 +1637,13 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 		dbInterface = NULL;
 	}
 
-	if (prepaidAmount < 0)
+	/* EXPERIMENTAL: transmit negative prepaid bytes (but not less than -PREPAID_BYTES) */
+	SINT32 negPrepaidIval = (-1*(SINT32)pglobalOptions->getPrepaidInterval());
+	if (prepaidAmount <  negPrepaidIval)
 	{
-		prepaidAmount = 0;
+		prepaidAmount = negPrepaidIval;
 	}
-	setDOMElementValue( elemPrepaid, (UINT32)prepaidAmount);
+	setDOMElementValue( elemPrepaid, prepaidAmount);
 
 	// send XML struct to Jap & set auth flags
 	pAccInfo->pControlChannel->sendXMLMessage(doc);
@@ -1993,6 +1996,10 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 
 	/** @todo We need this trick so that the program does not freeze with active AI ThreadPool!!!! */
 	//pAccInfo->mutex->lock();
+#ifdef DEBUG
+	CAMsg::printMsg(LOG_INFO, "HandleChallenge: TransferredBytes: %Lu  ConfirmedBytes: %Lu\n", 
+				pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
+#endif
 	if (bSendCCRequest)
 	{
 		// fetch cost confirmation from last session if available, and send it
@@ -2008,9 +2015,12 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			 * because the new login protocol doesn't permit JAPs
 			 * to exchange data before login is finished.
 			 */
-			UINT32 prepaidIval = 0;
-			pglobalOptions->getPrepaidInterval(&prepaidIval);
+			UINT32 prepaidIval = pglobalOptions->getPrepaidInterval();
 			pAccInfo->bytesToConfirm = (prepaidIval - prepaidAmount) + pCC->getTransferredBytes();
+#ifdef DEBUG
+			CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: bytesToConfirm: %Lu, prepaidIval: %u, prepaidAmount: %i, transferred bytes: %Lu\n", pAccInfo->bytesToConfirm,
+					prepaidIval, prepaidAmount, pCC->getTransferredBytes());
+#endif
 			pAccInfo->pControlChannel->sendXMLMessage(pCC->getXMLDocument());
 			//delete pCC;
 		}
@@ -2285,11 +2295,17 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 								pCC->getAccountNumber(),
 								pCC->getTransferredBytes(),
 								pAccInfo->bytesToConfirm);
-		delete pCC;
+		
+		if(pAccInfo->authFlags & AUTH_LOGIN_SKIP_SETTLEMENT)
+		{
+			CAMsg::printMsg( LOG_INFO, "Skip settlement revoked.\n");
+			pAccInfo->authFlags &= ~AUTH_LOGIN_SKIP_SETTLEMENT;
+		}
+		/*delete pCC;
 		pCC = NULL;
 		pAccInfo->mutex->unlock();
 		pAccInfo->authFlags |= AUTH_FAKE;
-		return CAXMLErrorMessage::ERR_WRONG_DATA;
+		return CAXMLErrorMessage::ERR_WRONG_DATA;*/
 		//m_pSettleThread->settle();
 
 	}
@@ -2303,10 +2319,6 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 
 	return CAXMLErrorMessage::ERR_OK;
 }
-
-
-
-
 
 /**
  * This must be called whenever a JAP is connecting to init our per-user
@@ -2367,7 +2379,7 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 		tAiAccountingInfo* pAccInfo = pHashEntry->pAccountingInfo;
 		AccountLoginHashEntry* loginEntry;
 		SINT32 prepaidBytes = 0;
-		UINT32 prepaidInterval;
+		UINT32 prepaidInterval = pglobalOptions->getPrepaidInterval();
 
 		if (pAccInfo == NULL)
 		{
@@ -2405,7 +2417,6 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 						prepaidBytes = getPrepaidBytes(pAccInfo);
 						if (prepaidBytes > 0)
 						{
-							pglobalOptions->getPrepaidInterval(&prepaidInterval);
 							if (prepaidBytes > prepaidInterval)
 							{
 								UINT8 tmp[32];
@@ -2683,7 +2694,11 @@ SINT32 CAAccountingInstance::settlementTransaction()
 					UINT8 tmp[32];
 					print64(tmp, confirmedBytes);
 					CAMsg::printMsg(LOG_INFO, "Settlement transaction: Received %s confirmed bytes!\n", tmp);
-
+				}
+				else
+				{
+					CAMsg::printMsg(LOG_ERR, "Settlement transaction: Account empty, but no message object received! "
+							"This may lead to too much prepaid bytes!\n");
 				}
 
 				//check if expDate is set don't store status otherwise
@@ -2908,7 +2923,8 @@ SINT32 CAAccountingInstance::settlementTransaction()
 				// the user is currently logged in
 				loginEntry->authFlags |= entry->authFlags;
 				loginEntry->authRemoveFlags |= entry->authRemoveFlags;
-				if (entry->confirmedBytes)
+				if (entry->confirmedBytes > 0 && 
+					loginEntry->confirmedBytes < entry->confirmedBytes)
 				{
 					loginEntry->confirmedBytes = entry->confirmedBytes;
 				}
