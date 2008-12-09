@@ -446,10 +446,7 @@ SINT32 CAFirstMix::processKeyExchange()
 #ifdef PAYMENT
 	setDOMElementAttribute(elemPayment,"required",(UINT8*)"true");
 	setDOMElementAttribute(elemPayment,"version",(UINT8*)PAYMENT_VERSION);
-	
-	UINT32 prepaidInterval;
-	pglobalOptions->getPrepaidInterval(&prepaidInterval);
-	setDOMElementAttribute(elemPayment,"prepaidInterval", prepaidInterval);
+	setDOMElementAttribute(elemPayment,"prepaidInterval", pglobalOptions->getPrepaidInterval());
 	setDOMElementAttribute(elemPayment,"piid", pglobalOptions->getBI()->getID());
 	
 #else
@@ -1470,19 +1467,19 @@ loop_break:
 		 */
 		if(!(aiLoginStatus & AUTH_LOGIN_FAILED))
 		{
-			if(!(aiLoginStatus & AUTH_LOGIN_SKIP_SETTLEMENT))
+			if(!(aiLoginStatus & (AUTH_LOGIN_SKIP_SETTLEMENT )) || (aiLoginStatus & (AUTH_WAITING_FOR_FIRST_SETTLED_CC)) )
 			{
-#ifdef DEBUG
+//#ifdef DEBUG
 				CAMsg::printMsg(LOG_DEBUG,"AI login messages successfully exchanged: now starting settlement for user account balancing check\n");
-#endif
+//#endif
 				aiLoginStatus = CAAccountingInstance::settlementTransaction();
 			}
-#ifdef DEBUG
+//#ifdef DEBUG
 			else
 			{
 				CAMsg::printMsg(LOG_DEBUG,"AI login messages successfully exchanged: skipping settlement, user has valid prepaid amount\n");
 			}
-#endif
+//#endif
 		}
 		
 		if(!(aiLoginStatus & AUTH_LOGIN_FAILED)) 
