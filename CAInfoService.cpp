@@ -806,7 +806,12 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 			elementList[i] = NULL;
 			continue;
 		}
-		if(setDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_SERIAL, tmpDate) != E_SUCCESS)
+		if(setDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_DATE, tmpDate) != E_SUCCESS)
+		{
+			elementList[i] = NULL;
+			continue;
+		}
+		if(setDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_SERIAL, serial) != E_SUCCESS)
 		{
 			elementList[i] = NULL;
 			continue;
