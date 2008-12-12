@@ -138,7 +138,7 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 		pHashTableEntry->pMuxSocket=pMuxSocket;
 		pHashTableEntry->pQueueSend=pQueueSend;
 		pHashTableEntry->pControlMessageQueue = new CAQueue();
-		pHashTableEntry->pControlChannelDispatcher=new CAControlChannelDispatcher(pHashTableEntry->pControlMessageQueue);
+		pHashTableEntry->pControlChannelDispatcher = new CAControlChannelDispatcher(pHashTableEntry->pControlMessageQueue);
 		pHashTableEntry->uAlreadySendPacketSize=-1;
 		pHashTableEntry->cNumberOfChannels=0;
 #ifdef LOG_TRAFFIC_PER_USER

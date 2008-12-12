@@ -724,7 +724,10 @@ bool CAFirstMixA::sendToUsers()
 		{
 			countRead--;
 #endif
-			packetToSend = &pfmHashEntry->oQueueEntry;
+			/* loop turn init */
+			extractSize = 0;
+			processedQueue = NULL;
+			packetToSend = &(pfmHashEntry->oQueueEntry);
 			controlMessageUserQueue = pfmHashEntry->pControlMessageQueue;
 			dataMessageUserQueue = pfmHashEntry->pQueueSend;
 			
@@ -757,7 +760,7 @@ bool CAFirstMixA::sendToUsers()
 #ifdef SSL_HACK
 					finishPacket(pfmHashEntry);
 #endif //SSL_HACK
-					pfmHashEntry->pMuxSocket->prepareForSend(&packetToSend->packet);
+					pfmHashEntry->pMuxSocket->prepareForSend(&(packetToSend->packet));
 					pfmHashEntry->uAlreadySendPacketSize = 0;
 				}
 			}
@@ -888,7 +891,7 @@ void CAFirstMixA::notifyAllUserChannels(fmHashTableEntry *pfmHashEntry, UINT16 f
 
 void CAFirstMixA::finishPacket(fmHashTableEntry *pfmHashEntry)
 {
-	tQueueEntry *packetToSend = &pfmHashEntry->oQueueEntry;
+	tQueueEntry *packetToSend = &(pfmHashEntry->oQueueEntry);
 	fmChannelList* cListEntry=m_pChannelList->get(packetToSend->packet.channel);
 	if(cListEntry != NULL)
 	{
