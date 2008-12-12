@@ -1362,7 +1362,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 #else
 		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue,strDialog);
 #endif
-		if(pHashEntry==NULL)// adding user connection to mix->JAP channel list (stefan: sollte das nicht connection list sein? --> es handelt sich um eine Datenstruktu fr Connections/Channels ).
+		if( (pHashEntry == NULL) || 
+			(pHashEntry->pControlMessageQueue == NULL) )// adding user connection to mix->JAP channel list (stefan: sollte das nicht connection list sein? --> es handelt sich um eine Datenstruktu fr Connections/Channels ).
 		{
 			if (doc != NULL)
 			{
@@ -1406,6 +1407,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 #endif
 		MIXPACKET *paymentLoginPacket = new MIXPACKET;
 		tQueueEntry *aiAnswerQueueEntry=new tQueueEntry;
+		CAQueue *controlMessages = pHashEntry->pControlMessageQueue;
 		UINT32 qlen=sizeof(tQueueEntry);
 		SINT32 aiLoginStatus = 0;
 		aiLoginStatus = CAAccountingInstance::loginProcessStatus(pHashEntry);
@@ -1417,7 +1419,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				aiLoginStatus = AUTH_LOGIN_FAILED;
 				break;
 			}
-			if(paymentLoginPacket->channel>0&&paymentLoginPacket->channel<256)
+			if(paymentLoginPacket->channel > 0 && paymentLoginPacket->channel < 256)
 			{
 				if(!pHashEntry->pControlChannelDispatcher->proccessMixPacket(paymentLoginPacket))
 				{
@@ -1425,9 +1427,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 					break;
 				}
 				
-				while(tmpQueue->getSize()>0)
+				while(controlMessages->getSize()>0)
 				{
-					tmpQueue->get((UINT8*)aiAnswerQueueEntry,&qlen); 
+					controlMessages->get((UINT8*)aiAnswerQueueEntry,&qlen); 
 					pNewUser->prepareForSend(&(aiAnswerQueueEntry->packet));
 					ai_ret = ((CASocket*)pNewUser)->
 						sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), MIXPACKET_SIZE, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
@@ -1487,9 +1489,9 @@ loop_break:
 			aiLoginStatus = CAAccountingInstance::finishLoginProcess(pHashEntry);
 			if(pNewUser != NULL)
 			{
-				while(tmpQueue->getSize()>0)
+				while(controlMessages->getSize()>0)
 				{
-					tmpQueue->get((UINT8*)aiAnswerQueueEntry,&qlen); 
+					controlMessages->get((UINT8*)aiAnswerQueueEntry,&qlen); 
 					pNewUser->prepareForSend(&(aiAnswerQueueEntry->packet));
 					ai_ret = ((CASocket*)pNewUser)->
 							sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), MIXPACKET_SIZE, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);

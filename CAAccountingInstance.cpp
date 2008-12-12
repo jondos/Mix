@@ -365,7 +365,9 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 		//kick user out after previous error
 		if(pAccInfo->authFlags & AUTH_FATAL_ERROR)
 		{
-			// there was an error earlier.
+			// there was an error earlier. Causes JonDos to be kicked out when 
+			//prepareKickout is invoked but makes sure a control packet is still delivered
+			//to the JonDo, before it triggers this kickout condition.
 			if (a_bMessageToJAP && a_bControlMessage)
 			{
 				return returnKickout(pAccInfo);
@@ -673,9 +675,8 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 				 * large downloads/uploads, where large amounts of data are handled by mixes
 				 * in a short time.
 				 */
-				if (time(NULL) >= pAccInfo->lastHardLimitSeconds + HARD_LIMIT_TIMEOUT &&
-				    prepaidBytes <= 0
-						/*|| (prepaidBytes < 0 && (UINT32)(prepaidBytes * (-1)) >= prepaidInterval )*/ )
+				if ( ( (time(NULL) >= pAccInfo->lastHardLimitSeconds + HARD_LIMIT_TIMEOUT) && (prepaidBytes <= 0) )
+				       || (prepaidBytes < 0 && (UINT32)(prepaidBytes * (-1)) >= prepaidInterval) )
 				{
 //#ifdef DEBUG
 					char* strReason;
@@ -683,10 +684,10 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 					{
 						strReason = "timeout";
 					}
-					/*else
+					else
 					{
 						strReason = "negative prepaid interval exceeded";
-					}*/
+					}
 					CAMsg::printMsg( LOG_INFO, "Accounting instance: User refused "
 									"to send cost confirmation (HARDLIMIT EXCEEDED, %s). "
 									"PrepaidBytes were: %d\n", strReason, prepaidBytes);
@@ -821,6 +822,8 @@ SINT32 CAAccountingInstance::returnKickout(tAiAccountingInfo* pAccInfo)
  * hold packet, no timeout started
  * (Usage: send an error message before kicking out the user:
  * sets AUTH_FATAL_ERROR )
+ * IMPORTANT: You need to hold a lock for pAccInfo->mutex when invoking this.
+ * Postcondition is that pAccInfo->mutex is unlocked.
  */
 SINT32 CAAccountingInstance::returnPrepareKickout(tAiAccountingInfo* pAccInfo, CAXMLErrorMessage* a_error)
 {
