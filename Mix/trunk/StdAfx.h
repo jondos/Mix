@@ -85,11 +85,11 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define LOG_COUNTRIES_INTERVALL 6 //how often to log the country stats (multiplied by 10 seconds)
 #endif
 
-#if !defined(PAYMENT) && !defined(MANIOQ)
+/*#if !defined(PAYMENT) && !defined(MANIOQ)
 	#define DELAY_USERS
 	//#define DELAY_CHANNELS
 	#define DELAY_CHANNELS_LATENCY
-#endif
+#endif*/
 
 #ifdef DELAY_CHANNELS
 	#ifndef DELAY_CHANNEL_TRAFFIC
