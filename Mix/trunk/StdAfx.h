@@ -85,12 +85,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define LOG_COUNTRIES_INTERVALL 6 //how often to log the country stats (multiplied by 10 seconds)
 #endif
 
-/*#if !defined(PAYMENT) && !defined(MANIOQ)
-	#define DELAY_USERS
-	//#define DELAY_CHANNELS
-	#define DELAY_CHANNELS_LATENCY
-#endif*/
-
 #ifdef DELAY_CHANNELS
 	#ifndef DELAY_CHANNEL_TRAFFIC
 		#define DELAY_CHANNEL_TRAFFIC 10000 //Traffic in bytes after which (download direction) the channel is delayed
@@ -273,6 +267,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#endif
 	#define snprintf _snprintf
 	#define getpid _getpid
+	#define strncasecmp _strnicmp
 	#define HAVE_PTHREAD_MUTEX_INIT
 	#define HAVE_PTHREAD_COND_INIT
 	#define HAVE_SEM_INIT
