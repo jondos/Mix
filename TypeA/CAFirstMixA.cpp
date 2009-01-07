@@ -137,7 +137,7 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 	return E_SUCCESS;
 }
 
-#define BUFFER_PACKET_COUNT 10000000
+#define BUFFER_PACKET_COUNT 100000
 
 SINT32 CAFirstMixA::loop()
 	{
@@ -686,7 +686,7 @@ NEXT_USER:
 
 ////Step 5
 ////Writing to users...
-
+				logBufferUsage();
 				bAktiv = sendToUsers();
 
 				if(!bAktiv)
