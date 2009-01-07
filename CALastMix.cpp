@@ -56,6 +56,9 @@ extern CACmdLnOptions* pglobalOptions;
 
 SINT32 CALastMix::initOnce()
 	{
+		SINT32 ret=CAMix::initOnce();
+		if(ret!=E_SUCCESS)
+			return ret;
 		if(setTargets()!=E_SUCCESS)
 			{
 				CAMsg::printMsg(LOG_CRIT,"Could not set Targets (proxies)!\n");
@@ -646,6 +649,9 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 					ret=pMuxSocket->receive(pMixPacket); //receives a whole MixPacket
 					#ifdef LOG_PACKET_TIMES
 						getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_start);
+					#endif
+					#ifdef DATA_RETENTION_LOG
+						pQueueEntry->dataRetentionLogEntry.t_in=htonl(time(NULL));
 					#endif
 					if(ret!=MIXPACKET_SIZE)
 					{//something goes wrong...

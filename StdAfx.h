@@ -33,7 +33,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #if !defined(AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_)
 #define AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_
 
-#define MIX_VERSION "00.08.36"
+#define MIX_VERSION "00.08.41"
 
 #include "doxygen.h"
 
@@ -65,6 +65,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define LASTMIX_CHECK_MEMORY // only for internal debugging purpose
 
 //#define PRINT_THREAD_STACK_TRACE //Usefull for debugging output of stack trace if mix dies...
+
+//#define DATA_RETENTION_LOG //define if you need to store logs according to German data retention
+
 #if !defined(PRINT_THREAD_STACK_TRACE) && defined (DEBUG)&& ! defined(ONLY_LOCAL_PROXY)
 	#define PRINT_THREAD_STACK_TRACE
 #endif
@@ -84,6 +87,12 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifdef COUNTRY_STATS
 	#define LOG_COUNTRIES_INTERVALL 6 //how often to log the country stats (multiplied by 10 seconds)
 #endif
+/* please do not delete this ! */
+/*#if !defined(PAYMENT) && !defined(MANIOQ)
+	#define DELAY_USERS
+	//#define DELAY_CHANNELS
+	#define DELAY_CHANNELS_LATENCY
+#endif*/
 
 #ifdef DELAY_CHANNELS
 	#ifndef DELAY_CHANNEL_TRAFFIC
@@ -260,6 +269,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define ERR_INTERN_SOCKET_CLOSED WSAENOTSOCK
 	#define MSG_DONTWAIT 0
 	#define O_NONBLOCK 0
+	#define O_BLOCK 0
 	#define HAVE_VSNPRINTF
 	#define HAVE_SNPRINTF
 	#if _MSC_VER <1500
@@ -577,7 +587,13 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define PAYMENT_VERSION_INFO
 #endif
 
-#define MIX_VERSION_INFO "Mix-Version: " MIX_VERSION PAYMENT_VERSION_INFO "\nUsing: " OPENSSL_VERSION_TEXT "\nUsing Xerces-C: " MY_XERCES_VERSION "\n"
+#ifdef DATA_RETENTION_LOG
+	#define DATA_RETENTION_LOG_INFO " (with data retention log)"
+#else
+	#define DATA_RETENTION_LOG_INFO 
+#endif
+
+#define MIX_VERSION_INFO "Mix-Version: " MIX_VERSION PAYMENT_VERSION_INFO DATA_RETENTION_LOG_INFO "\nUsing: " OPENSSL_VERSION_TEXT "\nUsing Xerces-C: " MY_XERCES_VERSION "\n"
 
 #include "errorcodes.hpp"
 #include "typedefs.hpp"

@@ -64,6 +64,9 @@ struct t_fmhashtableentry
 
 			CASymCipher*  pSymCipher;
 			UINT8					peerIP[4]; //needed for flooding control
+#ifdef DATA_RETENTION_LOG
+			UINT32				peerPort;
+#endif
 #ifdef COUNTRY_STATS
 			UINT32 countryID; /** CountryID of this IP Address*/
 #endif				
@@ -132,6 +135,7 @@ struct t_firstmixchannellist
 			UINT64				timeCreated;
 			UINT32				packetsOutToUser;
 #endif
+
 #ifdef SSL_HACK
 			UINT32				downStreamBytes; /* a hack to solve the SSL problem */
 #endif

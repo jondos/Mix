@@ -62,6 +62,7 @@ CACmdLnOptions::CACmdLnOptions()
 		m_bIsEncryptedLogEnabled=false;
 		m_docMixInfo= createDOMDocument();
 		m_docMixXml=NULL;
+		m_pCascadeXML=NULL;
 		m_docOpTnCs=NULL; //Operator Terms and Conditions (if any)
 		m_bAcceptReconfiguration=false;
 		m_maxNrOfUsers = 0;
@@ -108,6 +109,10 @@ CACmdLnOptions::CACmdLnOptions()
 		m_nCrimeRegExpsURL=0;
 		m_arCrimeRegExpsPayload=NULL;
 		m_nCrimeRegExpsPayload=0;
+#endif
+
+#ifdef DATA_RETENTION_LOG
+		m_strDataRetentionLogDir=NULL;
 #endif
 
 #ifdef DYNAMIC_MIX
@@ -507,6 +512,11 @@ void CACmdLnOptions::clean()
 		m_dbCountryStatsUser = NULL;
 		delete[] m_dbCountryStatsPasswd;
 		m_dbCountryStatsPasswd = NULL;
+#endif
+
+#ifdef DATA_RETENTION_LOG
+		delete[] m_strDataRetentionLogDir;
+		m_strDataRetentionLogDir=NULL;
 #endif
 
 #endif //ONLY_LOCAL_PROXY
@@ -1752,7 +1762,7 @@ SINT32 CACmdLnOptions::invokeOptionSetters
 	/* Only warn when we have a null DOM Element */
 	if( optionsSource == NULL )
 	{
-		CAMsg::printMsg(LOG_WARNING, "Found NULL DOM element. "
+		CAMsg::printMsg(LOG_INFO, "Found NULL DOM element. "
 				"NULL element handling is delegated to the specified setter method!\n");
 	}
 
@@ -3584,6 +3594,29 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
             return E_UNKNOWN;
         }
     }
+#ifdef DATA_RETENTION_LOG
+		DOMElement* elemDataRetention=NULL;
+		getDOMChildByName(elemRoot,"DataRetention",elemDataRetention,false);
+		DOMElement* elemDataRetentionLogDir=NULL;
+		getDOMChildByName(elemDataRetention,"LogDir",elemDataRetentionLogDir,false);
+		UINT8 log_dir[4096];
+		UINT32 log_dir_len=4096;
+		if(getDOMElementValue(elemDataRetentionLogDir,log_dir,&log_dir_len)==E_SUCCESS)
+			{
+				m_strDataRetentionLogDir=new UINT8[log_dir_len+1];
+				memcpy(m_strDataRetentionLogDir,log_dir,log_dir_len);
+				m_strDataRetentionLogDir[log_dir_len]=0;
+			}
+		CAMsg::printMsg(LOG_CRIT,"Data retention log dir in config file: %s\n",log_dir);
+		
+		this->m_pDataRetentionPublicEncryptionKey=new CAASymCipher();
+		DOMElement* elemDataRetentionPublicKey=NULL;
+		getDOMChildByName(elemDataRetention,"PublicEncryptionKey",elemDataRetentionPublicKey,false);
+		DOMElement* elemDataRetentionPublicRSAKey=NULL;
+		getDOMChildByName(elemDataRetentionPublicKey,"RSAKeyValue",elemDataRetentionPublicRSAKey,false);
+		m_pDataRetentionPublicEncryptionKey->setPublicKeyAsDOMNode(elemDataRetentionPublicRSAKey);
+
+#endif //DATA_RETENTION_LOG
 
     return E_SUCCESS;
 }
@@ -4158,4 +4191,19 @@ SINT32 CACmdLnOptions::getCountryStatsDBConnectionLoginData(char** db_host,char*
 		return E_SUCCESS;
 	}
 #endif
+
+#ifdef DATA_RETENTION_LOG
+SINT32 CACmdLnOptions::getDataRetentionLogDir(UINT8* strLogDir,UINT32 len)
+	{
+		if(strLogDir==NULL||m_strDataRetentionLogDir==NULL)
+			return E_UNKNOWN;
+		if(len<=(UINT32)strlen((char*)m_strDataRetentionLogDir))
+				{
+					return E_UNKNOWN;
+				}
+		strcpy((char*)strLogDir,(char*)m_strDataRetentionLogDir);
+		return E_SUCCESS;
+	}
+#endif// DATA_RETENTION_LOG
+
 #endif //ONLY_LOCAL_PROXY

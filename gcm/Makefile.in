@@ -37,7 +37,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-subdir = xml
+subdir = gcm
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.in
@@ -49,10 +49,10 @@ CONFIG_CLEAN_FILES =
 LIBRARIES = $(noinst_LIBRARIES)
 AR = ar
 ARFLAGS = cru
-libxml_a_AR = $(AR) $(ARFLAGS)
-libxml_a_LIBADD =
-am_libxml_a_OBJECTS = DOM_Output.$(OBJEXT)
-libxml_a_OBJECTS = $(am_libxml_a_OBJECTS)
+libgcm_a_AR = $(AR) $(ARFLAGS)
+libgcm_a_LIBADD =
+am_libgcm_a_OBJECTS = gcm.$(OBJEXT) prp.$(OBJEXT)
+libgcm_a_OBJECTS = $(am_libgcm_a_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(top_builddir)@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
 am__depfiles_maybe = depfiles
@@ -65,8 +65,8 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(libxml_a_SOURCES)
-DIST_SOURCES = $(libxml_a_SOURCES)
+SOURCES = $(libgcm_a_SOURCES)
+DIST_SOURCES = $(libgcm_a_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -172,8 +172,10 @@ target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
-noinst_LIBRARIES = libxml.a
-libxml_a_SOURCES = DOM_Output.cpp DOM_Output.hpp
+noinst_LIBRARIES = libgcm.a
+libgcm_a_SOURCES = gcm.cpp prp.cpp  \
+		    gcm.h prp.h
+
 includes = @INCLUDES@
 all: all-am
 
@@ -188,9 +190,9 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.am  $(am__confi
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  xml/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  gcm/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign  xml/Makefile
+	  $(AUTOMAKE) --foreign  gcm/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -211,10 +213,10 @@ $(ACLOCAL_M4): @MAINTAINER_MODE_TRUE@ $(am__aclocal_m4_deps)
 
 clean-noinstLIBRARIES:
 	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
-libxml.a: $(libxml_a_OBJECTS) $(libxml_a_DEPENDENCIES) 
-	-rm -f libxml.a
-	$(libxml_a_AR) libxml.a $(libxml_a_OBJECTS) $(libxml_a_LIBADD)
-	$(RANLIB) libxml.a
+libgcm.a: $(libgcm_a_OBJECTS) $(libgcm_a_DEPENDENCIES) 
+	-rm -f libgcm.a
+	$(libgcm_a_AR) libgcm.a $(libgcm_a_OBJECTS) $(libgcm_a_LIBADD)
+	$(RANLIB) libgcm.a
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -222,7 +224,8 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/DOM_Output.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/gcm.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/prp.Po@am__quote@
 
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

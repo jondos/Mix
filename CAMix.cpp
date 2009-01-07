@@ -57,6 +57,32 @@ CAMix::CAMix()
 #endif
 	}
 
+SINT32 CAMix::initOnce()
+	{
+#ifdef DATA_RETENTION_LOG
+		m_pDataRetentionLog=new CADataRetentionLog();
+		CAASymCipher* pKey=NULL;
+		pglobalOptions->getDataRetentionPublicEncryptionKey(&pKey);
+		if(m_pDataRetentionLog->setPublicEncryptionKey(pKey)!=E_SUCCESS)
+			return E_UNKNOWN;
+		UINT8 strDir[4096];
+		strDir[0]=0;
+		if(pglobalOptions->getDataRetentionLogDir(strDir,4096)!=E_SUCCESS ||
+			 m_pDataRetentionLog->setLogDir(strDir)!=E_SUCCESS)
+			{
+				CAMsg::printMsg(LOG_ERR,"Data Retention Error: Could not set log dir to %s!\n",strDir);
+				return E_UNKNOWN;
+			}
+		else
+			{
+				CAMsg::printMsg(LOG_INFO,"Data Retention: Set log dir to: %s\n",strDir);
+				CAMsg::printMsg(LOG_INFO,"Data Retention: tQueueEntry size is: %u\n",sizeof(tQueueEntry));
+			}
+
+#endif
+		return E_SUCCESS;
+	}
+
 SINT32 CAMix::start()
 	{
 		SINT32 initStatus;
@@ -314,7 +340,7 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
     }	
     
     DOMNode* elemMixesDocCascade=createDOMElement(m_docMixCascadeInfo,"Mixes");
-    DOMElement* elemMix;
+    DOMElement* elemMix=NULL;
     count=1;
     if(pglobalOptions->isFirstMix())
     {

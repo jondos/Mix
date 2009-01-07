@@ -96,6 +96,7 @@ class DOMElement:public DOMNode
 			friend class XERCES_CPP_NAMESPACE::DOMDocument;
 			DOMNodeList* m_pAttrs;
 
+
 	};
 
 #endif //__MXML__DOMELEMENT_

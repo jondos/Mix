@@ -537,6 +537,14 @@ class CACmdLnOptions
 			UINT32 getPaymentSettleInterval();
 #endif
 
+#ifdef DATA_RETENTION_LOG
+		SINT32 getDataRetentionLogDir(UINT8* strLogDir,UINT32 len);
+		SINT32 getDataRetentionPublicEncryptionKey(CAASymCipher** pKey)
+			{
+				*pKey=m_pDataRetentionPublicEncryptionKey;
+				return E_SUCCESS;
+			}
+#endif
 
 #ifndef ONLY_LOCAL_PROXY
 			// added by ronin <ronin2@web.de>
@@ -685,6 +693,12 @@ class CACmdLnOptions
 			regex_t* m_arCrimeRegExpsPayload;
 			UINT32 m_nCrimeRegExpsPayload;
 #endif
+
+#ifdef DATA_RETENTION_LOG
+		UINT8*				m_strDataRetentionLogDir;
+		CAASymCipher* m_pDataRetentionPublicEncryptionKey;
+#endif
+
 #if defined (DELAY_CHANNELS) ||defined(DELAY_USERS)
 		UINT32 m_u32DelayChannelUnlimitTraffic;
 		UINT32 m_u32DelayChannelBucketGrow;
