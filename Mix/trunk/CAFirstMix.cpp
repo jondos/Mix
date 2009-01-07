@@ -67,6 +67,9 @@ bool CAFirstMix::isShuttingDown()
 
 SINT32 CAFirstMix::initOnce()
 	{
+		SINT32 ret=CAMix::initOnce();
+		if(ret!=E_SUCCESS)
+			return ret;
 		CAMsg::printMsg(LOG_DEBUG,"Starting FirstMix InitOnce\n");
 		m_pSignature=pglobalOptions->getSignKey();
 		if(m_pSignature==NULL)
@@ -90,6 +93,7 @@ SINT32 CAFirstMix::initOnce()
 				CAMsg::printMsg(LOG_CRIT,"No useable ListenerInterfaces specified (maybe wrong values or all are 'virtual'!\n");
 				return E_UNKNOWN;
 			}
+
 		CAMsg::printMsg(LOG_DEBUG,"Starting FirstMix InitOnce - finished\n");
 		return E_SUCCESS;
 	}
@@ -658,6 +662,10 @@ THREAD_RETURN fm_loopSendToMix(void* param)
 		UINT32 len;
 		SINT32 ret;
 
+/*#ifdef DATA_RETENTION_LOG
+		t_dataretentionLogEntry* pDataRetentionLogEntry=new t_dataretentionLogEntry;
+#endif
+*/
 #ifndef USE_POOL
 		tQueueEntry* pQueueEntry=new tQueueEntry;
 		MIXPACKET* pMixPacket=&pQueueEntry->packet;

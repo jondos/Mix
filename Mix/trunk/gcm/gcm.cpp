@@ -106,7 +106,7 @@ MODIFIERS void gcm_init_64k(gcm_ctx_64k *c, UINT8 key[], size_t keylen) {
   build_hash_table_64k(c, hkey);
 }
 
-MODIFIERS void inline gcm_encrypt_64k(gcm_ctx_64k *c, UINT8 *nonce, size_t nlen, 
+MODIFIERS void /*inline*/ gcm_encrypt_64k(gcm_ctx_64k *c, UINT8 *nonce, size_t nlen, 
 				      UINT8 *data, size_t dlen, UINT8 *adata, 
 				      size_t alen, UINT8 *out, UINT8 *tag) {
   UINT32 tmp[8] = {0, 0, 0, 0, 0, htonl(alen << 3), 0, htonl(dlen << 3)};
@@ -799,7 +799,7 @@ void gcm_init_256b(gcm_ctx_256b *c, UINT8 key[16], size_t keylen) {
   build_hash_table_256b(c, hkey);
 }
 
-MODIFIERS void inline gcm_encrypt_256b(gcm_ctx_256b *c, UINT8 *nonce, size_t nlen, 
+MODIFIERS void /*inline*/ gcm_encrypt_256b(gcm_ctx_256b *c, UINT8 *nonce, size_t nlen, 
 				       UINT8 *data, size_t dlen, UINT8 *adata, 
 				       size_t alen, UINT8 *out, UINT8 *tag) {
   UINT32 tmp[8] = {0, 0, 0, 0, 0, htonl(alen << 3), 0, htonl(dlen << 3)};

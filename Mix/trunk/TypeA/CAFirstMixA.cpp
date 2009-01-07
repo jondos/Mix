@@ -259,6 +259,9 @@ SINT32 CAFirstMixA::loop()
 										#if defined LOG_PACKET_TIMES||defined(LOG_CHANNEL)
 											getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_start);
 											set64(pQueueEntry->timestamp_proccessing_start_OP,pQueueEntry->timestamp_proccessing_start);
+										#endif
+										#ifdef DATA_RETENTION_LOG
+											pQueueEntry->dataRetentionLogEntry.t_in=htonl(time(NULL));
 										#endif	
 										if(ret==SOCKET_ERROR/*||pHashEntry->accessUntil<time()*/) 
 										{	
@@ -421,7 +424,7 @@ SINT32 CAFirstMixA::loop()
 														pCipher->setIV2(rsaBuff);
 														pCipher->crypt1(pMixPacket->data+KEY_SIZE,pMixPacket->data,DATA_SIZE-KEY_SIZE);
 														getRandom(pMixPacket->data+DATA_SIZE-KEY_SIZE,KEY_SIZE);
-														#ifdef LOG_CHANNEL
+														#if defined (LOG_CHANNEL) ||defined(DATA_RETENTION_LOG)
 															HCHANNEL tmpC=pMixPacket->channel;
 														#endif
 														if(m_pChannelList->addChannel(pMuxSocket,pMixPacket->channel,pCipher,&pMixPacket->channel)!=E_SUCCESS)
@@ -438,6 +441,13 @@ SINT32 CAFirstMixA::loop()
 																fmChannelListEntry* pTmpEntry=m_pChannelList->get(pMuxSocket,tmpC);
 																pTmpEntry->packetsInFromUser++;
 																set64(pTmpEntry->timeCreated,pQueueEntry->timestamp_proccessing_start);
+															#endif
+															#ifdef DATA_RETENTION_LOG
+																pQueueEntry->dataRetentionLogEntry.entity.first.channelid=htonl(pMixPacket->channel);
+																fmChannelListEntry* pTmpEntry1=m_pChannelList->get(pMuxSocket,tmpC);
+																memcpy(pQueueEntry->dataRetentionLogEntry.entity.first.ip_in,pTmpEntry1->pHead->peerIP,4);
+																pQueueEntry->dataRetentionLogEntry.entity.first.port_in=(UINT16)pTmpEntry1->pHead->peerPort;
+																pQueueEntry->dataRetentionLogEntry.entity.first.port_in=htons(pQueueEntry->dataRetentionLogEntry.entity.first.port_in);
 															#endif
 															m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
 															/* Don't delay upstream
@@ -697,7 +707,7 @@ NEXT_USER:
 bool CAFirstMixA::sendToUsers()
 {
 	SINT32 countRead = m_psocketgroupUsersWrite->select(/*true,*/0);
-	tQueueEntry *packetToSend = NULL; //tQueueEntry is just another word for MIXPACKET 
+	tQueueEntry *packetToSend = NULL;
 	SINT32 packetSize = sizeof(tQueueEntry);
 	CAQueue *controlMessageUserQueue = NULL;
 	CAQueue *dataMessageUserQueue = NULL;
@@ -767,10 +777,8 @@ bool CAFirstMixA::sendToUsers()
 			
 			if( (extractSize > 0) || (pfmHashEntry->uAlreadySendPacketSize > 0) )
 			{
-				SINT32 len = (pfmHashEntry->uAlreadySendPacketSize > 0) ? 
-					(packetSize - pfmHashEntry->uAlreadySendPacketSize) : extractSize;
-				UINT8* packetToSendOffset = 
-					((UINT8*)packetToSend) + pfmHashEntry->uAlreadySendPacketSize;
+				SINT32 len =  MIXPACKET_SIZE - pfmHashEntry->uAlreadySendPacketSize;
+				UINT8* packetToSendOffset = ((UINT8*)&(packetToSend->packet)) + pfmHashEntry->uAlreadySendPacketSize;
 				CASocket *clientSocket = (CASocket*)pfmHashEntry->pMuxSocket;
 				
 				SINT32 ret = clientSocket->send(packetToSendOffset, len);
@@ -864,8 +872,9 @@ void CAFirstMixA::notifyAllUserChannels(fmHashTableEntry *pfmHashEntry, UINT16 f
 {
 	if(pfmHashEntry == NULL) return;
 	fmChannelListEntry* pEntry = m_pChannelList->getFirstChannelForSocket(pfmHashEntry->pMuxSocket);
-	MIXPACKET *notifyPacket = new MIXPACKET;
-	memset(notifyPacket, 0, sizeof(MIXPACKET));
+	tQueueEntry* pQueueEntry=new tQueueEntry;
+	MIXPACKET *notifyPacket = &(pQueueEntry->packet);
+	memset(notifyPacket, 0, MIXPACKET_SIZE);
 	
 	notifyPacket->flags = flags;
 	while(pEntry != NULL)
@@ -873,16 +882,17 @@ void CAFirstMixA::notifyAllUserChannels(fmHashTableEntry *pfmHashEntry, UINT16 f
 		if(pEntry->bIsSuspended)
 		{
 			notifyPacket->channel = pEntry->channelOut;	
+			getRandom(notifyPacket->data,DATA_SIZE);
 #ifdef _DEBUG
 			CAMsg::printMsg(LOG_INFO,"Sent flags %u for channel: %u\n", flags, notifyPacket->channel);
 #endif	
-			m_pQueueSendToMix->add(notifyPacket, sizeof(MIXPACKET));
+			m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
 			pEntry->bIsSuspended = false;	
 		}
 		pEntry=m_pChannelList->getNextChannel(pEntry);
 	}
 	pfmHashEntry->cSuspend=0;
-	delete notifyPacket;
+	delete pQueueEntry;
 }
 
 //@todo: not a reliable solution. Still have to find the bug that causes SSL connections to be resetted

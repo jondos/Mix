@@ -64,6 +64,13 @@ typedef UINT32 HCHANNEL;
 #define PAYLOAD_SIZE 		989
 
 #if (defined(WIN32) ||defined(__sgi))&&!defined(__GNUC__)
+	#define DO_PACKED 
+#else
+	#define DO_PACKED __attribute__ ((__packed__))
+#endif
+
+
+#if (defined(WIN32) ||defined(__sgi))&&!defined(__GNUC__)
 		#pragma pack( push, t_MixPacket )
 		#pragma pack(1)
 		struct t_MixPacketPayload
@@ -104,17 +111,57 @@ typedef UINT32 HCHANNEL;
 
 typedef t_MixPacket MIXPACKET;
 
+#ifdef DATA_RETENTION_LOG
+#if (defined(WIN32) ||defined(__sgi))&&!defined(__GNUC__)
+		#pragma pack( push, t_DataRetentionLogEntry )
+		#pragma pack(1)
+#endif
+struct __t__data_retention_log_entry
+	{
+		UINT32 t_in;
+		UINT32 t_out;
+		union t_union_entity
+		{
+			struct t_first_mix_data_retention_log_entry 
+				{
+					HCHANNEL channelid;
+					UINT8 ip_in[4];
+					UINT16 port_in;
+				} DO_PACKED first;
+			struct t_last_mix_data_retention_log_entry
+				{
+					HCHANNEL channelid;
+					UINT8 ip_out[4];
+					UINT16 port_out;
+				} DO_PACKED last;
+		} DO_PACKED entity;
+	}
+#if (defined(WIN32) ||defined(__sgi))&&!defined(__GNUC__)
+	;
+	#pragma pack( pop, t_DataRetentionLogEntry )
+#else
+	DO_PACKED ;
+#endif
+
+typedef struct __t__data_retention_log_entry t_dataretentionLogEntry;
+#endif //DATA_RETENION_LOG
+
+
+
 //For that we store in our packet queue...
 //normally this is just the packet
 struct t_queue_entry
 	{
 		MIXPACKET packet;
+		#if defined(DATA_RETENTION_LOG)
+			t_dataretentionLogEntry dataRetentionLogEntry;
+		#endif
 		#if defined  (LOG_PACKET_TIMES) || defined (LOG_CHANNEL)
 			UINT64 timestamp_proccessing_start;
 			UINT64 timestamp_proccessing_start_OP;
 			UINT64 timestamp_proccessing_end;
 		#endif
-		#if defined  (LOG_PACKET_TIMES)
+		#if defined  (LOG_PACKET_TIMES) 
 			//without send/receive or queueing times
 			UINT64 timestamp_proccessing_end_OP;
 			#ifdef USE_POOL

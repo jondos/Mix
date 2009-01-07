@@ -45,6 +45,7 @@ class CASocketAddrINet:private sockaddr_in,public CASocketAddr
 				m_pcsGet = NULL;
 				return E_SUCCESS;
 			}
+
 			//static SINT32 destroy();
 			SINT32 getType()const
 				{
