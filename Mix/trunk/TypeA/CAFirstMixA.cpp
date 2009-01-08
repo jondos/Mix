@@ -686,7 +686,6 @@ NEXT_USER:
 
 ////Step 5
 ////Writing to users...
-				logBufferUsage();
 				bAktiv = sendToUsers();
 
 				if(!bAktiv)
@@ -944,10 +943,14 @@ void CAFirstMixA::logBufferUsage()
 
 	fmHashTableEntry *firstEntry = m_pChannelList->getFirst();
 	fmHashTableEntry *iterator = firstEntry;
-
-	while( (iterator != NULL) && (iterator != firstEntry) )
+	if(iterator != NULL)
 	{
-		userQueueSum += iterator->pQueueSend->getSize();
+		do
+		{
+			userQueueSum += iterator->pQueueSend->getSize();
+			iterator = m_pChannelList->getNext();
+		}
+		while( (iterator != NULL) && (iterator != firstEntry) );
 	}
 
 	CAMsg::printMsg(LOG_DEBUG, "BUFFER-LOG: Inter-Mix sendbuffer size: %u, "
