@@ -39,11 +39,7 @@ SINT32 CADataRetentionLogFile::openLog(UINT8* strLogDir,UINT32 date,CAASymCipher
 		theTime->tm_hour=0;
 		theTime->tm_min=0;
 		theTime->tm_sec=0;
-#ifdef _WIN32
-		m_nMaxLogTime=_mkgmtime(theTime)+24*3600-1;
-#else
-		m_nMaxLogTime=timegm(theTime)+24*3600-1;
-#endif
+		m_nMaxLogTime=date-theTime->tm_min*60-theTime->tm_hour*3600-theTime->tm_sec+24*3600-1;
 //		m_nMaxLogTime=date+60;
 
 		snprintf((char*)strFileName,4096,"%s/dataretentionlog_%s",strLogDir,strDate);
