@@ -1328,6 +1328,10 @@ Optional Features:
                           optionally the limit in kByte/s of each
                           communication channel
   --enable-payment        Specify if to build with payment support
+  --enable-user-bandwidth-limitation
+                          Specify if to build with bandwith limitation for
+                          users. The limitation parameters can be specified in
+                          the mix configuration file.
   --enable-server_monitoring
                           Specify if to build with state tracking for server
                           monitoring
@@ -4570,6 +4574,18 @@ if test "${enable_payment+set}" = set; then
   enableval=$enable_payment;
 		if test "x$enableval" != "xno" ; then
 		    PAYMENT="-DPAYMENT"
+		fi
+
+
+fi
+
+
+DELAY_USERS=""
+# Check whether --enable-user-bandwidth-limitation was given.
+if test "${enable_user_bandwidth_limitation+set}" = set; then
+  enableval=$enable_user_bandwidth_limitation;
+		if test "x$enableval" != "xno" ; then
+		    DELAY_USERS="-DDELAY_USERS"
 		fi
 
 
@@ -13574,8 +13590,8 @@ if test "x$DOTHETEST" != "xyes" ; then
 
 fi
 
-CFLAGS="$CFLAGS $POOL $DYNAMIC $DIALOG $BANDWIDTH_LIMIT $BANDWIDTH_LIMIT_THROUGHPUT $PAYMENT $SERVER_MONITORING $REPLAY_DETECTION $NEW_MIX_TYPE $CRIME $OFLAGS"
-CXXFLAGS="$CXXFLAGS $POOL $DYNAMIC $DIALOG $BANDWIDTH_LIMIT $BANDWIDTH_LIMIT_THROUGHPUT $PAYMENT $SERVER_MONITORING $REPLAY_DETECTION $NEW_MIX_TYPE $CRIME $OFLAGS"
+CFLAGS="$CFLAGS $POOL $DYNAMIC $DIALOG $BANDWIDTH_LIMIT $BANDWIDTH_LIMIT_THROUGHPUT $DELAY_USERS $PAYMENT $SERVER_MONITORING $REPLAY_DETECTION $NEW_MIX_TYPE $CRIME $OFLAGS"
+CXXFLAGS="$CXXFLAGS $POOL $DYNAMIC $DIALOG $BANDWIDTH_LIMIT $BANDWIDTH_LIMIT_THROUGHPUT $DELAY_USERS $PAYMENT $SERVER_MONITORING $REPLAY_DETECTION $NEW_MIX_TYPE $CRIME $OFLAGS"
 LIBS="$LIBS $PAYMENT_LIB $MYSQL_LIB"
 
  if test x$DOTHETESTS = xyes; then
