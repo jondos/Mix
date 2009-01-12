@@ -187,12 +187,12 @@ SINT32 CAFirstMixA::loop()
 
 		while(!m_bRestart) /* the main mix loop as long as there are things that are not handled by threads. */
 			{
-				if(countLogBuffer==0)
+				/*if(countLogBuffer==0)
 				{
 					logBufferUsage();
 					countLogBuffer=BUFFER_PACKET_COUNT;
 				}
-				countLogBuffer--;
+				countLogBuffer--;*/
 
 				bAktiv=false;
 #ifdef PAYMENT
