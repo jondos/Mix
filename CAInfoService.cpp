@@ -637,7 +637,7 @@ SINT32 CAInfoService::sendOperatorTnCData()
 		for (;i < nrOfTnCs; i++)
 		{
 #ifdef DEBUG
-			CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixTnCData(), object: %s, len: %u\n", 
+			CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixTnCData(), object: %s, len: %u\n",
 					tncData[i], lengths_ptr[i]);
 #endif
 			if( tncData[i] != NULL )
@@ -653,11 +653,11 @@ SINT32 CAInfoService::sendOperatorTnCData()
 				CAMsg::printMsg(LOG_ERR,"InfoService:sendMixTnCData() -- Element %u is invalid!\n", (i+1) );
 				ret |= E_UNKNOWN;
 			}
-			
+
 		}
 		delete [] lengths_ptr;
 		lengths_ptr = NULL;
-		
+
 		delete [] tncData;
 	}
 	else
@@ -713,42 +713,42 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 	{
 		return NULL;
 	}
-	
-	XERCES_CPP_NAMESPACE::DOMNodeList *docTnCsList = 
+
+	XERCES_CPP_NAMESPACE::DOMNodeList *docTnCsList =
 		getElementsByTagName(tnCs, OPTION_NODE_TNCS);
-	
+
 	if(docTnCsList == NULL)
 	{
 		return NULL;
 	}
-	
+
 	UINT8 **elementList = NULL;
 	DOMNode *iterator = NULL;
 	XMLSize_t i = 0;
-	
+
 	UINT8 tmpOpSKIBuff[TMP_BUFF_SIZE];
 	UINT32 tmpOpSKILen = TMP_BUFF_SIZE;
-	
+
 	pglobalOptions->getOperatorSubjectKeyIdentifier(tmpOpSKIBuff, &tmpOpSKILen);
 	if( tmpOpSKILen == 0 )
 	{
 		return NULL;
 	}
-	
+
 	UINT8 tmpDate[TMP_BUFF_SIZE];
 	UINT32 tmpDateLen = TMP_BUFF_SIZE;
-	
+
 	getDOMElementAttribute(tnCs, OPTION_ATTRIBUTE_TNC_DATE, tmpDate, &tmpDateLen);
 	if(tmpDateLen == 0)
 	{
 		return NULL;
 	}
-	
+
 	UINT8 tmpVersion[TMP_BUFF_SIZE];
 	UINT32 tmpVersionLen = TMP_BUFF_SIZE;
-	
+
 	UINT8* serial = NULL;
-	
+
 	getDOMElementAttribute(tnCs, OPTION_ATTRIBUTE_TNC_VERSION, tmpVersion, &tmpVersionLen);
 	if(tmpVersionLen > 0)
 	{
@@ -763,17 +763,17 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 		memcpy(serial, tmpDate, tmpDateLen);
 		serial[tmpDateLen] = 0;
 	}
-	
+
 	UINT32 locale_len = 3;
 	UINT8* id=new UINT8[tmpOpSKILen+locale_len+1];
 	UINT8* locale=new UINT8[locale_len];
-	
+
 	locale[locale_len-1]=0;
-	
+
 	memcpy(id, tmpOpSKIBuff, tmpOpSKILen);
 	id[tmpOpSKILen]=0;
 	id[tmpOpSKILen+(locale_len-1)+1] = 0;
-	
+
 	(*nrOfTnCs) = docTnCsList->getLength();
 	elementList = new UINT8 *[(*nrOfTnCs)];
 	(*lengths) = new UINT32[(*nrOfTnCs)];
@@ -800,7 +800,7 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 			id[tmpOpSKILen] = '_';
 			memcpy((id+tmpOpSKILen+1), locale, locale_len);
 		}
-		
+
 		if(setDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_ID, id) != E_SUCCESS)
 		{
 			elementList[i] = NULL;
@@ -819,23 +819,25 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 		setCurrentTimeMilliesAsDOMAttribute(iterator);
 		elementList[i] = xmlDocToStringWithSignature(iterator, (*lengths)[i], m_pcertstoreOwnCerts);
 	}
+
+	delete[] serial;
 	delete[] id;
 	delete[] locale;
 	return elementList;
-	
+
 }
 
 UINT8* CAInfoService::getMixHeloXMLAsString(UINT32& a_len)
 {
 	XERCES_CPP_NAMESPACE::DOMDocument* docMixInfo = NULL;
 	XERCES_CPP_NAMESPACE::DOMElement* mixInfoRoot = NULL;
-	
+
 	if( (pglobalOptions->getMixXml(docMixInfo) != E_SUCCESS) ||
 		(docMixInfo == NULL) )
 	{
 		return NULL;
 	}
-	
+
 	if(m_serial != 0)
 	{
 		mixInfoRoot = docMixInfo->getDocumentElement();
