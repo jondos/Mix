@@ -129,6 +129,7 @@ public:
 					m_pthreadReadFromMix=NULL;
 					m_pthreadAcceptUsers=NULL;
 					m_pthreadsLogin=NULL;
+					m_tnCDefs = NULL;
 					m_bIsShuttingDown=false;
 #ifdef LOG_PACKET_TIMES
 					m_pLogPacketStats=NULL;
@@ -236,6 +237,9 @@ public:
 			*/
 		SINT32 setMixParameters(const tMixParameters& params);
 
+		SINT32 handleKeyInfoExtensions(DOMElement *root);
+		SINT32 handleTermsAndConditionsExtension(DOMElement *extensionRoot);
+
 #ifdef REPLAY_DETECTION
 		UINT64 m_u64LastTimestampReceived;
 #endif
@@ -337,6 +341,8 @@ protected:
 			CAThreadPool* m_pthreadsLogin;
 			CAThread* m_pthreadSendToMix;
 			CAThread* m_pthreadReadFromMix;
+
+			termsAndConditions_t *m_tnCDefs;
 
 #ifdef COUNTRY_STATS
 		private:

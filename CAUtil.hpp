@@ -93,9 +93,15 @@ inline SINT32 filesize32(int handle)
 		#endif
 	}
 
-/** Parses  a buffer containing an XML document and returns this document.
-	*/
+/**
+ * Parses  a buffer containing an XML document and returns this document.
+ */
 XERCES_CPP_NAMESPACE::DOMDocument* parseDOMDocument(const UINT8* const buff, UINT32 len);
+/**
+ * parses a file via path or URL
+ */
+XERCES_CPP_NAMESPACE::DOMDocument* parseDOMDocument(const UINT8* const pathOrURL);
+void initDOMParser();
 void releaseDOMParser();
 
 SINT32 getDOMChildByName(const DOMNode* pNode,const XMLCh* const name,DOMNode* & child,bool deep=false);

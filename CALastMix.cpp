@@ -195,6 +195,9 @@ SINT32 CALastMix::init()
 SINT32 CALastMix::processKeyExchange()
 	{
 		XERCES_CPP_NAMESPACE::DOMDocument* doc=createDOMDocument();
+
+
+
 		DOMElement* elemMixes=createDOMElement(doc,"Mixes");
 		setDOMElementAttribute(elemMixes,"count",(UINT32)1);
     //UINT8 cName[128];
@@ -263,7 +266,18 @@ SINT32 CALastMix::processKeyExchange()
 		setDOMElementValue(elemKeepAliveSendInterval,u32KeepAliveSendInterval);
 		setDOMElementValue(elemKeepAliveRecvInterval,u32KeepAliveRecvInterval);
 		elemMix->appendChild(elemKeepAlive);
+
 		CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Offering -- SendInterval %u -- Receive Interval %u\n",u32KeepAliveSendInterval,u32KeepAliveRecvInterval);
+
+		/* append the terms and conditions, if there are any, to the KeyInfo
+		 * Extensions, (nodes that can be removed from the KeyInfo without
+		 * destroying the signature of the "Mix"-node).
+		 */
+		if(pglobalOptions->getTermsAndConditions() != NULL)
+		{
+			appendTermsAndConditionsExtension(doc, elemMixes);
+			elemMix->appendChild(termsAndConditionsInfoNode(doc));
+		}
 
 		// create signature
 		if (signXML(elemMix) != E_SUCCESS)
