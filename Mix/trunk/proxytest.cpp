@@ -129,6 +129,7 @@ void init()
 	{
 #ifndef ONLY_LOCAL_PROXY
 		XMLPlatformUtils::Initialize();
+		initDOMParser();
 #endif
 		OpenSSL_add_all_algorithms();
 		pOpenSSLMutexes=new CAMutex[CRYPTO_num_locks()];

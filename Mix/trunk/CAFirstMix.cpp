@@ -104,7 +104,7 @@ SINT32 CAFirstMix::init()
 		{
 			return E_SHUTDOWN;
 		}
-		
+
 #ifdef DYNAMIC_MIX
 		m_bBreakNeeded = m_bReconfigured;
 #endif
@@ -235,7 +235,7 @@ SINT32 CAFirstMix::init()
 		db_passwd = NULL;
 		if(retcountrydb!=E_SUCCESS)
 			return E_UNKNOWN;
-#endif		
+#endif
 		m_pQueueSendToMix=new CAQueue(sizeof(tQueueEntry));
 		m_pQueueReadFromMix=new CAQueue(sizeof(tQueueEntry));
 		m_pChannelList=new CAFirstMixChannelList();
@@ -322,7 +322,7 @@ SINT32 CAFirstMix::connectToNextMix(CASocketAddr* a_pAddrNext)
 				break;
 #ifdef _DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"Cannot connect... retrying\n");
-#endif				
+#endif
 			sSleep(10);
 		}
 		else
@@ -396,6 +396,8 @@ SINT32 CAFirstMix::processKeyExchange()
         return E_UNKNOWN;
     pglobalOptions->setCascadeName(cascadeName);
 */
+    SINT32 extRet = handleKeyInfoExtensions(elemMixes);
+
     m_pRSA=new CAASymCipher;
     m_pRSA->generateKeyPair(1024);
 
@@ -407,7 +409,7 @@ SINT32 CAFirstMix::processKeyExchange()
     setDOMElementAttribute(elemRootKey,"version",(UINT8*)"0.2"); //set the Version of the XML to 0.2
 #ifdef LOG_DIALOG
     setDOMElementAttribute(elemRootKey,"study",(UINT8*)"true");
-#endif    
+#endif
     docXmlKeyInfo->appendChild(elemRootKey);
     DOMElement* elemMixProtocolVersion=createDOMElement(docXmlKeyInfo,"MixProtocolVersion");
     setDOMElementValue(elemMixProtocolVersion,(UINT8*)MIX_CASCADE_PROTOCOL_VERSION);
@@ -437,14 +439,18 @@ SINT32 CAFirstMix::processKeyExchange()
     DOMElement* elemOwnMix=NULL;
     getDOMChildByName(elemMixesKey, "Mix", elemOwnMix, false);
     elemOwnMix->appendChild(elemKey);
-	if (signXML(elemOwnMix) != E_SUCCESS)
+    if(pglobalOptions->getTermsAndConditions() != NULL)
+    {
+    	elemOwnMix->appendChild(termsAndConditionsInfoNode(docXmlKeyInfo));
+    }
+    if (signXML(elemOwnMix) != E_SUCCESS)
 	{
 		CAMsg::printMsg(LOG_DEBUG,"Could not sign MixInfo sent to users...\n");
 	}
-	
+
 	setDOMElementAttribute(elemMixesKey,"count",count+1);
-    
-    
+
+
 	DOMNode* elemPayment=createDOMElement(docXmlKeyInfo,"Payment");
 	elemRootKey->appendChild(elemPayment);
 #ifdef PAYMENT
@@ -452,7 +458,7 @@ SINT32 CAFirstMix::processKeyExchange()
 	setDOMElementAttribute(elemPayment,"version",(UINT8*)PAYMENT_VERSION);
 	setDOMElementAttribute(elemPayment,"prepaidInterval", pglobalOptions->getPrepaidInterval());
 	setDOMElementAttribute(elemPayment,"piid", pglobalOptions->getBI()->getID());
-	
+
 #else
 	setDOMElementAttribute(elemPayment,"required",(UINT8*)"false");
 #endif
@@ -463,8 +469,7 @@ SINT32 CAFirstMix::processKeyExchange()
 		CAMsg::printMsg(LOG_DEBUG,"Could not sign KeyInfo sent to users...\n");
 	}
 
-    
-    UINT32 tlen=0;
+	UINT32 tlen=0;
     UINT8* tmpB=DOM_Output::dumpToMem(docXmlKeyInfo,&tlen);
     if (docXmlKeyInfo != NULL)
     {
@@ -560,14 +565,14 @@ SINT32 CAFirstMix::processKeyExchange()
 			setDOMElementValue(elemKeepAliveSendInterval,u32KeepAliveSendInterval);
 			setDOMElementValue(elemKeepAliveRecvInterval,u32KeepAliveRecvInterval);
 			elemRoot->appendChild(elemKeepAlive);
-			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Offering -- SendInterval %u -- Receive Interval %u\n",u32KeepAliveSendInterval,u32KeepAliveRecvInterval);		
+			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Offering -- SendInterval %u -- Receive Interval %u\n",u32KeepAliveSendInterval,u32KeepAliveRecvInterval);
 			m_u32KeepAliveSendInterval=max(u32KeepAliveSendInterval,tmpRecvInterval);
 			if(m_u32KeepAliveSendInterval>10000)
 			{
 				m_u32KeepAliveSendInterval-=10000; //make the send interval a little bit smaller than the related receive intervall
 			}
 			m_u32KeepAliveRecvInterval=max(u32KeepAliveRecvInterval,tmpSendInterval);
-			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval,m_u32KeepAliveRecvInterval);		
+			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval,m_u32KeepAliveRecvInterval);
 
             m_pSignature->signXML(elemRoot);
             DOM_Output::dumpToMem(docSymKey,out,&outlen);
@@ -589,6 +594,7 @@ SINT32 CAFirstMix::processKeyExchange()
         }
         child=child->getNextSibling();
     }
+
 		///initialises MixParameters struct
 	if(initMixParameters(elemMixes)!=E_SUCCESS)
 	{
@@ -605,7 +611,7 @@ SINT32 CAFirstMix::processKeyExchange()
     	{
     		doc->release();
     		doc = NULL;
-    	}	
+    	}
     	CAMsg::printMsg(LOG_CRIT,"Error initializing cascade info.\n");
         return E_UNKNOWN;
     }
@@ -645,6 +651,73 @@ SINT32 CAFirstMix::setMixParameters(const tMixParameters& params)
 	}
 
 
+SINT32 CAFirstMix::handleKeyInfoExtensions(DOMElement *root)
+{
+	if(root == NULL)
+	{
+		return E_UNKNOWN;
+	}
+
+	SINT32 ret = E_SUCCESS;
+	DOMElement *extensionRoot = NULL;
+	getDOMChildByName(root, KEYINFO_NODE_EXTENSIONS, extensionRoot);
+
+	if(extensionRoot != NULL)
+	{
+		extensionRoot = (DOMElement *) root->removeChild(extensionRoot);
+		//handle all extension:
+		//TODO: a bit more generic, i.e. register extension handler functions and stuff
+		ret = handleTermsAndConditionsExtension(extensionRoot);
+		extensionRoot->release();
+	}
+	return E_SUCCESS;
+}
+
+SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
+{
+	if(extensionsRoot == NULL)
+	{
+		return E_UNKNOWN;
+	}
+
+	DOMElement *tncDefs = NULL;
+	getDOMChildByName(extensionsRoot, KEYINFO_NODE_TNC_EXTENSION, tncDefs);
+	UINT8 currentTnC_id[TMP_BUFF_SIZE];
+	UINT32 currentTnC_id_len = TMP_BUFF_SIZE;
+
+	UINT8 currentTnCEntry_templateRefid[TMP_BUFF_SIZE];
+	UINT32 currentTnCEntry_templateRefid_len = TMP_BUFF_SIZE;
+
+	DOMElement *currentTnCList = NULL;
+	DOMElement *currentTnCEntry = NULL;
+	memset(currentTnC_id, 0, TMP_BUFF_SIZE);
+	memset(currentTnCEntry_templateRefid, 0, TMP_BUFF_SIZE);
+
+	if(tncDefs != NULL)
+	{
+		DOMNodeList *tncDefList = getElementsByTagName(tncDefs, OPTIONS_NODE_TNCS_LIST);
+		for (int i = 0; i < tncDefList->getLength(); i++)
+		{
+			currentTnCList = (DOMElement *) tncDefList->item(i);
+			DOMNodeList *tncDefEntryList = getElementsByTagName(currentTnCList, OPTIONS_NODE_TNCS);
+			getDOMElementAttribute(currentTnCList, OPTIONS_ATTRIBUTE_TNC_ID, currentTnC_id, &currentTnC_id_len);
+
+			for (int j = 0; j < tncDefEntryList->getLength(); j++)
+			{
+				currentTnCEntry = (DOMElement *) tncDefEntryList->item(j);
+				getDOMElementAttribute(currentTnCEntry, OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID,
+						currentTnCEntry_templateRefid, &currentTnCEntry_templateRefid_len);
+
+				CAMsg::printMsg(LOG_DEBUG,"TODO: create entry for %s, [template %s]\n", currentTnC_id, currentTnCEntry_templateRefid);
+				currentTnCEntry_templateRefid_len = TMP_BUFF_SIZE;
+			}
+			//TODO: create entries.
+			currentTnC_id_len = TMP_BUFF_SIZE;
+		}
+	}
+	return E_SUCCESS;
+}
+
 /**How to end this thread:
 0. set bRestart=true;
 1. Close connection to next mix
@@ -654,7 +727,7 @@ THREAD_RETURN fm_loopSendToMix(void* param)
 	{
 		INIT_STACK;
 		BEGIN_STACK("CAFirstMix::fm_loopSendToMix");
-		
+
 		CAFirstMix* pFirstMix=(CAFirstMix*)param;
 		CAQueue* pQueue=((CAFirstMix*)param)->m_pQueueSendToMix;
 		CAMuxSocket* pMuxSocket=pFirstMix->m_pMuxOut;
@@ -756,7 +829,7 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 	{
 		INIT_STACK;
 		BEGIN_STACK("CAFirstMix::fm_loopReadFromMix");
-		
+
 		CAFirstMix* pFirstMix=(CAFirstMix*)pParam;
 		CAMuxSocket* pMuxSocket=pFirstMix->m_pMuxOut;
 		CAQueue* pQueue=pFirstMix->m_pQueueReadFromMix;
@@ -816,7 +889,7 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 							{
 								pFirstMix->m_bRestart=true;
 								CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopReadFromMix - received returned: %i -- restarting!\n",ret);
-								MONITORING_FIRE_NET_EVENT(ev_net_nextConnectionClosed);	
+								MONITORING_FIRE_NET_EVENT(ev_net_nextConnectionClosed);
 								break;
 							}
 					}
@@ -849,7 +922,7 @@ THREAD_RETURN fm_loopReadFromMix(void* pParam)
 			delete pPool;
 			pPool = NULL;
 		#endif
-		
+
 		FINISH_STACK("CAFirstMix::fm_loopReadFromMix");
 		THREAD_RETURN_SUCCESS;
 	}
@@ -867,16 +940,16 @@ SINT32 isAllowedToPassRestrictions(CASocket* pNewMuxSocket)
 {
 	UINT8* peerIP=new UINT8[4];
 	SINT32 master = ((CASocket*)pNewMuxSocket)->getPeerIP(peerIP);
-						
+
 	if(master == E_SUCCESS)
 	{
 		UINT32 size=0;
 		UINT8 remoteIP[4];
 
 		CAListenerInterface** intf = pglobalOptions->getInfoServices(size);
-		
+
 		master = E_UNKNOWN;
-								
+
 		for(UINT32 i = 0; i < size; i++)
 		{
 			if(intf[i]->getType() == HTTP_TCP || intf[i]->getType() == RAW_TCP)
@@ -886,23 +959,23 @@ SINT32 isAllowedToPassRestrictions(CASocket* pNewMuxSocket)
 				{
 					continue;
 				}
-				
+
 				addr->getIP(remoteIP);
 				delete addr;
 				addr = NULL;
-			
+
 				if(memcmp(peerIP, remoteIP, 4) == 0)
 				{
 					CAMsg::printMsg(LOG_DEBUG,"FirstMix: You are allowed...\n");
 					master = E_SUCCESS;
 					break;
-				}									
-			}								
+				}
+			}
 		}
 	}
 	delete[] peerIP;
 	peerIP = NULL;
-	
+
 	return master;
 }
 
@@ -915,7 +988,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 	{
 		INIT_STACK;
 		BEGIN_STACK("CAFirstMix::fm_loopAcceptUsers");
-		
+
 		CAFirstMix* pFirstMix=(CAFirstMix*)param;
 		CASocket* socketsIn=pFirstMix->m_arrSocketsIn;
 		CAIPList* pIPList=pFirstMix->m_pIPList;
@@ -927,9 +1000,9 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 		UINT32 i=0;
 		SINT32 countRead;
 		SINT32 ret;
-		
+
 		pFirstMix->m_newConnections = 0;
-		
+
 		for(i=0;i<nSocketsIn;i++)
 		{
 			psocketgroupAccept->add(socketsIn[i]);
@@ -970,23 +1043,23 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 						#endif
 						pNewMuxSocket=new CAMuxSocket;
 						ret=socketsIn[i].accept(*(CASocket*)pNewMuxSocket);
-						pFirstMix->incNewConnections();							 
-									
+						pFirstMix->incNewConnections();
+
 						if(ret!=E_SUCCESS)
 						{
 							// may return E_SOCKETCLOSED or E_SOCKET_LIMIT
-							CAMsg::printMsg(LOG_ERR,"Accept Error %u - direct Connection from Client!\n",GET_NET_ERROR);														
+							CAMsg::printMsg(LOG_ERR,"Accept Error %u - direct Connection from Client!\n",GET_NET_ERROR);
 						}
-						else if( (pglobalOptions->getMaxNrOfUsers() > 0 && pFirstMix->getNrOfUsers() >= pglobalOptions->getMaxNrOfUsers())					
-								&& (isAllowedToPassRestrictions((CASocket*)pNewMuxSocket) != E_SUCCESS) 
-						 
+						else if( (pglobalOptions->getMaxNrOfUsers() > 0 && pFirstMix->getNrOfUsers() >= pglobalOptions->getMaxNrOfUsers())
+								&& (isAllowedToPassRestrictions((CASocket*)pNewMuxSocket) != E_SUCCESS)
+
 								)
 						{
 							CAMsg::printMsg(LOG_DEBUG,"CAFirstMix User control: Too many users (Maximum:%d)! Rejecting user...\n", pFirstMix->getNrOfUsers(), pglobalOptions->getMaxNrOfUsers());
 							ret = E_UNKNOWN;
 						}
-						else if ((pFirstMix->m_newConnections > CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS)					
-								&& (isAllowedToPassRestrictions((CASocket*)pNewMuxSocket) != E_SUCCESS) 
+						else if ((pFirstMix->m_newConnections > CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS)
+								&& (isAllowedToPassRestrictions((CASocket*)pNewMuxSocket) != E_SUCCESS)
 								)
 
 						{
@@ -998,9 +1071,9 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 #endif
 							ret = E_UNKNOWN;
 						}
-#ifndef PAYMENT					
+#ifndef PAYMENT
 						else if ((ret = ((CASocket*)pNewMuxSocket)->getPeerIP(peerIP)) != E_SUCCESS ||
-								pIPList->insertIP(peerIP)<0) 
+								pIPList->insertIP(peerIP)<0)
 						{
 							if (ret != E_SUCCESS)
 							{
@@ -1009,10 +1082,10 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							else
 							{
 								ret = E_UNKNOWN;
-								CAMsg::printMsg(LOG_DEBUG,"CAFirstMix Flooding protection: Could not insert IP address!\n");	
-							}							
+								CAMsg::printMsg(LOG_DEBUG,"CAFirstMix Flooding protection: Could not insert IP address!\n");
+							}
 						}
-#endif						
+#endif
 						else
 						{
 							t_UserLoginData* d=new t_UserLoginData;
@@ -1027,7 +1100,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 								CAMsg::printMsg(LOG_ERR,"Could not add an login request to the login thread pool!\n");
 							}
 						}
-											
+
 						if (ret != E_SUCCESS)
 						{
 							delete pNewMuxSocket;
@@ -1053,7 +1126,7 @@ END_THREAD:
 		peerIP = NULL;
 		delete psocketgroupAccept;
 		psocketgroupAccept = NULL;
-		
+
 		CAMsg::printMsg(LOG_DEBUG,"Exiting Thread AcceptUser\n");
 		THREAD_RETURN_SUCCESS;
 	}
@@ -1088,17 +1161,17 @@ THREAD_RETURN fm_loopDoUserLogin(void* param)
 
 		t_UserLoginData* d=(t_UserLoginData*)param;
 		d->pMix->doUserLogin(d->pNewUser,d->peerIP);
-		
+
 		SAVE_STACK("CAFirstMix::fm_loopDoUserLogin", "after user login");
 		d->pMix->decNewConnections();
 		delete d;
 		d = NULL;
-		
+
 #ifdef COUNTRY_STATS
 		my_thread_end();
 #endif
 		FINISH_STACK("CAFirstMix::fm_loopDoUserLogin");
-		
+
 		THREAD_RETURN_SUCCESS;
 	}
 
@@ -1116,7 +1189,7 @@ SINT32 CAFirstMix::doUserLogin(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 	* @todo Cleanup of runing thread if mix restarts...
 ***/
 SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
-	{	
+	{
 		INIT_STACK;
 		BEGIN_STACK("CAFirstMix::doUserLogin");
 		SINT32 ai_ret;
@@ -1127,13 +1200,13 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		#else
 			((CASocket*)pNewUser)->setKeepAlive(true);
 		#endif
-		
+
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"User login: start\n");
-		#endif	
-		
+		#endif
+
 		SAVE_STACK("CAFirstMix::doUserLogin", "after setting keep alive");
-		
+
 		// send the mix-keys to JAP
 		if (((CASocket*)pNewUser)->sendFullyTimeOut(m_xmlKeyInfoBuff,m_xmlKeyInfoSize, 40000, 10000) != E_SUCCESS)
 		{
@@ -1149,13 +1222,13 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			CAMsg::printMsg(LOG_DEBUG,"User login: login data sent\n");
 		#endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "after sending login data");
-		
+
 		//((CASocket*)pNewUser)->send(m_xmlKeyInfoBuff,m_xmlKeyInfoSize);
 		// es kann nicht blockieren unter der Annahme das der TCP-Sendbuffer > m_xmlKeyInfoSize ist....
-		
-		//wait for keys from user		
+
+		//wait for keys from user
 		UINT16 xml_len;
-		if(((CASocket*)pNewUser)->isClosed() || 
+		if(((CASocket*)pNewUser)->isClosed() ||
 		   ((CASocket*)pNewUser)->receiveFullyT((UINT8*)&xml_len,2,FIRST_MIX_RECEIVE_SYM_KEY_FROM_JAP_TIME_OUT)!=E_SUCCESS)
 		{
 			#ifdef DEBUG
@@ -1170,7 +1243,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			CAMsg::printMsg(LOG_DEBUG,"User login: received first symmetric key from client\n");
 		#endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "received first symmetric key");
-		
+
 		xml_len=ntohs(xml_len);
 		UINT8* xml_buff=new UINT8[xml_len+2]; //+2 for size...
 		if(((CASocket*)pNewUser)->isClosed() ||
@@ -1186,12 +1259,12 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			m_pIPList->removeIP(peerIP);
 			return E_UNKNOWN;
 		}
-		
+
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"User login: received second symmetric key from client\n");
 		#endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "received second symmetric key");
-		
+
 		XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(xml_buff+2,xml_len);
 		DOMElement* elemRoot=NULL;
 		if(doc==NULL||(elemRoot=doc->getDocumentElement())==NULL||
@@ -1310,7 +1383,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 
 				CAMsg::printMsg(LOG_DEBUG,"Replay Detection requested\n");
 				}
-		else {		
+		else {
 				elemSig=createDOMElement(docSig,"Signature");
 				docSig->appendChild(elemSig);
 			}
@@ -1334,7 +1407,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		}
 		xml_buff[0]=(UINT8)(u32>>8);
 		xml_buff[1]=(UINT8)(u32&0xFF);
-		
+
 		if (((CASocket*)pNewUser)->isClosed() ||
 		    ((CASocket*)pNewUser)->sendFullyTimeOut(xml_buff,u32+2, 30000, 10000) != E_SUCCESS)
 		{
@@ -1356,21 +1429,21 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		#endif
 		delete[] xml_buff;
 		xml_buff = NULL;
-		
+
 		SAVE_STACK("CAFirstMix::doUserLogin", "sent key exchange signature");
-		
+
 		((CASocket*)pNewUser)->setNonBlocking(true);
-		
+
 		SAVE_STACK("CAFirstMix::doUserLogin", "Creating CAQueue...");
 		CAQueue* tmpQueue=new CAQueue(sizeof(tQueueEntry));
-		
+
 		SAVE_STACK("CAFirstMix::doUserLogin", "Adding user to connection list...");
 #ifndef LOG_DIALOG
 		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue);
 #else
 		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue,strDialog);
 #endif
-		if( (pHashEntry == NULL) || 
+		if( (pHashEntry == NULL) ||
 			(pHashEntry->pControlMessageQueue == NULL) )// adding user connection to mix->JAP channel list (stefan: sollte das nicht connection list sein? --> es handelt sich um eine Datenstruktu fr Connections/Channels ).
 		{
 			if (doc != NULL)
@@ -1386,7 +1459,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			pNewUser = NULL;
 			return E_UNKNOWN;
 		}
-		
+
 		SAVE_STACK("CAFirstMix::doUserLogin", "socket added to connection list");
 #ifdef PAYMENT
 		#ifdef DEBUG
@@ -1406,9 +1479,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		{
 			doc->release();
 			doc = NULL;
-		}		
+		}
 #ifdef PAYMENT
-		
+
 		SAVE_STACK("CAFirstMix::doUserLogin", "Starting AI login procedure");
 #ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG,"Starting AI login procedure.\n");
@@ -1434,10 +1507,10 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 					aiLoginStatus = AUTH_LOGIN_FAILED;
 					break;
 				}
-				
+
 				while(controlMessages->getSize()>0)
 				{
-					controlMessages->get((UINT8*)aiAnswerQueueEntry,&qlen); 
+					controlMessages->get((UINT8*)aiAnswerQueueEntry,&qlen);
 					pNewUser->prepareForSend(&(aiAnswerQueueEntry->packet));
 					ai_ret = ((CASocket*)pNewUser)->
 						sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), MIXPACKET_SIZE, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
@@ -1460,20 +1533,20 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			{
 				/*
 				 * User sends data channel mix packets instead of ai control channel packets
-				 * and thus violates our ai login protocol. May be an attacker or an old JAP which is 
-				 * not aware that ai login has to be finished before sending data channel packets. 
+				 * and thus violates our ai login protocol. May be an attacker or an old JAP which is
+				 * not aware that ai login has to be finished before sending data channel packets.
 				 * @todo: kick user out or buffer his packets?
 				 */
 			}
 			aiLoginStatus = CAAccountingInstance::loginProcessStatus(pHashEntry);
 		}
-loop_break:		
+loop_break:
 		SAVE_STACK("CAFirstMix::doUserLogin", "AI login packages exchanged.");
 		/* We have exchanged all AI login packets:
 		 * 1. AccountCert
-		 * 2. ChallengeResponse 
+		 * 2. ChallengeResponse
 		 * 3. Cost confirmation.
-		 * Now start settlement to ensure that the clients account is balanced 
+		 * Now start settlement to ensure that the clients account is balanced
 		 */
 		if(!(aiLoginStatus & AUTH_LOGIN_FAILED))
 		{
@@ -1491,15 +1564,15 @@ loop_break:
 			}
 //#endif
 		}
-		
-		if(!(aiLoginStatus & AUTH_LOGIN_FAILED)) 
+
+		if(!(aiLoginStatus & AUTH_LOGIN_FAILED))
 		{
 			aiLoginStatus = CAAccountingInstance::finishLoginProcess(pHashEntry);
 			if(pNewUser != NULL)
 			{
 				while(controlMessages->getSize()>0)
 				{
-					controlMessages->get((UINT8*)aiAnswerQueueEntry,&qlen); 
+					controlMessages->get((UINT8*)aiAnswerQueueEntry,&qlen);
 					pNewUser->prepareForSend(&(aiAnswerQueueEntry->packet));
 					ai_ret = ((CASocket*)pNewUser)->
 							sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), MIXPACKET_SIZE, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
@@ -1520,14 +1593,14 @@ loop_break:
 				aiLoginStatus |= AUTH_LOGIN_FAILED;
 			}
 		}
-		
+
 		delete paymentLoginPacket;
 		paymentLoginPacket = NULL;
 		delete aiAnswerQueueEntry;
 		aiAnswerQueueEntry = NULL;
-		
+
 		SAVE_STACK("CAFirstMix::doUserLogin", "AI login procedure finished.");
-		
+
 		if((aiLoginStatus & AUTH_LOGIN_FAILED))
 		{
 #ifdef DEBUG
@@ -1540,15 +1613,15 @@ loop_break:
 			return E_UNKNOWN;
 		}
 		/* Hot fix: push timeout entry only if login was succesful, otherwise
-		 * socket may be deleted due to timeout, login fails and the socket will be deleted 
-		 * for second time causing a segfault. 
+		 * socket may be deleted due to timeout, login fails and the socket will be deleted
+		 * for second time causing a segfault.
 		 */
 		m_pChannelList->pushTimeoutEntry(pHashEntry);
 #ifdef DEBUG
 		CAMsg::printMsg(LOG_INFO,"User AI login successful\n");
 #endif
 #endif
-		
+
 #ifdef WITH_CONTROL_CHANNELS_TEST
 		pHashEntry->pControlChannelDispatcher->registerControlChannel(new CAControlChannelTest());
 #endif
@@ -1559,7 +1632,7 @@ loop_break:
 		incUsers(pHashEntry);
 #else
 		incUsers();
-#endif	
+#endif
 #ifdef HAVE_EPOLL
 		m_psocketgroupUsersRead->add(*pNewUser,m_pChannelList->get(pNewUser)); // add user socket to the established ones that we read data from.
 		m_psocketgroupUsersWrite->add(*pNewUser,m_pChannelList->get(pNewUser));
@@ -1567,7 +1640,7 @@ loop_break:
 		m_psocketgroupUsersRead->add(*pNewUser); // add user socket to the established ones that we read data from.
 		m_psocketgroupUsersWrite->add(*pNewUser);
 #endif
-		
+
 #ifndef LOG_DIALOG
 		CAMsg::printMsg(LOG_DEBUG,"User login: finished\n");
 #else
@@ -1804,7 +1877,7 @@ SINT32 CAFirstMix::clean()
 		m_pMuxOut=NULL;
 #ifdef COUNTRY_STATS
 		deleteCountryStats();
-#endif		
+#endif
 		if(m_pIPList!=NULL)
 			delete m_pIPList;
 		m_pIPList=NULL;
@@ -1818,7 +1891,7 @@ SINT32 CAFirstMix::clean()
 		if(m_pChannelList!=NULL)
 			{
 				CAMsg::printMsg(LOG_CRIT,"Before deleting CAFirstMixChannelList()!\n");
-				CAMsg::printMsg	(LOG_CRIT,"Memory usage before: %u\n",getMemoryUsage());	
+				CAMsg::printMsg	(LOG_CRIT,"Memory usage before: %u\n",getMemoryUsage());
 				fmHashTableEntry* pHashEntry=m_pChannelList->getFirst();
 				while(pHashEntry!=NULL)
 					{
@@ -1846,7 +1919,7 @@ SINT32 CAFirstMix::clean()
 		if(m_pChannelList!=NULL)
 			delete m_pChannelList;
 		m_pChannelList=NULL;
-		CAMsg::printMsg	(LOG_CRIT,"Memory usage after: %u\n",getMemoryUsage());	
+		CAMsg::printMsg	(LOG_CRIT,"Memory usage after: %u\n",getMemoryUsage());
 #ifdef PAYMENT
 	CAAccountingInstance::clean();
 	CAAccountingDBInterface::cleanup();
@@ -1879,6 +1952,7 @@ SINT32 CAFirstMix::clean()
 		//#ifdef _DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::clean() finished\n");
 		//#endif
+		delete [] m_tnCDefs;
 		return E_SUCCESS;
 	}
 
@@ -1891,8 +1965,8 @@ SINT32 CAFirstMix::reconfigure()
 		if(m_pChannelList!=NULL)
 			m_pChannelList->setDelayParameters(	pglobalOptions->getDelayChannelUnlimitTraffic(),
 																					pglobalOptions->getDelayChannelBucketGrow(),
-																					pglobalOptions->getDelayChannelBucketGrowIntervall());	
-#endif		
+																					pglobalOptions->getDelayChannelBucketGrowIntervall());
+#endif
 		return E_SUCCESS;
 	}
 #endif
@@ -2008,13 +2082,13 @@ SINT32 CAFirstMix::deleteCountryStats()
 				mysql_close(m_mysqlCon);
 				m_mysqlCon=NULL;
 			}
-	
+
 		delete[] m_CountryStats;
 		m_CountryStats=NULL;
-	
+
 		delete[] m_PacketsPerCountryIN;
 		m_PacketsPerCountryIN=NULL;
-		
+
 		delete[] m_PacketsPerCountryOUT;
 		m_PacketsPerCountryOUT=NULL;
 		return E_SUCCESS;
@@ -2025,9 +2099,9 @@ SINT32 CAFirstMix::deleteCountryStats()
 	* @param a_countryID the country the user comes from. Must be set if bRemove==true. If bRemove==false and ip==NULL, than
 	*        if also must be set to the country the user comes from. In case ip!=NULL if holdes the default country id, if no country for the ip could be found
 	* @param ip the ip the user comes from. this ip is looked up in the databse to find the corresponding country. it is only used if bRemove==false. If no country for
-	*         that ip could be found a_countryID is used as default value 
+	*         that ip could be found a_countryID is used as default value
   * @return the countryID which was asigned  to the user. This may be the default value a_countryID, if no country could be found.
-**/  
+**/
 SINT32 CAFirstMix::updateCountryStats(const UINT8 ip[4],UINT32 a_countryID,bool bRemove)
 	{
 		if(!bRemove)
@@ -2041,13 +2115,13 @@ SINT32 CAFirstMix::updateCountryStats(const UINT8 ip[4],UINT32 a_countryID,bool 
 						int ret=mysql_query(m_mysqlCon,query);
 						if(ret!=0)
 							{
-								CAMsg::printMsg(LOG_INFO,"CountryStatsDB - updateCountryStats - error (%i) in finding countryid for ip %u\n",ret,u32ip);														
+								CAMsg::printMsg(LOG_INFO,"CountryStatsDB - updateCountryStats - error (%i) in finding countryid for ip %u\n",ret,u32ip);
 								goto RET;
 							}
 						MYSQL_RES* result=mysql_store_result(m_mysqlCon);
 						if(result==NULL)
 							{
-								CAMsg::printMsg(LOG_INFO,"CountryStatsDB - updateCountryStats - error in retriving results of the query\n");														
+								CAMsg::printMsg(LOG_INFO,"CountryStatsDB - updateCountryStats - error in retriving results of the query\n");
 								goto RET;
 							}
 						MYSQL_ROW row=mysql_fetch_row(result);
@@ -2066,8 +2140,8 @@ SINT32 CAFirstMix::updateCountryStats(const UINT8 ip[4],UINT32 a_countryID,bool 
 							}
 						else
 							{
-								CAMsg::printMsg(LOG_DEBUG,"DO country stats query result no result for ip %u)\n",u32ip);														
-							}	
+								CAMsg::printMsg(LOG_DEBUG,"DO country stats query result no result for ip %u)\n",u32ip);
+							}
 						mysql_free_result(result);
 					}
 RET:
@@ -2084,7 +2158,7 @@ RET:
 THREAD_RETURN iplist_loopDoLogCountries(void* param)
 	{
 		mysql_thread_init();
-		CAMsg::printMsg(LOG_DEBUG,"Starting iplist_loopDoLogCountries\n");														
+		CAMsg::printMsg(LOG_DEBUG,"Starting iplist_loopDoLogCountries\n");
 		CAFirstMix* pFirstMix=(CAFirstMix*)param;
 		UINT32 s=0;
 		UINT8 buff[255];
@@ -2120,9 +2194,9 @@ THREAD_RETURN iplist_loopDoLogCountries(void* param)
 				sSleep(10);
 				s++;
 			}
-		CAMsg::printMsg(LOG_DEBUG,"Exiting iplist_loopDoLogCountries\n");														
+		CAMsg::printMsg(LOG_DEBUG,"Exiting iplist_loopDoLogCountries\n");
 		mysql_thread_end();
-		THREAD_RETURN_SUCCESS;	
+		THREAD_RETURN_SUCCESS;
 	}
 #endif
 #endif //ONLY_LOCAL_PROXY

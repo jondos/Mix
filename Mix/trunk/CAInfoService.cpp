@@ -626,7 +626,7 @@ SINT32 CAInfoService::sendStatus(const UINT8* a_strStatusXML,UINT32 a_len, const
 
 SINT32 CAInfoService::sendOperatorTnCData()
 {
-	SINT32 ret = E_SUCCESS;
+	/*SINT32 ret = E_SUCCESS;
 	UINT32 *lengths_ptr = NULL;
 	XMLSize_t nrOfTnCs = 0;
 	UINT32 i = 0;
@@ -665,7 +665,8 @@ SINT32 CAInfoService::sendOperatorTnCData()
 		CAMsg::printMsg(LOG_DEBUG,"InfoService:sendMixTnCData() -- No TnC data specified!\n");
 		return E_SUCCESS;
 	}
-	return ret;
+	return ret;*/
+	return E_SUCCESS;
 }
 
 /** POSTs the MIXINFO message for a mix to the InfoService.
@@ -715,7 +716,7 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 	}
 
 	XERCES_CPP_NAMESPACE::DOMNodeList *docTnCsList =
-		getElementsByTagName(tnCs, OPTION_NODE_TNCS);
+		getElementsByTagName(tnCs, OPTIONS_NODE_TNCS);
 
 	if(docTnCsList == NULL)
 	{
@@ -738,7 +739,7 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 	UINT8 tmpDate[TMP_BUFF_SIZE];
 	UINT32 tmpDateLen = TMP_BUFF_SIZE;
 
-	getDOMElementAttribute(tnCs, OPTION_ATTRIBUTE_TNC_DATE, tmpDate, &tmpDateLen);
+	getDOMElementAttribute(tnCs, OPTIONS_ATTRIBUTE_TNC_DATE, tmpDate, &tmpDateLen);
 	if(tmpDateLen == 0)
 	{
 		return NULL;
@@ -749,7 +750,7 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 
 	UINT8* serial = NULL;
 
-	getDOMElementAttribute(tnCs, OPTION_ATTRIBUTE_TNC_VERSION, tmpVersion, &tmpVersionLen);
+	getDOMElementAttribute(tnCs, OPTIONS_ATTRIBUTE_TNC_VERSION, tmpVersion, &tmpVersionLen);
 	if(tmpVersionLen > 0)
 	{
 		serial = new UINT8[tmpDateLen+tmpVersionLen+1];
@@ -783,7 +784,7 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 		locale_len = 3;
 		iterator = docTnCsList->item(i);
 		//... it is modified by getDOMElementAttribute
-		getDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_LOCALE, locale, &locale_len);
+		getDOMElementAttribute(iterator, OPTIONS_ATTRIBUTE_TNC_LOCALE, locale, &locale_len);
 		if(locale_len == 0)
 		{
 			elementList[i] = NULL;
@@ -801,17 +802,17 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 			memcpy((id+tmpOpSKILen+1), locale, locale_len);
 		}
 
-		if(setDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_ID, id) != E_SUCCESS)
+		if(setDOMElementAttribute(iterator, OPTIONS_ATTRIBUTE_TNC_ID, id) != E_SUCCESS)
 		{
 			elementList[i] = NULL;
 			continue;
 		}
-		if(setDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_DATE, tmpDate) != E_SUCCESS)
+		if(setDOMElementAttribute(iterator, OPTIONS_ATTRIBUTE_TNC_DATE, tmpDate) != E_SUCCESS)
 		{
 			elementList[i] = NULL;
 			continue;
 		}
-		if(setDOMElementAttribute(iterator, OPTION_ATTRIBUTE_TNC_SERIAL, serial) != E_SUCCESS)
+		if(setDOMElementAttribute(iterator, OPTIONS_ATTRIBUTE_TNC_SERIAL, serial) != E_SUCCESS)
 		{
 			elementList[i] = NULL;
 			continue;
