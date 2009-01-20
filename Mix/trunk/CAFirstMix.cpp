@@ -708,7 +708,7 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 				getDOMElementAttribute(currentTnCEntry, OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID,
 						currentTnCEntry_templateRefid, &currentTnCEntry_templateRefid_len);
 
-				CAMsg::printMsg(LOG_DEBUG,"TODO: create entry for %s, [template %s]\n", currentTnC_id, currentTnCEntry_templateRefid);
+				//CAMsg::printMsg(LOG_DEBUG,"TODO: create entry for %s, [template %s]\n", currentTnC_id, currentTnCEntry_templateRefid);
 				currentTnCEntry_templateRefid_len = TMP_BUFF_SIZE;
 			}
 			//TODO: create entries.
@@ -1574,14 +1574,19 @@ loop_break:
 				{
 					controlMessages->get((UINT8*)aiAnswerQueueEntry,&qlen);
 					pNewUser->prepareForSend(&(aiAnswerQueueEntry->packet));
+
+					//trick: if the client closed the socket during the settlement
+					//the first send will succeed but the second one will fail.
 					ai_ret = ((CASocket*)pNewUser)->
-							sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), MIXPACKET_SIZE, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
+							sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), 499, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
+
+					ai_ret = ((CASocket*)pNewUser)->
+							sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)+499), 499, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
+
 					if (ai_ret != E_SUCCESS)
 					{
-						if (ai_ret == E_TIMEDOUT )
-						{
-							CAMsg::printMsg(LOG_INFO,"AI login: client timeout occured after settling.\n");
-						}
+						int errnum = errno;
+						CAMsg::printMsg(LOG_INFO,"AI login: net error occured after settling: %s\n", strerror(errnum));
 						aiLoginStatus |= AUTH_LOGIN_FAILED;
 						break;
 					}
