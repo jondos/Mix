@@ -41,9 +41,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAUtil.hpp"
 #include "CAThread.hpp"
 #include "CAThreadPool.hpp"
-#ifdef PAYMENT
+/*#ifdef PAYMENT
 #include "CAAccountingInstance.hpp"
-#endif
+#endif*/
 #include "CALogPacketStats.hpp"
 #ifdef HAVE_EPOLL
 	#include "CASocketGroupEpoll.hpp"
@@ -166,6 +166,7 @@ public:
 			{
 				return CAMix::FIRST_MIX;
 			}
+		bool forceKickout(fmHashTableEntry* pHashTableEntry);
 
 #ifdef DYNAMIC_MIX
 private:
@@ -192,28 +193,9 @@ protected:
 
 
 public:
-			SINT32 getMixedPackets(UINT64& ppackets) const
-				{
-					set64(ppackets,m_nMixedPackets);
-					return E_SUCCESS;
-				}
-
-			UINT32 getNrOfUsers() const
-			{
-				#ifdef PAYMENT
-				return CAAccountingInstance::getNrOfUsers();
-				#else
-				return m_nUser;
-				#endif
-			}
-
-			SINT32 getLevel(SINT32* puser,SINT32* prisk,SINT32* ptraffic) const
-				{
-					*puser=(SINT32)getNrOfUsers();
-					*prisk=-1;
-					*ptraffic=-1;
-					return E_SUCCESS;
-				}
+		SINT32 getMixedPackets(UINT64& ppackets);
+		UINT32 getNrOfUsers();
+		SINT32 getLevel(SINT32* puser,SINT32* prisk,SINT32* ptraffic);
 
 		friend THREAD_RETURN fm_loopSendToMix(void*);
 		friend THREAD_RETURN fm_loopReadFromMix(void*);
