@@ -105,6 +105,7 @@ inline bool testLoginEntryOwner_internal(struct AccountLoginHashEntry *loginEntr
 class CAAccountingInstance
 {
 	friend class CAFirstMixA;
+	friend class CAFirstMix;
 public:
 
 	/**

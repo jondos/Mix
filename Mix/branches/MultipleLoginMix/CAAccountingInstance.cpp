@@ -1061,11 +1061,12 @@ SINT32 CAAccountingInstance::processJapMessage(fmHashTableEntry * pHashEntry,con
 				//handleFunc = &CAAccountingInstance::handleChallengeResponse;
 				hf_ret = ms_pInstance->handleChallengeResponse( pHashEntry->pAccountingInfo, root );
 				processJapMessageLoginHelper(pHashEntry, hf_ret, false);
-				if(hf_ret != CAXMLErrorMessage::ERR_OK)
+				/*if(hf_ret != CAXMLErrorMessage::ERR_OK)
 				{
 					unlockLogin(pHashEntry);
 				}
-				else
+				else*/
+				if(hf_ret == CAXMLErrorMessage::ERR_OK)
 				{
 					CAMsg::printMsg( LOG_DEBUG, "Prepaid bytes are: %d\n",
 							getPrepaidBytes(pHashEntry->pAccountingInfo));
@@ -1082,10 +1083,10 @@ SINT32 CAAccountingInstance::processJapMessage(fmHashTableEntry * pHashEntry,con
 				//handleFunc = &CAAccountingInstance::handleCostConfirmation;
 				hf_ret = ms_pInstance->handleCostConfirmation( pHashEntry->pAccountingInfo, root );
 				processJapMessageLoginHelper(pHashEntry, hf_ret, true);
-				if(hf_ret != CAXMLErrorMessage::ERR_OK)
+				/*if(hf_ret != CAXMLErrorMessage::ERR_OK)
 				{
 					unlockLogin(pHashEntry);
-				}
+				}*/
 			}
 		else
 		{
@@ -1349,7 +1350,7 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 		}
 	}
 	/* unlock the loginEntry object for other login threads */
-	resetLoginOngoing(loginEntry, pHashEntry);
+	//resetLoginOngoing(loginEntry, pHashEntry);
 	ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
 	return ret;
 }
@@ -2211,7 +2212,11 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 		return CAXMLErrorMessage::ERR_WRONG_DATA;
 	}
 
-
+	//JUST A TEST ABORT
+	//delete pCC;
+	//pCC = NULL;
+	//pAccInfo->mutex->unlock();
+	//return CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR;
 
 	// parse & set transferredBytes
 	//when using Prepayment, this check is outdated, but left in to notice the most crude errors/cheats

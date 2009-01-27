@@ -1612,10 +1612,8 @@ loop_break:
 //#ifdef DEBUG
 			CAMsg::printMsg(LOG_INFO,"User AI login failed: deleting socket %x\n", pHashEntry);
 //#endif
-			//if(!(aiLoginStatus & AUTH_MULTIPLE_LOGIN))
-			//{
+			CAAccountingInstance::unlockLogin(pHashEntry);
 			m_pChannelList->remove(pNewUser);
-			//}
 			delete pNewUser;
 			pNewUser = NULL;
 			m_pIPList->removeIP(peerIP);
@@ -1626,6 +1624,8 @@ loop_break:
 		 * for second time causing a segfault.
 		 */
 		m_pChannelList->pushTimeoutEntry(pHashEntry);
+		CAAccountingInstance::unlockLogin(pHashEntry);
+
 //#ifdef DEBUG
 		CAMsg::printMsg(LOG_INFO,"User AI login successful for owner %x\n", pHashEntry);
 //#endif
