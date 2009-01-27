@@ -1710,7 +1710,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			else
 			{
 				//this condition holds when the ownerRef was already cleared.
-				//no needÊto wait any further.
+				//no need to wait any further.
 				CAMsg::printMsg(LOG_DEBUG, "kickout could not be initiated.\n");
 			}
 			loginCV->unlock();
