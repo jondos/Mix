@@ -1759,9 +1759,18 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	// fetch cost confirmation from last session if available, and retrieve information; synchronized with settle thread
 	bool bSettled;
 	CAAccountingDBInterface *dbInterface = CAAccountingDBInterface::getConnection();
+#ifdef DEBUG
+	CAMsg::printMsg(LOG_DEBUG, "Checking database for previously prepaid bytes...\n");
+#endif
+
 	if(dbInterface != NULL)
 	{
+		prepaidAmount = dbInterface->getPrepaidAmount(pAccInfo->accountNumber, m_currentCascade, false);
 		dbInterface->getCostConfirmation(pAccInfo->accountNumber, m_currentCascade, &pCC, bSettled);
+	}
+	else
+	{
+		prepaidAmount = 0;
 	}
 
 
@@ -1871,19 +1880,6 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 //		 	return CAXMLErrorMessage::ERR_MULTIPLE_LOGIN;
 //		}
 //	}
-
-	#ifdef DEBUG
-	CAMsg::printMsg(LOG_DEBUG, "Checking database for previously prepaid bytes...\n");
-	#endif
-	//prepaidAmount = m_dbInterface->getPrepaidAmount(pAccInfo->accountNumber, m_currentCascade, true);
-	if(dbInterface != NULL)
-	{
-		prepaidAmount = dbInterface->getPrepaidAmount(pAccInfo->accountNumber, m_currentCascade, false);
-	}
-	else
-	{
-		prepaidAmount = 0;
-	}
 
 	UINT8 tmp[32];
 	print64(tmp,pAccInfo->accountNumber);
