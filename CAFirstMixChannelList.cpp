@@ -383,22 +383,28 @@ void CAFirstMixChannelList::setKickoutForced(fmHashTableEntry* pHashTableEntry, 
 	m_Mutex.unlock();
 }
 
+#ifdef PAYMENT
 /**
  * forces a kickout for this entry if the Entry is still valid
  * returns true if pHashTableEntry is still valid, false otherwise
  */
-bool CAFirstMixChannelList::forceKickout(fmHashTableEntry* pHashTableEntry)
+bool CAFirstMixChannelList::forceKickout(fmHashTableEntry* pHashTableEntry, const XERCES_CPP_NAMESPACE::DOMDocument *pErrDoc)
 {
 	bool ret = false;
 	m_Mutex.lock();
 	ret = (pHashTableEntry->pMuxSocket != NULL);
 	if(ret)
 	{
+		if(pErrDoc != NULL)
+		{
+			pHashTableEntry->pAccountingInfo->pControlChannel->sendXMLMessage(pErrDoc);
+		}
 		setKickoutForced_internal(pHashTableEntry, KICKOUT_FORCED);
 	}
 	m_Mutex.unlock();
 	return ret;
 }
+#endif
 
 //be careful: has no locking and parameter checks
 inline bool CAFirstMixChannelList::isTimedOut_internal(fmHashTableEntry* pHashTableEntry)

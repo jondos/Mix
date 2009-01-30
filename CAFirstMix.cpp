@@ -1658,11 +1658,12 @@ loop_break:
 		return E_SUCCESS;
 	}
 
-bool CAFirstMix::forceKickout(fmHashTableEntry* pHashTableEntry)
+#ifdef PAYMENT
+bool CAFirstMix::forceKickout(fmHashTableEntry* pHashTableEntry, const XERCES_CPP_NAMESPACE::DOMDocument *pErrDoc)
 {
-	return m_pChannelList->forceKickout(pHashTableEntry);
+	return m_pChannelList->forceKickout(pHashTableEntry, pErrDoc);
 }
-
+#endif
 //NEVER EVER DELETE THIS!
 /*
 THREAD_RETURN loopReadFromUsers(void* param)

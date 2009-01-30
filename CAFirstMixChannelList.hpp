@@ -246,7 +246,7 @@ class CAFirstMixChannelList
 			bool isKickoutForced(fmHashTableEntry* pHashTableEntry);
 			void setKickoutForced(fmHashTableEntry* pHashTableEntry, bool kickoutForced);
 
-			bool forceKickout(fmHashTableEntry* pHashTableEntry);
+			bool forceKickout(fmHashTableEntry* pHashTableEntry, const XERCES_CPP_NAMESPACE::DOMDocument *pErrDoc);
 			/**
 			 * adds the entry to the timeout queue with mutex
 			 */

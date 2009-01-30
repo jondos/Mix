@@ -47,6 +47,7 @@ SINT32 CAControlChannelDispatcher::removeControlChannel(UINT32 id)
 		if(id>255)
 			return E_UNKNOWN;
 		m_pcsRegisterChannel->lock();
+		delete m_arControlChannels[id];
 		m_arControlChannels[id]=NULL;
 		m_pcsRegisterChannel->unlock();
 		return E_SUCCESS;
@@ -57,30 +58,31 @@ void CAControlChannelDispatcher::deleteAllControlChannels()
 	{
 		m_pcsRegisterChannel->lock();
 		for(UINT32 i=0;i<256;i++)
-			{
-				delete m_arControlChannels[i];
-				m_arControlChannels[i]=NULL;
-			}
+		{
+			delete m_arControlChannels[i];
+			m_arControlChannels[i]=NULL;
+		}
 		m_pcsRegisterChannel->unlock();
 	}
 
 bool CAControlChannelDispatcher::proccessMixPacket(const MIXPACKET* pPacket)
 	{
 		if(pPacket->channel < 256 && pPacket->channel > 0)
+		{
+			m_pcsRegisterChannel->lock();
+			CAAbstractControlChannel* pControlChannel=m_arControlChannels[pPacket->channel];
+			if(pControlChannel != NULL)
 			{
-				CAAbstractControlChannel* pControlChannel=m_arControlChannels[pPacket->channel];
-				if(pControlChannel!=NULL)
-				{
-					if (pControlChannel->proccessMessage(pPacket->data,pPacket->flags) == E_SUCCESS)
-					{
-						return true;
-					}
-				}
-				else
-				{
-					return true;
-				}
+				bool ret = (pControlChannel->proccessMessage(pPacket->data,pPacket->flags) == E_SUCCESS);
+				m_pcsRegisterChannel->unlock();
+				return ret;
 			}
+			else
+			{
+				m_pcsRegisterChannel->unlock();
+				return true;
+			}
+		}
 		return false;
 	}
 
