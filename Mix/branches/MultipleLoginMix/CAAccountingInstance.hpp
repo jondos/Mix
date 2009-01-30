@@ -62,6 +62,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define AUTH_TIMEOUT 15
 #define CRITICAL_SUBSEQUENT_BI_CONN_ERRORS 5
 
+#define CLIENT_VERSION_STR_LEN 20
+#define PREPAID_PROTO_CLIENT_VERSION "00.10.057"
+
 struct t_fmhashtableentry;
 
 struct AccountLoginHashEntry
@@ -229,7 +232,9 @@ private:
 
 	static SINT32 getPrepaidBytes(tAiAccountingInfo* pAccInfos);
 	SINT32 prepareCCRequest(CAMix* callingMix, UINT8* a_AiName);
+	static SINT32 makeInitialCCRequest(CAXMLCostConfirmation *pCC, XERCES_CPP_NAMESPACE::DOMDocument* & doc, SINT32 prepaidBytes);
 	static SINT32 makeCCRequest( const UINT64 accountNumber, const UINT64 transferredBytes,  XERCES_CPP_NAMESPACE::DOMDocument* & doc);
+	static SINT32 sendInitialCCRequest(tAiAccountingInfo* pAccInfo, CAXMLCostConfirmation *pCC, SINT32 prepaidBytes);
 	static SINT32 sendCCRequest(tAiAccountingInfo* pAccInfo);
 	static SINT32 makeAccountRequest( XERCES_CPP_NAMESPACE::DOMDocument* & doc);
 	static SINT32 sendAILoginConfirmation(tAiAccountingInfo* pAccInfo, const UINT32 code, UINT8 * message);

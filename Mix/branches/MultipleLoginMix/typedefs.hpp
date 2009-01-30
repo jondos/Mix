@@ -327,6 +327,9 @@ struct t_accountinginfo
 
 	// the number of references to this entry in the ai queue
 	UINT32 nrInQueue;
+
+	// new JonDo clients will send their version number as during challenge-response.
+	UINT8* clientVersion;
 };
 typedef struct t_accountinginfo tAiAccountingInfo;
 

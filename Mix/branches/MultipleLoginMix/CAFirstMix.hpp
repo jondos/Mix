@@ -166,7 +166,7 @@ public:
 			{
 				return CAMix::FIRST_MIX;
 			}
-		bool forceKickout(fmHashTableEntry* pHashTableEntry);
+		bool forceKickout(fmHashTableEntry* pHashTableEntry, const XERCES_CPP_NAMESPACE::DOMDocument *pErrDoc=NULL);
 
 #ifdef DYNAMIC_MIX
 private:

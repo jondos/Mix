@@ -744,6 +744,25 @@ SINT32 CAAccountingInstance::returnPrepareKickout(tAiAccountingInfo* pAccInfo, C
 	return HANDLE_PACKET_PREPARE_FOR_CLOSING_CONNECTION;
 }
 
+SINT32 CAAccountingInstance::sendInitialCCRequest(tAiAccountingInfo* pAccInfo, CAXMLCostConfirmation *pCC, SINT32 prepaidBytes)
+{
+	XERCES_CPP_NAMESPACE::DOMDocument* doc=NULL;
+	makeInitialCCRequest(pCC, doc, prepaidBytes);
+#ifdef DEBUG
+	UINT32 debuglen = 3000;
+	UINT8 debugout[3000];
+	DOM_Output::dumpToMem(doc,debugout,&debuglen);
+	debugout[debuglen] = 0;
+	CAMsg::printMsg(LOG_DEBUG, "the CC sent looks like this: %s \n",debugout);
+#endif
+	SINT32 ret = pAccInfo->pControlChannel->sendXMLMessage(doc);
+	if (doc != NULL)
+	{
+		doc->release();
+		doc = NULL;
+	}
+	return ret;
+}
 
 SINT32 CAAccountingInstance::sendCCRequest(tAiAccountingInfo* pAccInfo)
 {
@@ -960,6 +979,34 @@ SINT32 CAAccountingInstance::prepareCCRequest(CAMix* callingMix, UINT8* a_AiName
 
 }
 
+/**
+ * new initialCCRequest containing the last CC and the prepaid bytes
+ * (this is a replacement for sending the prepaid with the challenge
+ * which is now deprecated).
+ */
+SINT32 CAAccountingInstance::makeInitialCCRequest(CAXMLCostConfirmation *pCC, XERCES_CPP_NAMESPACE::DOMDocument* & doc, SINT32 prepaidBytes)
+	{
+		if( (pCC == NULL) || (pCC->getXMLDocument()->getDocumentElement() == NULL) )
+		{
+			return E_UNKNOWN;
+		}
+		DOMNode* elemCC=NULL;
+
+		doc = createDOMDocument();
+		DOMNode *ccRoot = doc->importNode(pCC->getXMLDocument()->getDocumentElement(),true);
+		doc->appendChild(doc->importNode(m_preparedCCRequest->getDocumentElement(),true));
+		setDOMElementAttribute(doc->getDocumentElement(), "initialCC", true);
+		DOMElement *elemPrepaidBytes = createDOMElement(doc, "PrepaidBytes");
+		setDOMElementValue(elemPrepaidBytes, prepaidBytes);
+		getDOMChildByName(doc->getDocumentElement(),"CC",elemCC);
+		if(elemCC == NULL)
+		{
+			return E_UNKNOWN;
+		}
+		doc->getDocumentElement()->replaceChild(ccRoot, elemCC);
+		doc->getDocumentElement()->appendChild(elemPrepaidBytes);
+		return E_SUCCESS;
+	}
 
 SINT32 CAAccountingInstance::makeCCRequest(const UINT64 accountNumber, const UINT64 transferredBytes, XERCES_CPP_NAMESPACE::DOMDocument* & doc)
 	{
@@ -1645,6 +1692,29 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 		pAccInfo->mutex->unlock();
 		return CAXMLErrorMessage::ERR_WRONG_FORMAT;
 	}
+	DOMElement *elemClientVersion = NULL;
+	getDOMChildByName(root, "ClientVersion", elemClientVersion, false);
+	if(elemClientVersion != NULL)
+	{
+		UINT32 clientVersionStrLen = CLIENT_VERSION_STR_LEN;
+		UINT8 *clientVersionStr = new UINT8[clientVersionStrLen];
+		memset(clientVersionStr, 0, clientVersionStrLen);
+		if( getDOMElementValue(elemClientVersion, clientVersionStr, &clientVersionStrLen) != E_SUCCESS)
+		{
+			delete [] clientVersionStr;
+			clientVersionStr = NULL;
+		}
+#ifdef DEBUG
+		CAMsg::printMsg(LOG_DEBUG, "Client Version: %s\n", (clientVersionStr != NULL ? clientVersionStr : (UINT8*) "<not set>"));
+#endif
+		pAccInfo->clientVersion = clientVersionStr;
+	}
+	else
+	{
+		pAccInfo->clientVersion = NULL;
+	}
+	decodeBuffer[decodeBufferLen] = 0;
+
 	usedLen = decodeBufferLen;
 	decodeBufferLen = 512;
 	CABase64::decode( decodeBuffer, usedLen, decodeBuffer, &decodeBufferLen );
@@ -2028,8 +2098,18 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: before CC request, prepaidAmount: %i\n", prepaidAmount);
 			CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: before CC request, transferred bytes: %Lu\n", pAccInfo->transferredBytes);
 #endif
-			pAccInfo->pControlChannel->sendXMLMessage(pCC->getXMLDocument());
-			//delete pCC;
+			if( (pAccInfo->clientVersion == NULL) ||
+				(strncmp((char*)pAccInfo->clientVersion, PREPAID_PROTO_CLIENT_VERSION, CLIENT_VERSION_STR_LEN) < 0) )
+			{
+				//old CC without payRequest and prepaid bytes.
+				pAccInfo->pControlChannel->sendXMLMessage(pCC->getXMLDocument());
+				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Old prepaid proto version.\n");
+			}
+			else
+			{
+				sendInitialCCRequest(pAccInfo, pCC, prepaidAmount);
+				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: New prepaid proto version.\n");
+			}
 		}
 		else
 		{
@@ -2229,8 +2309,9 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 	if (pCC->getTransferredBytes() < pAccInfo->confirmedBytes)
 	{
 
-		CAMsg::printMsg( LOG_ERR, "CostConfirmation has insufficient number of bytes (%Lu < %Lu). Ignoring...\n",
-				pCC->getTransferredBytes(), pAccInfo->confirmedBytes );
+		CAMsg::printMsg( LOG_ERR, "CostConfirmation has insufficient number of bytes:\n");
+		CAMsg::printMsg( LOG_ERR, "CC-transferredBytes: %Lu\n", pCC->getTransferredBytes());
+		CAMsg::printMsg( LOG_ERR, " < confirmedBytesBytes: %Lu\n",  pAccInfo->confirmedBytes);
 
 		if(pAccInfo->authFlags & AUTH_LOGIN_NOT_FINISHED)
 		{
@@ -2375,6 +2456,7 @@ SINT32 CAAccountingInstance::initTableEntry( fmHashTableEntry * pHashEntry )
 	pHashEntry->pAccountingInfo->nrInQueue = 0;
 	pHashEntry->pAccountingInfo->userID = pHashEntry->id;
 	pHashEntry->pAccountingInfo->ownerRef = pHashEntry;
+	pHashEntry->pAccountingInfo->clientVersion = NULL;
 	pHashEntry->pAccountingInfo->mutex = new CAMutex;
 	//ms_pInstance->m_pMutex->unlock();
 
@@ -2554,6 +2636,8 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 			// there are no handles for this entry in the queue, we can savely delete it now
 			delete pAccInfo->mutex;
 			pAccInfo->mutex = NULL;
+			delete [] pAccInfo->clientVersion;
+			pAccInfo->clientVersion = NULL;
 			delete pAccInfo;
 			pAccInfo = NULL;
 		}
