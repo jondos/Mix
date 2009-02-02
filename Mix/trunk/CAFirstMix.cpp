@@ -59,6 +59,7 @@ extern CACmdLnOptions* pglobalOptions;
 #include "CAStatusManager.hpp"
 
 const UINT32 CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS = NUM_LOGIN_WORKER_TRHEADS * 2;
+CAConditionVariable *loginCV = new CAConditionVariable();
 
 bool CAFirstMix::isShuttingDown()
 {
@@ -1484,7 +1485,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 
 		SAVE_STACK("CAFirstMix::doUserLogin", "Starting AI login procedure");
 #ifdef DEBUG
-		CAMsg::printMsg(LOG_DEBUG,"Starting AI login procedure.\n");
+		CAMsg::printMsg(LOG_DEBUG,"Starting AI login procedure for owner %x \n", pHashEntry);
 #endif
 		MIXPACKET *paymentLoginPacket = new MIXPACKET;
 		tQueueEntry *aiAnswerQueueEntry=new tQueueEntry;
@@ -1567,6 +1568,7 @@ loop_break:
 
 		if(!(aiLoginStatus & AUTH_LOGIN_FAILED))
 		{
+
 			aiLoginStatus = CAAccountingInstance::finishLoginProcess(pHashEntry);
 			if(pNewUser != NULL)
 			{
@@ -1575,14 +1577,13 @@ loop_break:
 					controlMessages->get((UINT8*)aiAnswerQueueEntry,&qlen);
 					pNewUser->prepareForSend(&(aiAnswerQueueEntry->packet));
 
-					//trick: if the client closed the socket during the settlement
+					//not really elegant but works: if the client closed the socket during the settlement
 					//the first send will succeed but the second one will fail.
 					ai_ret = ((CASocket*)pNewUser)->
 							sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), 499, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
 
 					ai_ret = ((CASocket*)pNewUser)->
 							sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)+499), 499, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
-
 					if (ai_ret != E_SUCCESS)
 					{
 						int errnum = errno;
@@ -1609,8 +1610,9 @@ loop_break:
 		if((aiLoginStatus & AUTH_LOGIN_FAILED))
 		{
 #ifdef DEBUG
-			CAMsg::printMsg(LOG_INFO,"User AI login failed: deleting socket %x\n", pNewUser);
+			CAMsg::printMsg(LOG_INFO,"User AI login failed: deleting socket %x\n", pHashEntry);
 #endif
+			CAAccountingInstance::unlockLogin(pHashEntry);
 			m_pChannelList->remove(pNewUser);
 			delete pNewUser;
 			pNewUser = NULL;
@@ -1622,8 +1624,9 @@ loop_break:
 		 * for second time causing a segfault.
 		 */
 		m_pChannelList->pushTimeoutEntry(pHashEntry);
+		CAAccountingInstance::unlockLogin(pHashEntry);
 #ifdef DEBUG
-		CAMsg::printMsg(LOG_INFO,"User AI login successful\n");
+		CAMsg::printMsg(LOG_INFO,"User AI login successful for owner %x\n", pHashEntry);
 #endif
 #endif
 
@@ -1653,6 +1656,13 @@ loop_break:
 #endif
 		return E_SUCCESS;
 	}
+
+#ifdef PAYMENT
+bool CAFirstMix::forceKickout(fmHashTableEntry* pHashTableEntry, const XERCES_CPP_NAMESPACE::DOMDocument *pErrDoc)
+{
+	return m_pChannelList->forceKickout(pHashTableEntry, pErrDoc);
+}
+#endif
 //NEVER EVER DELETE THIS!
 /*
 THREAD_RETURN loopReadFromUsers(void* param)
@@ -2001,6 +2011,28 @@ SINT32 CAFirstMix::initMixParameters(DOMElement*  elemMixes)
 		return E_SUCCESS;
 	}
 
+UINT32 CAFirstMix::getNrOfUsers()
+{
+	#ifdef PAYMENT
+	return CAAccountingInstance::getNrOfUsers();
+	#else
+	return m_nUser;
+	#endif
+}
+
+SINT32 CAFirstMix::getMixedPackets(UINT64& ppackets)
+{
+	set64(ppackets,m_nMixedPackets);
+	return E_SUCCESS;
+}
+
+SINT32 CAFirstMix::getLevel(SINT32* puser,SINT32* prisk,SINT32* ptraffic)
+{
+	*puser=(SINT32)getNrOfUsers();
+	*prisk=-1;
+	*ptraffic=-1;
+	return E_SUCCESS;
+}
 
 #ifdef REPLAY_DETECTION
 SINT32 CAFirstMix::sendReplayTimestampRequestsToAllMixes()

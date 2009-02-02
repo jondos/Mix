@@ -39,6 +39,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include "../CASocketGroupEpoll.hpp"
 #endif
 extern CACmdLnOptions* pglobalOptions;
+extern CAConditionVariable *loginCV;
 
 void CAFirstMixA::shutDown()
 {
@@ -64,6 +65,7 @@ void CAFirstMixA::shutDown()
 		}
 		CAMsg::printMsg(LOG_DEBUG,"Closed %i client connections.\n", connectionsClosed);
 	}
+	delete loginCV;
 #endif
 	m_bRestart = true;
 	m_bIsShuttingDown = false;
@@ -195,37 +197,15 @@ SINT32 CAFirstMixA::loop()
 				countLogBuffer--;*/
 
 				bAktiv=false;
-#ifdef PAYMENT
-				// check the timeout for all connections
-				fmHashTableEntry* timeoutHashEntry;
-				while ((timeoutHashEntry = m_pChannelList->popTimeoutEntry()) != NULL)
-				{
-					if (timeoutHashEntry->bRecoverTimeout)
-					{
-						CAMsg::printMsg(LOG_DEBUG,"Client connection closed due to timeout.\n");
-					}
-					else
-					{
-						// This should not happen if all client connections are closed as defined in the protocols.
-//#ifdef PAYMENT
-						UINT32 authFlags = CAAccountingInstance::getAuthFlags(timeoutHashEntry);
-						if (authFlags > 0)
-						{
-							CAMsg::printMsg(LOG_ERR,"Client connection closed due to forced timeout! Payment auth flags: %u\n", authFlags);
-						}
-						else
-//#endif
-						{
-							CAMsg::printMsg(LOG_ERR,"Client connection closed due to forced timeout!\n");
-						}
-					}
 
-					closeConnection(timeoutHashEntry);
-				}
-
-#endif
 //LOOP_START:
-
+#ifdef PAYMENT
+				// while checking if there are connections to close: synch with login threads
+				loginCV->lock();
+				checkUserConnections();
+				loginCV->broadcast();
+				loginCV->unlock();
+#endif
 //First Step
 //Checking for new connections
 // Now in a separate Thread....
@@ -308,32 +288,33 @@ SINT32 CAFirstMixA::loop()
 														goto NEXT_USER;
 													}
 												}
-#ifdef PAYMENT
-												SINT32 ret = CAAccountingInstance::handleJapPacket(pHashEntry, false, false);
-												if (CAAccountingInstance::HANDLE_PACKET_CONNECTION_OK == ret)
-												{
-													// renew the timeout
-													pHashEntry->bRecoverTimeout = true;
-													m_pChannelList->pushTimeoutEntry(pHashEntry);
-												}
-												else if (CAAccountingInstance::HANDLE_PACKET_HOLD_CONNECTION == ret)
-												{
-													// @todo this packet should be queued for later processing
-													pHashEntry->bRecoverTimeout = false;
-												}
-												else if (CAAccountingInstance::HANDLE_PACKET_PREPARE_FOR_CLOSING_CONNECTION == ret)
-												{
-													// do not forward this packet
-													pHashEntry->bRecoverTimeout = false;
-													goto NEXT_USER;
-												}
-												else if (CAAccountingInstance::HANDLE_PACKET_CLOSE_CONNECTION == ret)
-												{
-													// kickout this user - he deserves it...
-													closeConnection(pHashEntry);
-													goto NEXT_USER;
-												}
-#endif
+//#ifdef PAYMENT
+//												SINT32 ret = CAAccountingInstance::handleJapPacket(pHashEntry, false, false);
+//												if (CAAccountingInstance::HANDLE_PACKET_CONNECTION_OK == ret)
+//												{
+//													// renew the timeout
+//													pHashEntry->bRecoverTimeout = true;
+//													m_pChannelList->pushTimeoutEntry(pHashEntry);
+//												}
+//												else if (CAAccountingInstance::HANDLE_PACKET_HOLD_CONNECTION == ret)
+//												{
+//													// @todo this packet should be queued for later processing
+//													pHashEntry->bRecoverTimeout = false;
+//												}
+//												else if (CAAccountingInstance::HANDLE_PACKET_PREPARE_FOR_CLOSING_CONNECTION == ret)
+//												{
+//													// do not forward this packet
+//													pHashEntry->bRecoverTimeout = false;
+//													goto NEXT_USER;
+//												}
+//												else if (CAAccountingInstance::HANDLE_PACKET_CLOSE_CONNECTION == ret)
+//												{
+//													// kickout this user - he deserves it...
+//													closeConnection(pHashEntry);
+//													goto NEXT_USER;
+//												}
+//#endif
+												if(accountTrafficUpstream(pHashEntry) != E_SUCCESS) goto NEXT_USER;
 
 												if(pMixPacket->flags==CHANNEL_DUMMY) // just a dummy to keep the connection alife in e.g. NAT gateways
 												{
@@ -828,8 +809,9 @@ bool CAFirstMixA::sendToUsers()
 						}
 					}
 				}
+				//TODO error handling
 			}
-			//todo error handling
+
 #ifdef HAVE_EPOLL
 		pfmHashEntry=(fmHashTableEntry*)m_psocketgroupUsersWrite->getNextSignaledSocketData();
 	}
@@ -841,30 +823,60 @@ bool CAFirstMixA::sendToUsers()
 	return bAktiv;
 }
 
+SINT32 CAFirstMixA::accountTrafficUpstream(fmHashTableEntry* pHashEntry)
+{
+	SINT32 ret = E_SUCCESS;
+
+#ifdef PAYMENT
+	SINT32 handleResult = CAAccountingInstance::handleJapPacket(pHashEntry, false, false);
+
+	if (CAAccountingInstance::HANDLE_PACKET_CONNECTION_OK == handleResult)
+	{
+		// renew the timeout
+		//pHashEntry->bRecoverTimeout = true;
+		m_pChannelList->pushTimeoutEntry(pHashEntry);
+	}
+	else if (CAAccountingInstance::HANDLE_PACKET_PREPARE_FOR_CLOSING_CONNECTION == handleResult)
+	{
+		// do not forward this packet
+		pHashEntry->bRecoverTimeout = false;
+		m_pChannelList->setKickoutForced(pHashEntry, KICKOUT_FORCED);
+		CAMsg::printMsg(LOG_DEBUG, "CAFirstMixA: 1. setting bRecover timout to false for entry %x!\n", pHashEntry);
+		//m_pChannelList->pushTimeoutEntry(pHashEntry);
+		//don't let any upstream data messages pass for this user.
+		ret = E_UNKNOWN;
+	}
+	else if (CAAccountingInstance::HANDLE_PACKET_CLOSE_CONNECTION == handleResult)
+	{
+		// kickout this user - he deserves it...
+		closeConnection(pHashEntry);
+		ret = E_UNKNOWN;
+	}
+#endif
+	return ret;
+}
 
 SINT32 CAFirstMixA::accountTrafficDownstream(fmHashTableEntry* pfmHashEntry)
 {
 #ifdef PAYMENT
 	// count packet for payment
 	SINT32 ret = CAAccountingInstance::handleJapPacket(pfmHashEntry, !(pfmHashEntry->bCountPacket), true);
-	if (ret == CAAccountingInstance::HANDLE_PACKET_CONNECTION_OK)
+	if (ret == CAAccountingInstance::HANDLE_PACKET_CONNECTION_OK )
 	{
 		// renew the timeout
-		pfmHashEntry->bRecoverTimeout = true;
+		//pfmHashEntry->bRecoverTimeout = true;
 		m_pChannelList->pushTimeoutEntry(pfmHashEntry);
 	}
-	else if (ret == CAAccountingInstance::HANDLE_PACKET_HOLD_CONNECTION ||
-			ret == CAAccountingInstance::HANDLE_PACKET_PREPARE_FOR_CLOSING_CONNECTION )
+	else if (ret == CAAccountingInstance::HANDLE_PACKET_PREPARE_FOR_CLOSING_CONNECTION )
 	{
-		// the next timeout might be deadly for this connection...
-		//NOTE: this will close no client connection. A "real" kickout will occur
-		//ONLY IF the AccountingInfo flag AUTH_FATAL_ERROR is set AND one control message
-		//packet is handled by this method. Theses conditions hold when using the method
-		//returnPrepareKickout.
-		pfmHashEntry->bRecoverTimeout = false;
+		// when all control messages are sent the users connection will be closed
+		//pfmHashEntry->bRecoverTimeout = false;
+		m_pChannelList->setKickoutForced(pfmHashEntry, KICKOUT_FORCED);
+		//m_pChannelList->pushTimeoutEntry(pfmHashEntry);
 	}
 	else if (ret == CAAccountingInstance::HANDLE_PACKET_CLOSE_CONNECTION )
 	{
+		// close users connection immediately
 		CAMsg::printMsg(LOG_DEBUG, "CAFirstMixA: Closing JAP connection due to illegal payment status!\n", ret);
 		closeConnection(pfmHashEntry);
 		return ERR_INTERN_SOCKET_CLOSED;
@@ -932,6 +944,68 @@ void CAFirstMixA::finishPacket(fmHashTableEntry *pfmHashEntry)
 }
 
 #endif //SSL_HACK
+
+void CAFirstMixA::checkUserConnections()
+{
+#ifdef PAYMENT
+	// check the timeout for all connections
+	fmHashTableEntry* timeoutHashEntry;
+	fmHashTableEntry* firstIteratorEntry = NULL;
+	/* this check also includes forced kickouts which have not bRecoverTimeout set. */
+	while ( (timeoutHashEntry = m_pChannelList->popTimeoutEntry(true)) != NULL )
+	{
+		if(firstIteratorEntry == timeoutHashEntry)
+		{
+			m_pChannelList->pushTimeoutEntry(timeoutHashEntry);
+			break;
+		}
+		if (timeoutHashEntry->bRecoverTimeout)
+		{
+			if(m_pChannelList->isTimedOut(timeoutHashEntry) )
+			{
+				CAMsg::printMsg(LOG_DEBUG,"Client connection closed due to timeout.\n");
+				closeConnection(timeoutHashEntry);
+				continue;
+			}
+		}
+		else
+		{
+			//A user to be kicked out: empty his data downstream data queue.
+			timeoutHashEntry->pQueueSend->clean();
+
+			if(timeoutHashEntry->pControlMessageQueue->getSize() == 0)
+			{
+				CAMsg::printMsg(LOG_ERR, "Kickout immediately owner %x!\n", timeoutHashEntry);
+				UINT32 authFlags = CAAccountingInstance::getAuthFlags(timeoutHashEntry);
+				if (authFlags > 0)
+				{
+					CAMsg::printMsg(LOG_ERR,"Client connection closed due to forced timeout! Payment auth flags: %u\n", authFlags);
+				}
+				else
+				{
+					CAMsg::printMsg(LOG_ERR,"Client connection closed due to forced timeout!\n");
+				}
+				//CAAccountingInstance::setPrepaidBytesToZero(timeoutHashEntry->pAccountingInfo);
+				closeConnection(timeoutHashEntry);
+				continue;
+			}
+			else
+			{
+				CAMsg::printMsg(LOG_ERR, "In Queue: %u\n", timeoutHashEntry->pControlMessageQueue->getSize());
+			}
+			// Let the client obtain all his remaining control message packets
+			//(which in most cases contain the error message with the kickout reason.
+			CAMsg::printMsg(LOG_ERR,"A kickout is supposed to happen bit let him get his %u message bytes!\n",
+					timeoutHashEntry->pControlMessageQueue->getSize());
+		}
+		if(firstIteratorEntry == NULL)
+		{
+			firstIteratorEntry = timeoutHashEntry;
+		}
+		m_pChannelList->pushTimeoutEntry(timeoutHashEntry);
+	}
+#endif
+}
 
 void CAFirstMixA::logBufferUsage()
 {

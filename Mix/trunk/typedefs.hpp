@@ -272,6 +272,8 @@ typedef struct
 class CASignature;
 class CAAccountingControlChannel;
 class CAMutex;
+
+struct t_fmhashtableentry;
 /**
  * Structure that holds all per-user payment information
  * Included in CAFirstMixChannelList (struct fmHashTableEntry)
@@ -304,6 +306,7 @@ struct t_accountinginfo
 	/** The same value as in fmHashTableEntry. */
 	UINT64 userID;
 
+	struct t_fmhashtableentry *ownerRef;
 	/** a pointer to the user-specific control channel object */
 	CAAccountingControlChannel* pControlChannel;
 
@@ -324,6 +327,9 @@ struct t_accountinginfo
 
 	// the number of references to this entry in the ai queue
 	UINT32 nrInQueue;
+
+	// new JonDo clients will send their version number as during challenge-response.
+	UINT8* clientVersion;
 };
 typedef struct t_accountinginfo tAiAccountingInfo;
 
