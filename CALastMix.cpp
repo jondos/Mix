@@ -195,9 +195,6 @@ SINT32 CALastMix::init()
 SINT32 CALastMix::processKeyExchange()
 	{
 		XERCES_CPP_NAMESPACE::DOMDocument* doc=createDOMDocument();
-
-
-
 		DOMElement* elemMixes=createDOMElement(doc,"Mixes");
 		setDOMElementAttribute(elemMixes,"count",(UINT32)1);
     //UINT8 cName[128];
@@ -230,9 +227,17 @@ SINT32 CALastMix::processKeyExchange()
       elemMixProtocolVersion.appendChild(elemChainTimeout);
     #else
       #ifdef NEW_FLOW_CONTROL
-		setDOMElementValue(elemMixProtocolVersion,(UINT8*)"0.4");
-      #else
-		setDOMElementValue(elemMixProtocolVersion,(UINT8*)"0.3");
+				setDOMElementValue(elemMixProtocolVersion,(UINT8*)"0.6");
+				DOMElement* elemFlowControl=createDOMElement(doc,"FlowControl");
+				DOMElement* elemUpstreamSendMe=createDOMElement(doc,"UpstreamSendMe");
+				DOMElement* elemDownstreamSendMe=createDOMElement(doc,"DownstreamSendMe");
+				elemMix->appendChild(elemFlowControl);
+				elemFlowControl->appendChild(elemUpstreamSendMe);
+				elemFlowControl->appendChild(elemDownstreamSendMe);
+				setDOMElementValue(elemUpstreamSendMe,FLOW_CONTROL_SENDME_SOFT_LIMIT);
+				setDOMElementValue(elemDownstreamSendMe,FLOW_CONTROL_SENDME_SOFT_LIMIT);
+      #else    
+				setDOMElementValue(elemMixProtocolVersion,(UINT8*)"0.3");
       #endif
     #endif
 		//Inserting RSA-Key

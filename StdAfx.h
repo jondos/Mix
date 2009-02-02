@@ -33,7 +33,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #if !defined(AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_)
 #define AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_
 
-#define MIX_VERSION "00.08.42"
+#define MIX_VERSION "00.08.48"
 
 #include "doxygen.h"
 
@@ -51,9 +51,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define COMPRESSED_LOGS
 //#define DO_TRACE
 //#define PSEUDO_LOG
-//#define DELAY_CHANNELS //to enable max channel bandwidth
-//#define DELAY_USERS //to enable max per user bandwidth
-//#define DELAY_CHANNELS_LATENCY //to enable min latency per channel
+#define DELAY_CHANNELS //to enable max channel bandwidth
+#define DELAY_USERS //to enable max per user bandwidth
+#define DELAY_CHANNELS_LATENCY //to enable min latency per channel
 //#define HAVE_EPOLL //define if you have epoll support on your (Linux) system
 //#define MXML_DOM //define this if you wnat to use the Mix-XML library (www.minixml.org) instead of the default Xerces-C library
 //#define COUNTRY_STATS //collect stats about countries users come from
@@ -87,12 +87,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifdef COUNTRY_STATS
 	#define LOG_COUNTRIES_INTERVALL 6 //how often to log the country stats (multiplied by 10 seconds)
 #endif
-/* please do not delete this ! */
-/*#if !defined(PAYMENT) && !defined(MANIOQ)
-	#define DELAY_USERS
-	//#define DELAY_CHANNELS
-	#define DELAY_CHANNELS_LATENCY
-#endif*/
 
 #ifdef DELAY_CHANNELS
 	#ifndef DELAY_CHANNEL_TRAFFIC
@@ -153,6 +147,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #if defined(PAYMENT) && ! defined(SSL_HACK)
 	#define SSL_HACK
+#endif
+
+#if defined (NEW_FLOW_CONTROL) && !defined(NO_PARKING)
+	#define NO_PARKING // disable old control flow
 #endif
 
 //#define DATABASE_PERFORMANCE_TEST //to performe a performance test of the replay db
@@ -281,6 +279,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define HAVE_PTHREAD_MUTEX_INIT
 	#define HAVE_PTHREAD_COND_INIT
 	#define HAVE_SEM_INIT
+	#define BYTE_ORDER_LITTLE_ENDIAN
 #else
 	//__linux is not defined on power pc so we define our own __linux if __linux__ is defined
 	#if defined(__linux__) && !defined(__linux)
@@ -339,6 +338,19 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
     	#define MSG_NOSIGNAL 0
     #endif
 	#endif //Have config.h
+
+	//Byte order defines
+	#if !defined(BYTE_ORDER_LITTLE_ENDIAN) && ! defined(BYTE_ORDER_BIG_ENDIAN)
+		#ifndef BYTE_ORDER
+			#error "You MUST define either BYTE_ORDER_BIG_ENDIAN or BYTE_ORDER_LITTLE_ENDIAN"
+		#else
+			#if BYTE_ORDER == BIG_ENDIAN
+				#define BYTE_ORDER_BIG_ENDIAN
+			#else
+				#define BYTE_ORDER_LITTLE_ENDIAN
+			#endif
+		#endif // BYTE_ORDER
+	#endif //not byte order given
 
 	#ifdef HAVE_FILIO
 		#include <sys/filio.h>

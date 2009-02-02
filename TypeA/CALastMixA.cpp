@@ -257,6 +257,7 @@ SINT32 CALastMixA::loop()
 																	#endif
 																	#ifdef DATA_RETENTION_LOG
 																		pQueueEntry->dataRetentionLogEntry.t_out=htonl(time(NULL));
+																		pQueueEntry->dataRetentionLogEntry.entity.last.channelid=htonl(pMixPacket->channel);
 																		pQueueEntry->dataRetentionLogEntry.entity.last.port_out=tmpSocket->getLocalPort();
 																		pQueueEntry->dataRetentionLogEntry.entity.last.port_out=htons(pQueueEntry->dataRetentionLogEntry.entity.last.port_out);
 																		tmpSocket->getLocalIP(pQueueEntry->dataRetentionLogEntry.entity.last.ip_out);
@@ -462,7 +463,6 @@ SINT32 CALastMixA::loop()
 #endif
 				if(countRead>0&&m_pQueueSendToMix->getSize()<MAX_MIXIN_SEND_QUEUE_SIZE)
 					{
-						bAktiv=true;
 #ifdef HAVE_EPOLL
 						pChannelListEntry=(lmChannelListEntry*)psocketgroupCacheRead->getFirstSignaledSocketData();
 						while(pChannelListEntry!=NULL)
@@ -476,13 +476,14 @@ SINT32 CALastMixA::loop()
 										countRead--;
 #endif
 #if defined(DELAY_CHANNELS)||defined(DELAY_CHANNELS_LATENCY)||defined(NEW_FLOW_CONTROL)
+	UINT32 bucketSize;
 	#define NEED_IF_12
 #endif
 										#ifdef NEED_IF_12
 										if(true
 										#endif
 												#ifdef DELAY_CHANNELS
-													&&(m_pChannelList->hasDelayBuckets(pChannelListEntry->delayBucketID) )
+													&&((bucketSize=m_pChannelList->getDelayBuckets(pChannelListEntry->delayBucketID))>0 )
 												#endif
 												#ifdef DELAY_CHANNELS_LATENCY
 													&&(isGreater64(current_time_millis,pChannelListEntry->timeLatency))
@@ -499,7 +500,7 @@ SINT32 CALastMixA::loop()
 												#else
 													UINT32 readLen=
 																min(
-																	m_pChannelList->getDelayBuckets(pChannelListEntry->delayBucketID),
+																	/*m_pChannelList->getDelayBuckets(pChannelListEntry->delayBucketID)*/bucketSize,
 																	PAYLOAD_SIZE);
 													ret=pChannelListEntry->pSocket->receive(pMixPacket->payload.data,readLen);
 												#endif
@@ -507,6 +508,7 @@ SINT32 CALastMixA::loop()
 													getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_start);
 													set64(pQueueEntry->timestamp_proccessing_start_OP,pQueueEntry->timestamp_proccessing_start);
 												#endif
+												bAktiv=true;
 												if(ret==SOCKET_ERROR||ret==0)
 													{
 														psocketgroupCacheRead->remove(*(pChannelListEntry->pSocket));
@@ -548,17 +550,17 @@ SINT32 CALastMixA::loop()
 														pMixPacket->channel=pChannelListEntry->channelIn;
 														pMixPacket->flags=CHANNEL_DATA;
 														pMixPacket->payload.type=0;
-														#ifdef NEW_FLOW_CONTROL
-														if(pChannelListEntry->sendmeCounter==FLOW_CONTROL_SENDME_SOFT_LIMIT)
-															{
-																pMixPacket->payload.len=htons((UINT16)ret|NEW_FLOW_CONTROL_FLAG);
-																CAMsg::printMsg(LOG_DEBUG,"Send sendme request\n");
-															}
-														else
-															pMixPacket->payload.len=htons((UINT16)ret);															
-														#else
-															pMixPacket->payload.len=htons((UINT16)ret);
-														#endif
+														//#ifdef NEW_FLOW_CONTROL
+														//if(pChannelListEntry->sendmeCounter==FLOW_CONTROL_SENDME_SOFT_LIMIT)
+														//	{
+														//		pMixPacket->payload.len=htons((UINT16)ret|NEW_FLOW_CONTROL_FLAG);
+																//CAMsg::printMsg(LOG_DEBUG,"Send sendme request\n");
+														//	}
+														//else
+														//	pMixPacket->payload.len=htons((UINT16)ret);															
+														//#else
+														pMixPacket->payload.len=htons((UINT16)ret);
+														//#endif
 														pChannelListEntry->pCipher->crypt2(pMixPacket->data,pMixPacket->data,DATA_SIZE);
 														#ifdef LOG_PACKET_TIMES
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
