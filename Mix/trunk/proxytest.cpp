@@ -37,7 +37,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAThreadList.hpp"
 #include "CAStatusManager.hpp"
 
-
 #ifdef _DEBUG //For FreeBSD memory checking functionality
 	const char* _malloc_options="AX";
 #endif
@@ -579,7 +578,9 @@ int main(int argc, const char* argv[])
 				exit(EXIT_FAILURE);
 		}
 #endif
-
+//		CADataRetentionLogFile::doCheckAndPerformanceTest();
+//		getch();
+//		exit(0);
 #ifdef _DEBUG
 			UINT32 start;
 #endif
