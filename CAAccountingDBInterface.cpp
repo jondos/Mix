@@ -732,7 +732,7 @@ SINT32 CAAccountingDBInterface::getPrepaidAmount(UINT64 accountNumber, UINT8* ca
 /*
  * When initializing a connection, retrieve the amount of prepaid, but unused, bytes the JAP account has left over from
  * a previous connection.
- * Will then delete this enty from the database table prepaidamounts
+ * Will then delete this entry from the database table prepaidamounts
  * If the account has not been connected to this cascade before, will return zero
  */
 SINT32 CAAccountingDBInterface::__getPrepaidAmount(UINT64 accountNumber, UINT8* cascadeId, bool a_bDelete)
