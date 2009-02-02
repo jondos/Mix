@@ -1769,21 +1769,25 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			}
 			//...if the former login is finished and the connection is in use: force the previous login-connection to be kicked out.
 			loginCV->lock();
+			CAXMLErrorMessage kickoutMsg(CAXMLErrorMessage::ERR_MULTIPLE_LOGIN);
+			XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
+			kickoutMsg.toXmlDocument(errDoc);
 			//Note: the ownerRef hashEntry can already be cleared at that point.
-			if(  m_mix->forceKickout(ownerRef)  )
+			if(  m_mix->forceKickout(ownerRef, errDoc)  )
 			{
 				CAMsg::printMsg(LOG_DEBUG, "Kickout was requested for owner %x, waiting...\n", ownerRef);
 				//Synchronize until the main thread can sure that the connection is closed. (After FirstMixA::checkConnections()
 				// in main loop)
 				loginCV->wait();
-				CAMsg::printMsg(LOG_DEBUG, "...waking up.\n");
 			}
 			else
 			{
-				//this condition holds when the ownerRef was already cleared.
+				//if the forceKickout returns false the ownerRef was already cleared.
 				//no need to wait any further.
-				CAMsg::printMsg(LOG_DEBUG, "kickout could not be initiated.\n");
+				CAMsg::printMsg(LOG_INFO, "ownerRef %x already kicked out.\n", ownerRef);
 			}
+			errDoc->release();
+			errDoc = NULL;
 			loginCV->unlock();
 
 			//obtain hashtable lock again.
@@ -1802,7 +1806,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 		else
 		{
 			//Impossible or Bug
-			CAMsg::printMsg(LOG_INFO, "BUG: ownerRef of an active login entry MUST NOT be null. Please report.\n");
+			CAMsg::printMsg(LOG_CRIT, "BUG: ownerRef of an active login entry MUST NOT be null. Please report.\n");
 			m_currentAccountsHashtable->getMutex()->unlock();
 			pAccInfo->mutex->unlock();
 			return CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR;

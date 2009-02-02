@@ -385,7 +385,8 @@ void CAFirstMixChannelList::setKickoutForced(fmHashTableEntry* pHashTableEntry, 
 
 #ifdef PAYMENT
 /**
- * forces a kickout for this entry if the Entry is still valid
+ * forces a kickout for this entry if the entry is still valid and sends an errorMessage via the
+ * control channel belonging to the entry.
  * returns true if pHashTableEntry is still valid, false otherwise
  */
 bool CAFirstMixChannelList::forceKickout(fmHashTableEntry* pHashTableEntry, const XERCES_CPP_NAMESPACE::DOMDocument *pErrDoc)
@@ -397,6 +398,10 @@ bool CAFirstMixChannelList::forceKickout(fmHashTableEntry* pHashTableEntry, cons
 	{
 		if(pErrDoc != NULL)
 		{
+			//NOTE: accessing the control channel in this case works without further locking,
+			//because the control channel is only deleted when the Dispatcher deletes all channels.
+			//This happens when the table entry is removed by CAFirstMixChannelList::remove
+			//which locks over m_Mutex.
 			pHashTableEntry->pAccountingInfo->pControlChannel->sendXMLMessage(pErrDoc);
 		}
 		setKickoutForced_internal(pHashTableEntry, KICKOUT_FORCED);
