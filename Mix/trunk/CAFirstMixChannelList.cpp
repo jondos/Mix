@@ -461,7 +461,7 @@ SINT32 CAFirstMixChannelList::pushTimeoutEntry(fmHashTableEntry* pHashTableEntry
 	SINT32 ret;
 
 	m_Mutex.lock();
-	ret = pushTimeoutEntry_internal(pHashTableEntry);
+	ret = pushTimeoutEntry_internal(pHashTableEntry, kickoutForced);
 	m_Mutex.unlock();
 
 	return ret;
