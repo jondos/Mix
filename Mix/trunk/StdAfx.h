@@ -51,9 +51,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define COMPRESSED_LOGS
 //#define DO_TRACE
 //#define PSEUDO_LOG
-#define DELAY_CHANNELS //to enable max channel bandwidth
-#define DELAY_USERS //to enable max per user bandwidth
-#define DELAY_CHANNELS_LATENCY //to enable min latency per channel
+//#define DELAY_CHANNELS //to enable max channel bandwidth
+//#define DELAY_USERS //to enable max per user bandwidth
+//#define DELAY_CHANNELS_LATENCY //to enable min latency per channel
 //#define HAVE_EPOLL //define if you have epoll support on your (Linux) system
 //#define MXML_DOM //define this if you wnat to use the Mix-XML library (www.minixml.org) instead of the default Xerces-C library
 //#define COUNTRY_STATS //collect stats about countries users come from
