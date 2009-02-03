@@ -464,16 +464,6 @@ void initDOMParser()
 
 XERCES_CPP_NAMESPACE::DOMDocument* parseDOMDocument(const UINT8* const buff, UINT32 len)
 	{
-		/*if(theDOMParser==NULL)
-		{
-				theParseDOMDocumentLock=new CAMutex();
-				theParseDOMDocumentLock->lock();
-				theDOMParser=new XercesDOMParser();
-		}
-		else
-		{
-
-		}*/
 		theParseDOMDocumentLock->lock();
 		MemBufInputSource in(buff,len,"tmpBuff");
 		theDOMParser->parse(in);
@@ -494,7 +484,9 @@ XERCES_CPP_NAMESPACE::DOMDocument* parseDOMDocument(const UINT8* const pathOrURL
 	theDOMParser->parse((const char *const) pathOrURL);
 	XERCES_CPP_NAMESPACE::DOMDocument* ret=NULL;
 	if(theDOMParser->getErrorCount()==0)
-	ret=theDOMParser->adoptDocument();
+	{
+		ret=theDOMParser->adoptDocument();
+	}
 	theParseDOMDocumentLock->unlock();
 	return ret;
 }

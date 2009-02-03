@@ -208,8 +208,9 @@ SINT32 CALastMix::processKeyExchange()
 
 		//Inserting MixProtocol Version
 		// Version 0.3  - "normal", initial mix protocol
-		// Version 0.4  - with new flow control
+		// Version 0.4  - with new flow control [was only used for tests]
     // Version 0.5  - end-to-end 1:n channels (only between client and last mix)
+		// Version 0.6  - with new flow control [productive]
 		DOMElement* elemMixProtocolVersion=createDOMElement(doc,"MixProtocolVersion");
 		elemMix->appendChild(elemMixProtocolVersion);
     #ifdef NEW_MIX_TYPE // TypeB mixes

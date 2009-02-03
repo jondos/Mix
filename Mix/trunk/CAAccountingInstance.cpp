@@ -407,8 +407,6 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 
 		SAVE_STACK("CAAccountingInstance::handleJapPacket", "before accounts hash");
 
-		// this user is authenticated; test if he has logged in more than one time
-
 		if (!ms_pInstance->m_currentAccountsHashtable)
 		{
 			// accounting instance is dying...
@@ -423,6 +421,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 			pAccInfo->authFlags &= ~loginEntry->authRemoveFlags;
 			//CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Remove flag: %d\n", loginEntry->authRemoveFlags);
 
+			/*
 			if (loginEntry->userID != pHashEntry->id)
 			{
 				// this is not the latest connection of this user; kick him out...
@@ -430,7 +429,8 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 				ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
 				return returnPrepareKickout(pAccInfo, new CAXMLErrorMessage(CAXMLErrorMessage::ERR_MULTIPLE_LOGIN, (UINT8*)"Only one login per account is allowed!"));
 			}
-			else if (loginEntry->authFlags & AUTH_OUTDATED_CC)
+			else */
+			if (loginEntry->authFlags & AUTH_OUTDATED_CC)
 			{
 				loginEntry->authFlags &= ~AUTH_OUTDATED_CC;
 
@@ -1085,8 +1085,6 @@ SINT32 CAAccountingInstance::processJapMessage(fmHashTableEntry * pHashEntry,con
 			return E_UNKNOWN;
 		}
 		char* docElementName = XMLString::transcode(root->getTagName());
-		//aiQueueItem* pItem=NULL;
-		//void (CAAccountingInstance::*handleFunc)(tAiAccountingInfo*,DOMElement*) = NULL;
 		SINT32 hf_ret = 0;
 
 
@@ -1748,7 +1746,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	m_currentAccountsHashtable->getMutex()->lock();
 	loginEntry = (AccountLoginHashEntry*)m_currentAccountsHashtable->getValue(&(pAccInfo->accountNumber));
 	struct t_fmhashtableentry *ownerRef = NULL;
-	if(loginEntry != NULL)
+	if(loginEntry != NULL) // (other) user (with same account) already logged in
 	{
 		ownerRef  = loginEntry->ownerRef;
 		if(ownerRef != NULL)

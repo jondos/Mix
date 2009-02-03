@@ -71,7 +71,7 @@ bool CAControlChannelDispatcher::proccessMixPacket(const MIXPACKET* pPacket)
 		{
 			m_pcsRegisterChannel->lock();
 			CAAbstractControlChannel* pControlChannel=m_arControlChannels[pPacket->channel];
-			if(pControlChannel != NULL)
+			if (pControlChannel != NULL)
 			{
 				bool ret = (pControlChannel->proccessMessage(pPacket->data,pPacket->flags) == E_SUCCESS);
 				m_pcsRegisterChannel->unlock();

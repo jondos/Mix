@@ -136,9 +136,8 @@ CAStatusManager::CAStatusManager()
 	m_pStatusLock = new CAMutex();
 	m_pStatusSocket = new CASocket();
 	ret = initSocket();
-	if( (ret == E_SUCCESS) /*|| (ret == EADDRINUSE)*/ )
+	if( (ret == E_SUCCESS))
 	{
-		//m_bTryListen = (ret == EADDRINUSE);
 		m_pMonitoringThread = new CAThread((UINT8*)"Monitoring Thread");
 		m_pMonitoringThread->setMainLoop(serveMonitoringRequests);
 		m_pMonitoringThread->start(this);
@@ -307,11 +306,6 @@ SINT32 CAStatusManager::initSocket()
 					hostname, port,
 					((ret == E_SOCKET_BIND) ? "Bind" : "Listen"),
 					 GET_NET_ERROR_STR(errnum));
-			/*if( errnum == EADDRINUSE )
-			{
-				CAMsg::printMsg(LOG_INFO, "retry socket listening later\n");
-				return errnum;
-			}*/
 		}
 		return ret;
 	}

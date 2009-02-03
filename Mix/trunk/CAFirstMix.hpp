@@ -41,9 +41,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAUtil.hpp"
 #include "CAThread.hpp"
 #include "CAThreadPool.hpp"
-/*#ifdef PAYMENT
-#include "CAAccountingInstance.hpp"
-#endif*/
 #include "CALogPacketStats.hpp"
 #ifdef HAVE_EPOLL
 	#include "CASocketGroupEpoll.hpp"
@@ -153,7 +150,7 @@ public:
 			}*/
     	virtual ~CAFirstMix()
 		{
-			//clean();
+			//clean(); // speeds up shutdown
 			delete m_pmutexUser;
 			m_pmutexUser = NULL;
 			delete m_pmutexMixedPackets;

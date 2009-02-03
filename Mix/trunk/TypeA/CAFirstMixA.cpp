@@ -139,7 +139,7 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 	return E_SUCCESS;
 }
 
-#define BUFFER_PACKET_COUNT 100000
+
 
 SINT32 CAFirstMixA::loop()
 	{
@@ -167,7 +167,6 @@ SINT32 CAFirstMixA::loop()
 		CAMsg::printMsg(LOG_DEBUG,"Starting Message Loop... \n");
 		bool bAktiv;
 		UINT8 rsaBuff[RSA_SIZE];
-		UINT32 countLogBuffer= BUFFER_PACKET_COUNT;
 
 #ifdef LOG_TRAFFIC_PER_USER
 		UINT64 current_time;
@@ -189,12 +188,6 @@ SINT32 CAFirstMixA::loop()
 
 		while(!m_bRestart) /* the main mix loop as long as there are things that are not handled by threads. */
 			{
-				/*if(countLogBuffer==0)
-				{
-					logBufferUsage();
-					countLogBuffer=BUFFER_PACKET_COUNT;
-				}
-				countLogBuffer--;*/
 
 				bAktiv=false;
 
@@ -288,32 +281,7 @@ SINT32 CAFirstMixA::loop()
 														goto NEXT_USER;
 													}
 												}
-//#ifdef PAYMENT
-//												SINT32 ret = CAAccountingInstance::handleJapPacket(pHashEntry, false, false);
-//												if (CAAccountingInstance::HANDLE_PACKET_CONNECTION_OK == ret)
-//												{
-//													// renew the timeout
-//													pHashEntry->bRecoverTimeout = true;
-//													m_pChannelList->pushTimeoutEntry(pHashEntry);
-//												}
-//												else if (CAAccountingInstance::HANDLE_PACKET_HOLD_CONNECTION == ret)
-//												{
-//													// @todo this packet should be queued for later processing
-//													pHashEntry->bRecoverTimeout = false;
-//												}
-//												else if (CAAccountingInstance::HANDLE_PACKET_PREPARE_FOR_CLOSING_CONNECTION == ret)
-//												{
-//													// do not forward this packet
-//													pHashEntry->bRecoverTimeout = false;
-//													goto NEXT_USER;
-//												}
-//												else if (CAAccountingInstance::HANDLE_PACKET_CLOSE_CONNECTION == ret)
-//												{
-//													// kickout this user - he deserves it...
-//													closeConnection(pHashEntry);
-//													goto NEXT_USER;
-//												}
-//#endif
+
 												if(accountTrafficUpstream(pHashEntry) != E_SUCCESS) goto NEXT_USER;
 
 												if(pMixPacket->flags==CHANNEL_DUMMY) // just a dummy to keep the connection alife in e.g. NAT gateways
@@ -1005,32 +973,4 @@ void CAFirstMixA::checkUserConnections()
 		m_pChannelList->pushTimeoutEntry(timeoutHashEntry);
 	}
 #endif
-}
-
-void CAFirstMixA::logBufferUsage()
-{
-	UINT32 interMixSendBufSize = m_pQueueSendToMix->getSize();
-	UINT32 interMixRecvBufSize = m_pQueueReadFromMix->getSize();
-	UINT32 userQueueSum = 0;
-
-	double interMixRecvBufRatio = ((double)interMixRecvBufSize) / ((double) MAX_READ_FROM_NEXT_MIX_QUEUE_SIZE);
-
-	fmHashTableEntry *firstEntry = m_pChannelList->getFirst();
-	fmHashTableEntry *iterator = firstEntry;
-	if(iterator != NULL)
-	{
-		do
-		{
-			userQueueSum += iterator->pQueueSend->getSize();
-			iterator = m_pChannelList->getNext();
-		}
-		while( (iterator != NULL) && (iterator != firstEntry) );
-	}
-
-	CAMsg::printMsg(LOG_DEBUG, "BUFFER-LOG: Inter-Mix sendbuffer size: %u, "
-			"Inter-Mix receivebuffer size: %u, "
-			"Inter-Mix receivebuffer size: fill ratio: %f, "
-			"Overall User buffer size: %u\n",
-			interMixSendBufSize, interMixRecvBufSize,
-			interMixRecvBufRatio,userQueueSum);
 }

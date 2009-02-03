@@ -50,7 +50,6 @@ class CAFirstMixA:public CAFirstMix
 			void finishPacket(fmHashTableEntry *pfmHashEntry);
 #endif
 			void checkUserConnections();
-			void logBufferUsage();
 };
 
 #endif
