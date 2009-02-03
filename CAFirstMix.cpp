@@ -766,11 +766,18 @@ THREAD_RETURN fm_loopSendToMix(void* param)
 						CAMsg::printMsg(LOG_ERR,"CAFirstMix::lm_loopSendToMix - Error in sending MixPaket\n");
 						break;
 					}
-#ifdef LOG_PACKET_TIMES
+#if defined (LOG_PACKET_TIMES)
  				if(!isZero64(pQueueEntry->timestamp_proccessing_start))
 					{
 						getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end);
 						pFirstMix->m_pLogPacketStats->addToTimeingStats(*pQueueEntry,pMixPacket->flags,true);
+					}
+#endif
+#ifdef DATA_RETENTION_LOG
+				if((pQueueEntry->packet.flags&CHANNEL_OPEN)!=0)
+					{
+						pQueueEntry->dataRetentionLogEntry.t_out=htonl(time(NULL));
+						pFirstMix->m_pDataRetentionLog->log(&(pQueueEntry->dataRetentionLogEntry));
 					}
 #endif
 			}
@@ -817,6 +824,11 @@ THREAD_RETURN fm_loopSendToMix(void* param)
 		delete pPool;
 		pPool = NULL;
 #endif
+
+/*#ifdef DATA_RETENTION_LOG
+		delete pDataRetentionLogEntry;
+#endif
+*/
 		FINISH_STACK("CAFirstMix::fm_loopSendToMix");
 
 		CAMsg::printMsg(LOG_DEBUG,"Exiting Thread SendToMix\n");
@@ -1439,10 +1451,10 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		CAQueue* tmpQueue=new CAQueue(sizeof(tQueueEntry));
 
 		SAVE_STACK("CAFirstMix::doUserLogin", "Adding user to connection list...");
-#ifndef LOG_DIALOG
-		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue);
-#else
+#ifdef LOG_DIALOG
 		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue,strDialog);
+#else
+		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue);
 #endif
 		if( (pHashEntry == NULL) ||
 			(pHashEntry->pControlMessageQueue == NULL) )// adding user connection to mix->JAP channel list (stefan: sollte das nicht connection list sein? --> es handelt sich um eine Datenstruktu fr Connections/Channels ).

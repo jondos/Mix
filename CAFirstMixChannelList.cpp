@@ -150,7 +150,7 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 		pHashTableEntry->strDialog=new UINT8[strlen((char*)strDialog)+1];
 		strcpy((char*)pHashTableEntry->strDialog,(char*)strDialog);
 #endif
-		//Collisions?
+		// TODO Collisions? Is the id still used somewhere?
 		getRandom(&(pHashTableEntry->id));
 
 #ifdef PAYMENT
@@ -417,7 +417,7 @@ inline bool CAFirstMixChannelList::isTimedOut_internal(fmHashTableEntry* pHashTa
 	return (pHashTableEntry->list_TimeoutHashEntries.timoutSecs <= time(NULL));
 }
 
-bool CAFirstMixChannelList::isKickoutForced_internal(fmHashTableEntry* pHashTableEntry)
+inline bool CAFirstMixChannelList::isKickoutForced_internal(fmHashTableEntry* pHashTableEntry)
 {
 	return !(pHashTableEntry->bRecoverTimeout);
 }
