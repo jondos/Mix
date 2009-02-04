@@ -96,7 +96,8 @@ am_libproxytest_a_OBJECTS = CAAbstractControlChannel.$(OBJEXT) \
 	CAThreadPool.$(OBJEXT) CAThreadList.$(OBJEXT) CAUtil.$(OBJEXT) \
 	CAXMLBI.$(OBJEXT) CAXMLCostConfirmation.$(OBJEXT) \
 	CAXMLErrorMessage.$(OBJEXT) CAXMLPriceCert.$(OBJEXT) \
-	Hashtable.$(OBJEXT) packetintro.$(OBJEXT)
+	Hashtable.$(OBJEXT) TermsAndConditions.$(OBJEXT) \
+	packetintro.$(OBJEXT)
 libproxytest_a_OBJECTS = $(am_libproxytest_a_OBJECTS)
 am__installdirs = "$(DESTDIR)$(sbindir)"
 sbinPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
@@ -313,6 +314,7 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CAXMLErrorMessage.cpp\
 		    CAXMLPriceCert.cpp\
 		    Hashtable.cpp\
+		    TermsAndConditions.cpp \
 		    packetintro.cpp
 
 mix_SOURCES = proxytest.cpp
@@ -492,6 +494,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CAXMLErrorMessage.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/CAXMLPriceCert.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/Hashtable.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/TermsAndConditions.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/packetintro.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/proxytest.Po@am__quote@
 
@@ -968,6 +971,7 @@ uninstall-am: uninstall-sbinPROGRAMS
 		    CAXMLErrorMessage.hpp\
 		    CAXMLPriceCert.hpp\
 		    Hashtable.hpp\
+		    TermsAndConditions.hpp \
 		    packetintro.h\
 		    StdAfx.h\
 		    basetypedefs.h

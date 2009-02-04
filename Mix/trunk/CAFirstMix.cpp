@@ -666,8 +666,6 @@ SINT32 CAFirstMix::handleKeyInfoExtensions(DOMElement *root)
 	if(extensionRoot != NULL)
 	{
 		extensionRoot = (DOMElement *) root->removeChild(extensionRoot);
-		//handle all extension:
-		//TODO: a bit more generic, i.e. register extension handler functions and stuff
 		ret = handleTermsAndConditionsExtension(extensionRoot);
 		extensionRoot->release();
 	}
@@ -689,32 +687,75 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 	UINT8 currentTnCEntry_templateRefid[TMP_BUFF_SIZE];
 	UINT32 currentTnCEntry_templateRefid_len = TMP_BUFF_SIZE;
 
+	UINT8 currentTnCEntry_locale[TMP_LOCALE_SIZE];
+	UINT32 currentTnCEntry_locale_len = TMP_LOCALE_SIZE;
+
 	DOMElement *currentTnCList = NULL;
 	DOMElement *currentTnCEntry = NULL;
 	memset(currentTnC_id, 0, TMP_BUFF_SIZE);
 	memset(currentTnCEntry_templateRefid, 0, TMP_BUFF_SIZE);
 
+	m_nrOfTermsAndConditionsDefs = 0;
+	DOMNodeList *tncDefList = NULL;
+	DOMElement *ownTncDef = pglobalOptions->getTermsAndConditions();
+
 	if(tncDefs != NULL)
 	{
-		DOMNodeList *tncDefList = getElementsByTagName(tncDefs, OPTIONS_NODE_TNCS_LIST);
-		for (int i = 0; i < tncDefList->getLength(); i++)
+		tncDefList = getElementsByTagName(tncDefs, OPTIONS_NODE_TNCS_LIST);
+		m_nrOfTermsAndConditionsDefs += tncDefList->getLength();
+	}
+	if(ownTncDef != NULL)
+	{
+		m_nrOfTermsAndConditionsDefs++;
+	}
+
+	m_tnCDefs = new TermsAndConditions *[m_nrOfTermsAndConditionsDefs];
+
+	for (int i = 0; i < m_nrOfTermsAndConditionsDefs; i++)
+	{
+		if( (i == (m_nrOfTermsAndConditionsDefs - 1)) && (ownTncDef != NULL) )
+		{
+			currentTnCList = ownTncDef;
+		}
+		else
 		{
 			currentTnCList = (DOMElement *) tncDefList->item(i);
-			DOMNodeList *tncDefEntryList = getElementsByTagName(currentTnCList, OPTIONS_NODE_TNCS);
-			getDOMElementAttribute(currentTnCList, OPTIONS_ATTRIBUTE_TNC_ID, currentTnC_id, &currentTnC_id_len);
-
-			for (int j = 0; j < tncDefEntryList->getLength(); j++)
-			{
-				currentTnCEntry = (DOMElement *) tncDefEntryList->item(j);
-				getDOMElementAttribute(currentTnCEntry, OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID,
-						currentTnCEntry_templateRefid, &currentTnCEntry_templateRefid_len);
-
-				//CAMsg::printMsg(LOG_DEBUG,"TODO: create entry for %s, [template %s]\n", currentTnC_id, currentTnCEntry_templateRefid);
-				currentTnCEntry_templateRefid_len = TMP_BUFF_SIZE;
-			}
-			//TODO: create entries.
-			currentTnC_id_len = TMP_BUFF_SIZE;
 		}
+
+		DOMNodeList *tncDefEntryList = getElementsByTagName(currentTnCList, OPTIONS_NODE_TNCS);
+		getDOMElementAttribute(currentTnCList, OPTIONS_ATTRIBUTE_TNC_ID, currentTnC_id, &currentTnC_id_len);
+
+		m_tnCDefs[i] = new TermsAndConditions(currentTnC_id, tncDefEntryList->getLength());
+
+		for (int j = 0; j < tncDefEntryList->getLength(); j++)
+		{
+			currentTnCEntry = (DOMElement *) tncDefEntryList->item(j);
+
+			getDOMElementAttribute(currentTnCEntry, OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID,
+					currentTnCEntry_templateRefid, &currentTnCEntry_templateRefid_len);
+			getDOMElementAttribute(currentTnCEntry, OPTIONS_ATTRIBUTE_TNC_LOCALE,
+					currentTnCEntry_locale, &currentTnCEntry_locale_len);
+
+			DOMNode *templateNode = pglobalOptions->getTermsAndConditionsTemplate(currentTnCEntry_templateRefid);
+			if(templateNode != NULL)
+			{
+				m_tnCDefs[i]->synchLock->lock();
+				m_tnCDefs[i]->addTranslation(currentTnCEntry_locale, currentTnCEntry, templateNode);
+				//printTranslation(m_tnCDefs[i]->getTranslation(currentTnCEntry_locale));
+				m_tnCDefs[i]->synchLock->unlock();
+			}
+			else
+			{
+				m_tnCDefs[i] = NULL;
+				CAMsg::printMsg(LOG_ERR,"Could not find template %s for T&C %s.\n", currentTnCEntry_templateRefid, currentTnC_id);
+			}
+			memset(currentTnCEntry_templateRefid, 0, TMP_BUFF_SIZE);
+			currentTnCEntry_templateRefid_len = TMP_BUFF_SIZE;
+			memset(currentTnCEntry_locale, 0, TMP_LOCALE_SIZE);
+			currentTnCEntry_locale_len = TMP_LOCALE_SIZE;
+		}
+		memset(currentTnC_id, 0, TMP_BUFF_SIZE);
+		currentTnC_id_len = TMP_BUFF_SIZE;
 	}
 	return E_SUCCESS;
 }
@@ -1976,10 +2017,19 @@ SINT32 CAFirstMix::clean()
 		m_u32MixCount=0;
 		m_nMixedPackets=0; //reset to zero after each restart (at the moment neccessary for infoservice)
 		m_nUser=0;
+
+		for (int i = 0; i < m_nrOfTermsAndConditionsDefs; i++)
+		{
+			delete m_tnCDefs[i];
+			m_tnCDefs[i] = NULL;
+		}
+		delete [] m_tnCDefs;
+		m_tnCDefs = NULL;
+		m_nrOfTermsAndConditionsDefs = 0;
 		//#ifdef _DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"CAFirstMix::clean() finished\n");
 		//#endif
-		delete [] m_tnCDefs;
+
 		return E_SUCCESS;
 	}
 

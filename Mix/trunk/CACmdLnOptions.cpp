@@ -104,6 +104,7 @@ CACmdLnOptions::CACmdLnOptions()
 		m_iMonitoringListenerPort = 0xFFFF;
 #endif
 		m_termsAndConditionsTemplates = NULL;
+		m_nrOfTermsAndConditionsTemplates = 0;
 
 #ifdef LOG_CRIME
 		m_arCrimeRegExpsURL=NULL;
@@ -1631,6 +1632,44 @@ SINT32 CACmdLnOptions::getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo
 	return E_SUCCESS;
 }
 
+XERCES_CPP_NAMESPACE::DOMNode *CACmdLnOptions::getTermsAndConditionsTemplate(UINT8 *templateRefID)
+{
+	UINT32 tmpTypeLen = TMP_BUFF_SIZE;
+	UINT8 tmpType[tmpTypeLen];
+
+	UINT32 tmpLocaleLen = TMP_LOCALE_SIZE;
+	UINT8 tmpLocale[tmpLocaleLen];
+
+	UINT32 tmpDateLen = TMP_DATE_SIZE;
+	UINT8 tmpDate[tmpDateLen];
+
+
+	char currentRefId[TMP_BUFF_SIZE];
+
+	for (UINT32 i = 0; i < m_nrOfTermsAndConditionsTemplates; i++)
+	{
+		getDOMElementAttribute(m_termsAndConditionsTemplates[i]->getDocumentElement(), OPTIONS_ATTRIBUTE_TNC_TEMPLATE_TYPE, tmpType, &tmpTypeLen);
+		getDOMElementAttribute(m_termsAndConditionsTemplates[i]->getDocumentElement(), OPTIONS_ATTRIBUTE_TNC_LOCALE, tmpLocale, &tmpLocaleLen);
+		getDOMElementAttribute(m_termsAndConditionsTemplates[i]->getDocumentElement(), OPTIONS_ATTRIBUTE_TNC_DATE, tmpDate, &tmpDateLen);
+
+		memset(currentRefId, 0, TMP_BUFF_SIZE);
+		snprintf(currentRefId, TMP_BUFF_SIZE, "%s_%s_%s", (char *) tmpType, (char *) tmpLocale, (char *) tmpDate);
+		//CAMsg::printMsg(LOG_DEBUG, "template refid: %s\n", currentRefId);
+		if(strncmp((char *)templateRefID, currentRefId, (tmpTypeLen+tmpLocaleLen+tmpDateLen+2) ) == 0)
+		{
+			return m_termsAndConditionsTemplates[i];
+		}
+		memset(tmpDate, 0, TMP_DATE_SIZE);
+		memset(tmpLocale, 0, TMP_LOCALE_SIZE);
+		memset(tmpType, 0, TMP_BUFF_SIZE);
+
+		tmpLocaleLen = TMP_LOCALE_SIZE;
+		tmpDateLen = TMP_DATE_SIZE;
+		tmpTypeLen = TMP_BUFF_SIZE;
+	}
+	return NULL;
+}
+
 /* a reference to the Terms and conditions document stored by this class.
  * this method does not return a copy of the doc so don't release it.
  */
@@ -1641,6 +1680,11 @@ XERCES_CPP_NAMESPACE::DOMElement* CACmdLnOptions::getTermsAndConditions()
 	{
 		return NULL;
 	}
+	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT32 tmpLen = TMP_BUFF_SIZE;
+	memset(tmpBuff, 0, tmpLen);
+	getOperatorSubjectKeyIdentifier(tmpBuff, &tmpLen);
+	setDOMElementAttribute(m_docOpTnCs->getDocumentElement(), OPTIONS_ATTRIBUTE_TNC_ID, tmpBuff);
 	return m_docOpTnCs->getDocumentElement();
 	//docElement = m_docOpTnCs->getDocumentElement();
 	//return (docElement == NULL) ? NULL : getElementsByTagName(docElement, OPTION_NODE_TNCS);
@@ -3389,7 +3433,8 @@ SINT32 CACmdLnOptions::setTermsAndConditionsTemplates(DOMElement *elemTnCs)
 		if(templateList->getLength() > 0)
 		{
 			nothingFound = false;
-			m_termsAndConditionsTemplates = new DOMNode*[templateList->getLength()];
+			m_termsAndConditionsTemplates = new DOMDocument*[templateList->getLength()];
+			m_nrOfTermsAndConditionsTemplates = templateList->getLength();
 			UINT8 currentTemplateURL[TMP_BUFF_SIZE];
 			UINT32 len = TMP_BUFF_SIZE;
 			memset(currentTemplateURL, 0, len);

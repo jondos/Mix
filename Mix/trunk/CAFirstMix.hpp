@@ -41,6 +41,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAUtil.hpp"
 #include "CAThread.hpp"
 #include "CAThreadPool.hpp"
+#include "TermsAndConditions.hpp"
 #include "CALogPacketStats.hpp"
 #ifdef HAVE_EPOLL
 	#include "CASocketGroupEpoll.hpp"
@@ -126,6 +127,7 @@ public:
 					m_pthreadReadFromMix=NULL;
 					m_pthreadAcceptUsers=NULL;
 					m_pthreadsLogin=NULL;
+					m_nrOfTermsAndConditionsDefs = 0;
 					m_tnCDefs = NULL;
 					m_bIsShuttingDown=false;
 #ifdef LOG_PACKET_TIMES
@@ -323,7 +325,8 @@ protected:
 			CAThread* m_pthreadSendToMix;
 			CAThread* m_pthreadReadFromMix;
 
-			termsAndConditions_t *m_tnCDefs;
+			UINT32 m_nrOfTermsAndConditionsDefs;
+			TermsAndConditions **m_tnCDefs;
 
 #ifdef COUNTRY_STATS
 		private:
