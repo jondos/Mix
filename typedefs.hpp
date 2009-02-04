@@ -196,13 +196,16 @@ struct t_mix_parameters
 	};
 typedef struct t_mix_parameters tMixParameters;
 
-typedef struct
-{
-	UINT8 *tnc_id; /* id of the Terms & Conditions is the operator ski */
-	/*UINT8 *tnc_date;  the date when the terms andCondtions became valid */
-	DOMNode *tnc_customized; /* the operator specific Terms & Conditions definitions */
-	DOMNode *tnc_template; /* the template needed to render the whole Terms and Conditions */
-} termsAndConditions_t;
+
+
+//typedef struct
+//{
+//	UINT8 *tnc_id; /* id of the Terms & Conditions is the operator ski */
+//	UINT8 locale[3]; /* language code of the T&C. together with tnc_id this uniquely identifies the T&C */
+//	/*UINT8 *tnc_date;  the date when the terms andCondtions became valid */
+//	DOMNode *tnc_customized; /* the operator specific Terms & Conditions definitions */
+//	DOMNode *tnc_template; /* the template needed to render the whole Terms and Conditions */
+//} termsAndConditions_t;
 
 /**
  * These flags are used to represent the state

@@ -44,6 +44,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#endif
 
 #define TMP_BUFF_SIZE 255
+#define TMP_LOCALE_SIZE 3
+#define TMP_DATE_SIZE 9
+
 #define REGEXP_BUFF_SIZE 4096
 
 #define TARGET_MIX			1
@@ -163,6 +166,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_ATTRIBUTE_TNC_SERIAL "serial"
 #define OPTIONS_ATTRIBUTE_TNC_VERSION "version"
 #define OPTIONS_ATTRIBUTE_TNC_LOCALE "locale"
+#define OPTIONS_ATTRIBUTE_TNC_TEMPLATE_TYPE "type"
 #define OPTIONS_ATTRIBUTE_TNC_ID "id"
 #define OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID "referenceId"
 
@@ -431,6 +435,7 @@ class CACmdLnOptions
 			//SINT32 getMixXml(UINT8* strxml,UINT32* len);
 			SINT32 getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo);
 
+			XERCES_CPP_NAMESPACE::DOMNode *getTermsAndConditionsTemplate(UINT8 *templateRefID);
 			XERCES_CPP_NAMESPACE::DOMElement *getTermsAndConditions();
 
 			UINT32 getKeepAliveSendInterval()
@@ -607,7 +612,8 @@ class CACmdLnOptions
 			}
 
 #endif // DYNAMIC_MIX
-			DOMNode **m_termsAndConditionsTemplates;
+			DOMDocument **m_termsAndConditionsTemplates;
+			UINT32 m_nrOfTermsAndConditionsTemplates;
 		private:
 #ifdef DYNAMIC_MIX
 			UINT8* m_strLastCascadeProposal;
