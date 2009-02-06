@@ -311,7 +311,7 @@ struct t_accountinginfo
 	/** timestamp when last PayRequest was sent */
 	SINT32 challengeSentSeconds;
 
-	/** ID of payment instance belongig to this account */
+	/** ID of payment instance belonging to this account */
 	UINT8* pstrBIID;
 
 	//time at which the timeout for waiting for the account certificate has been started

@@ -421,8 +421,8 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 			pAccInfo->authFlags &= ~loginEntry->authRemoveFlags;
 			//CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Remove flag: %d\n", loginEntry->authRemoveFlags);
 
-			/*
-			if (loginEntry->userID != pHashEntry->id)
+
+			/*if (loginEntry->ownerRef != pHashEntry)
 			{
 				// this is not the latest connection of this user; kick him out...
 				pAccInfo->authFlags |= AUTH_MULTIPLE_LOGIN;

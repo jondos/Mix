@@ -36,11 +36,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 typedef struct
 {
+	bool exchangeFinished;
+	XERCES_CPP_NAMESPACE::DOMDocument* xmlAnswer;
+} termsAndConditionMixAnswer_t;
+
+void cleanupTnCMixAnswer(termsAndConditionMixAnswer_t *answer);
+
+typedef struct
+{
 	UINT8 *tnc_id; /* The id of the Terms & Conditions is the operator ski. */
 	UINT8 *tnc_locale; /* language code of the T&C translation. */
 	/*UINT8 *tnc_date;  the date when the terms andCondtions became valid */
 	DOMNode *tnc_customized; /* the operator specific Terms & Conditions definitions */
-	DOMNode *tnc_template; /* the template needed to render the whole Terms and Conditions translation */
+	XERCES_CPP_NAMESPACE::DOMDocument *tnc_template; /* the template needed to render the whole Terms and Conditions translation */
 } termsAndConditionsTranslation_t;
 
 void cleanupTnCTranslation(termsAndConditionsTranslation_t *tnCTranslation);
@@ -62,7 +70,7 @@ private:
 	/* needed to import the customized sections XML elements. ensures that these
 	 * are not released accidently by former owner documents.
 	 */
-	XERCES_CPP_NAMESPACE::DOMDocument* doc;
+	XERCES_CPP_NAMESPACE::DOMDocument* custmoziedSectionsOwner;
 
 public:
 
@@ -90,7 +98,7 @@ public:
 	 * returns only the template of the translation specified by the language code
 	 * or NULL if no such translation exist.
 	 */
-	DOMNode *getTranslationTemplate(const UINT8 *locale);
+	XERCES_CPP_NAMESPACE::DOMDocument *getTranslationTemplate(const UINT8 *locale);
 
 	/**
 	 * returns only the customized sections of the translation specified by the language code
@@ -108,8 +116,14 @@ public:
 	 * add a language specific terms and Conditions document, which can be
 	 * retrieved by *getTermsAndConditionsDoc with the language code
 	 */
-	void addTranslation(const UINT8 *locale, DOMNode *tnc_customized, DOMNode *tnc_template);
-	void printall();
+	void addTranslation(const UINT8 *locale, DOMNode *tnc_customized, XERCES_CPP_NAMESPACE::DOMDocument *tnc_template);
+
+	/*
+	 * returns a POINTER, NOT A COPY of the ID of these T&Cs (the operator subject key identifier).
+	 */
+	UINT8* getID();
+
+	void printall(); //TODO: remove
 
 private:
 
