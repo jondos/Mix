@@ -54,6 +54,11 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include "CAMutex.hpp"
 #endif
 
+#define TNC_RESPONSE "TermsAndConditionsResponse"
+#define TNC_RESOURCE "Resource"
+#define TNC_RESOURCE_TEMPLATE "Template"
+#define TNC_RESOURCE_CUSTOMIZED_SECT "CustomizedSections"
+
 class CAInfoService;
 
 THREAD_RETURN fm_loopSendToMix(void*);
@@ -143,6 +148,8 @@ public:
 #ifdef DYNAMIC_MIX
 					m_bBreakNeeded = false;
 #endif
+					TNC_REQUEST = XMLString::transcode("TermsAndConditionsRequest");
+					TNC_CONFIRM = XMLString::transcode("TermsAndConditionsConfirm");
 				}
 
     	/*virtual ~CAFirstMix()
@@ -197,6 +204,8 @@ public:
 		SINT32 getMixedPackets(UINT64& ppackets);
 		UINT32 getNrOfUsers();
 		SINT32 getLevel(SINT32* puser,SINT32* prisk,SINT32* ptraffic);
+
+		TermsAndConditions *getTermsAndConditions(const UINT8 *opSki);
 
 		friend THREAD_RETURN fm_loopSendToMix(void*);
 		friend THREAD_RETURN fm_loopReadFromMix(void*);
@@ -328,6 +337,10 @@ protected:
 			UINT32 m_nrOfTermsAndConditionsDefs;
 			TermsAndConditions **m_tnCDefs;
 
+			/* constants for the XML root tags received from the client */
+			const XMLCh *TNC_REQUEST;
+			const XMLCh *TNC_CONFIRM;
+
 #ifdef COUNTRY_STATS
 		private:
 			SINT32 initCountryStats(char* db_host,char* db_user,char*db_passwd);
@@ -357,6 +370,10 @@ protected:
 private:
 	SINT32 doUserLogin_internal(CAMuxSocket* pNewUSer,UINT8 perrIP[4]);
 	SINT32 isAllowedToPassRestrictions(CASocket* pNewMuxSocket);
+
+
+	/* handlerFunction for Terms And Conditions invoked during user Login */
+	termsAndConditionMixAnswer_t *handleTermsAndConditionsLogin(XERCES_CPP_NAMESPACE::DOMDocument *request);
 
 	static const UINT32 MAX_CONCURRENT_NEW_CONNECTIONS;
 

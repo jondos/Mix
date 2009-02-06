@@ -169,6 +169,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_ATTRIBUTE_TNC_TEMPLATE_TYPE "type"
 #define OPTIONS_ATTRIBUTE_TNC_ID "id"
 #define OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID "referenceId"
+#define OPTIONS_ATTRIBUTE_TNC_DEFAULT_LANG_DEFINED "default"
+#define OPTIONS_ATTRIBUTE_TNC_DEFAULT_LANG "defaultLang"
 
 #define OPTIONS_NODE_CRIME_DETECTION "CrimeDetection"
 
@@ -435,7 +437,7 @@ class CACmdLnOptions
 			//SINT32 getMixXml(UINT8* strxml,UINT32* len);
 			SINT32 getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo);
 
-			XERCES_CPP_NAMESPACE::DOMNode *getTermsAndConditionsTemplate(UINT8 *templateRefID);
+			XERCES_CPP_NAMESPACE::DOMDocument *getTermsAndConditionsTemplate(UINT8 *templateRefID);
 			XERCES_CPP_NAMESPACE::DOMElement *getTermsAndConditions();
 
 			UINT32 getKeepAliveSendInterval()

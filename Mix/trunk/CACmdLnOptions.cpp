@@ -1632,7 +1632,7 @@ SINT32 CACmdLnOptions::getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo
 	return E_SUCCESS;
 }
 
-XERCES_CPP_NAMESPACE::DOMNode *CACmdLnOptions::getTermsAndConditionsTemplate(UINT8 *templateRefID)
+XERCES_CPP_NAMESPACE::DOMDocument *CACmdLnOptions::getTermsAndConditionsTemplate(UINT8 *templateRefID)
 {
 	UINT32 tmpTypeLen = TMP_BUFF_SIZE;
 	UINT8 tmpType[tmpTypeLen];
@@ -3439,7 +3439,7 @@ SINT32 CACmdLnOptions::setTermsAndConditionsTemplates(DOMElement *elemTnCs)
 			UINT32 len = TMP_BUFF_SIZE;
 			memset(currentTemplateURL, 0, len);
 
-			for (int i = 0; i < templateList->getLength(); i++)
+			for (XMLSize_t i = 0; i < templateList->getLength(); i++)
 			{
 				getDOMElementValue(templateList->item(i), currentTemplateURL, &len);
 				m_termsAndConditionsTemplates[i] = parseDOMDocument(currentTemplateURL);
@@ -3471,7 +3471,86 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 	DOMElement *elemTnCsList = NULL;
 	getDOMChildByName(elemTnCs, OPTIONS_NODE_TNCS_LIST, elemTnCsList);
 
+	if(elemTnCsList == NULL)
+	{
+		CAMsg::printMsg(LOG_CRIT,"No definitions for Terms And Conditions found!\n");
+		return E_UNKNOWN;
+	}
+
+	UINT32 attrCheckLen = TMP_BUFF_SIZE;
+	UINT8 attrCheck[attrCheckLen];
+	memset(attrCheck, 0, attrCheckLen);
+
+	UINT32 localeLen = TMP_LOCALE_SIZE;
+	UINT8 locale[localeLen];
+	memset(locale, 0, localeLen);
+
+	attrCheckLen = TMP_DATE_SIZE;
+
+	if( (getDOMElementAttribute(elemTnCsList, OPTIONS_ATTRIBUTE_TNC_DATE, attrCheck, &attrCheckLen) != E_SUCCESS) ||
+		(strlen((char *)attrCheck) != ((TMP_DATE_SIZE) - 1) ) )
+	{
+		CAMsg::printMsg(LOG_CRIT,"Attribute '%s' is not proper set for the global definition of Terms And Conditions!\n",
+				OPTIONS_ATTRIBUTE_TNC_DATE);
+		return E_UNKNOWN;
+	}
+
 	m_docOpTnCs = createDOMDocument();
+
+	DOMElement *currentTnCEntry = NULL;
+	DOMNodeList *tncDefEntryList = getElementsByTagName(elemTnCsList, OPTIONS_NODE_TNCS);
+
+	if(tncDefEntryList->getLength() < 1)
+	{
+		CAMsg::printMsg(LOG_CRIT,"No Terms And Conditions entries found!\n");
+		return E_UNKNOWN;
+	}
+
+	bool defaultLangValue = false;
+	bool defaultLangFound = false;
+
+	/* validity check for every definition: are all necessary attributes set (referenceId, locale), length ok
+	 * and is there EXACTLY ONE default language specified?
+	 */
+	for (XMLSize_t j = 0; j < tncDefEntryList->getLength(); j++)
+	{
+		attrCheckLen = TMP_BUFF_SIZE;
+		localeLen = TMP_LOCALE_SIZE;
+		defaultLangValue = false;
+		currentTnCEntry = (DOMElement *) tncDefEntryList->item(j);
+
+		if( (getDOMElementAttribute(currentTnCEntry, OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID, attrCheck, &attrCheckLen) != E_SUCCESS) ||
+				(strlen((char *)attrCheck) < 1)  )
+		{
+			CAMsg::printMsg(LOG_CRIT,"Attribute '%s' is not proper set for definition %u of Terms And Conditions!\n",
+					OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID, (j+1));
+			return E_UNKNOWN;
+		}
+		else if( (getDOMElementAttribute(currentTnCEntry, OPTIONS_ATTRIBUTE_TNC_LOCALE, locale, &localeLen) != E_SUCCESS) ||
+				(strlen((char *)locale) != ((TMP_LOCALE_SIZE) - 1) ) )
+		{
+			CAMsg::printMsg(LOG_CRIT,"Attribute '%s' is not proper set for definition %u of Terms And Conditions!\n",
+					OPTIONS_ATTRIBUTE_TNC_LOCALE, (j+1));
+			return E_UNKNOWN;
+		}
+
+		getDOMElementAttribute(currentTnCEntry,
+				OPTIONS_ATTRIBUTE_TNC_DEFAULT_LANG_DEFINED, defaultLangValue);
+
+		if(defaultLangValue && defaultLangFound)
+		{
+			CAMsg::printMsg(LOG_CRIT,"exactly ONE default language must be specified for the Terms And Conditions!\n");
+			return E_UNKNOWN;
+		}
+		defaultLangFound = (defaultLangFound || defaultLangValue);
+	}
+
+	if(!defaultLangFound)
+	{
+		CAMsg::printMsg(LOG_CRIT,"There is no default language specified for the Terms And Conditions!\n");
+		return E_UNKNOWN;
+	}
+
 	m_docOpTnCs->appendChild(m_docOpTnCs->importNode(elemTnCsList, WITH_SUBTREE));
 
 	return E_SUCCESS;

@@ -39,6 +39,19 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * provided by "getSynchLock".
  */
 
+void cleanupTnCMixAnswer(termsAndConditionMixAnswer_t *answer)
+{
+	if( (answer != NULL) )
+	{
+		if((answer->xmlAnswer != NULL))
+		{
+			answer->xmlAnswer->release();
+			answer->xmlAnswer = NULL;
+		}
+		answer->exchangeFinished = false;
+	}
+}
+
 void cleanupTnCTranslation(termsAndConditionsTranslation_t *tnCTranslation)
 {
 	if(tnCTranslation != NULL)
@@ -82,7 +95,7 @@ void printTranslation(termsAndConditionsTranslation_t *tnCTranslation)
  */
 TermsAndConditions::TermsAndConditions(UINT8* id, UINT32 nrOfTranslations)
 {
-	doc = createDOMDocument();
+	custmoziedSectionsOwner = createDOMDocument();
 	/* The id of the Terms & Conditions is the operator ski. */
 	if(id != NULL)
 	{
@@ -125,8 +138,8 @@ TermsAndConditions::~TermsAndConditions()
 	tnc_id = NULL;
 	translations =  0;
 	currentTranslationIndex = 0;
-	doc->release();
-	doc = NULL;
+	custmoziedSectionsOwner->release();
+	custmoziedSectionsOwner = NULL;
 }
 
 /**
@@ -159,7 +172,7 @@ termsAndConditionsTranslation_t *TermsAndConditions::getTranslation(const UINT8 
  * returns only the template of the translation specified by the language code
  * or NULL if no such translation exist.
  */
-DOMNode *TermsAndConditions::getTranslationTemplate(const UINT8 *locale)
+XERCES_CPP_NAMESPACE::DOMDocument *TermsAndConditions::getTranslationTemplate(const UINT8 *locale)
 {
 	termsAndConditionsTranslation_t *foundEntry = getTranslation(locale);
 	if(foundEntry != NULL)
@@ -187,7 +200,7 @@ DOMNode *TermsAndConditions::getTranslationCustomizedSections(const UINT8 *local
  * add a language specific terms and Conditions document, which can be
  * retrieved by *getTermsAndConditionsDoc with the language code
  */
-void TermsAndConditions::addTranslation(const UINT8* locale, DOMNode *tnc_customized, DOMNode *tnc_template)
+void TermsAndConditions::addTranslation(const UINT8* locale, DOMNode *tnc_customized, XERCES_CPP_NAMESPACE::DOMDocument *tnc_template)
 {
 	if(locale == NULL)
 	{
@@ -199,7 +212,7 @@ void TermsAndConditions::addTranslation(const UINT8* locale, DOMNode *tnc_custom
 		newEntry = new termsAndConditionsTranslation_t;
 		//import the customized sections to the internal T & C document to ensure it is not
 		//released by it's former owner document.
-		newEntry->tnc_customized = doc->importNode(tnc_customized->cloneNode(true), true);
+		newEntry->tnc_customized = custmoziedSectionsOwner->importNode(tnc_customized->cloneNode(true), true);
 		newEntry->tnc_template = tnc_template;
 		newEntry->tnc_id = tnc_id;
 		newEntry->tnc_locale = new UINT8[TMP_LOCALE_SIZE];
@@ -225,7 +238,7 @@ void TermsAndConditions::addTranslation(const UINT8* locale, DOMNode *tnc_custom
 	{
 		newEntry->tnc_customized->release();
 		//same as above: avoid release by the former owner document of this node.
-		newEntry->tnc_customized = doc->importNode(tnc_customized->cloneNode(true), true);
+		newEntry->tnc_customized = custmoziedSectionsOwner->importNode(tnc_customized->cloneNode(true), true);
 		newEntry->tnc_template = tnc_template;
 	}
 }
@@ -250,6 +263,11 @@ void TermsAndConditions::removeTranslation(const UINT8 *locale)
 		}
 	}
 	setIndexToNextEmptySlot();
+}
+
+UINT8* TermsAndConditions::getID()
+{
+	return tnc_id;
 }
 
 void TermsAndConditions::printall()

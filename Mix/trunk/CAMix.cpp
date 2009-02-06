@@ -289,7 +289,14 @@ SINT32 CAMix::initMixCascadeInfo(DOMElement* mixes)
     		setDOMElementAttribute(elemRoot,"maxUsers", maxUsers);
     	}
 #ifdef MANIOQ
-    	setDOMElementAttribute(elemRoot,"context", (UINT8*) "org.manioq");
+    	setDOMElementAttribute(elemRoot,"context", (UINT8*) "jondonym.business");
+#else
+
+#ifdef PAYMENT
+    	setDOMElementAttribute(elemRoot,"context", (UINT8*) "jondonym.premium");
+#else
+    	setDOMElementAttribute(elemRoot,"context", (UINT8*) "jondonym");
+#endif
 #endif
     }
 
@@ -487,6 +494,7 @@ DOMNode *CAMix::termsAndConditionsInfoNode(XERCES_CPP_NAMESPACE::DOMDocument *ow
 		DOMNodeList *list = getElementsByTagName(pglobalOptions->getTermsAndConditions(), OPTIONS_NODE_TNCS);
 		DOMElement *iterator = NULL;
 		DOMElement *currentInfoNode = NULL;
+		bool defaultLangDefined = false;
 		for (int i = 0; i < list->getLength(); i++)
 		{
 			iterator = (DOMElement *) list->item(i);
@@ -494,13 +502,18 @@ DOMNode *CAMix::termsAndConditionsInfoNode(XERCES_CPP_NAMESPACE::DOMDocument *ow
 
 			getDOMElementAttribute(iterator, OPTIONS_ATTRIBUTE_TNC_LOCALE, tmpBuff, &tmpLen);
 			setDOMElementAttribute(currentInfoNode, OPTIONS_ATTRIBUTE_TNC_LOCALE, tmpBuff);
+			getDOMElementAttribute(iterator, OPTIONS_ATTRIBUTE_TNC_DEFAULT_LANG_DEFINED, defaultLangDefined);
+			if(defaultLangDefined)
+			{
+				setDOMElementAttribute(elemTnCInfos, OPTIONS_ATTRIBUTE_TNC_DEFAULT_LANG, tmpBuff);
+			}
+			defaultLangDefined = false;
 			tmpLen = TMP_BUFF_SIZE;
-			//memset(tmpBuff, 0, tmpLen);
 
 			getDOMElementAttribute(iterator, OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID, tmpBuff, &tmpLen);
 			setDOMElementAttribute(currentInfoNode, OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID, tmpBuff);
 			tmpLen = TMP_BUFF_SIZE;
-			//memset(tmpBuff, 0, tmpLen);
+
 
 			elemTnCInfos->appendChild(currentInfoNode);
 		}
