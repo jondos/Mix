@@ -710,7 +710,7 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 
 	if(tncDefs != NULL)
 	{
-		tncDefList = getElementsByTagName(tncDefs, OPTIONS_NODE_TNCS_LIST);
+		tncDefList = getElementsByTagName(tncDefs, OPTIONS_NODE_TNCS);
 		m_nrOfTermsAndConditionsDefs += tncDefList->getLength();
 	}
 	if(ownTncDef != NULL)
@@ -731,10 +731,12 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 			currentTnCList = (DOMElement *) tncDefList->item(i);
 		}
 
-		DOMNodeList *tncDefEntryList = getElementsByTagName(currentTnCList, OPTIONS_NODE_TNCS);
+		DOMNodeList *tncDefEntryList = getElementsByTagName(currentTnCList, OPTIONS_NODE_TNCS_TRANSLATION);
+		DOMElement *tncTranslationImports = NULL;
+		getDOMChildByName(currentTnCList, OPTIONS_NODE_TNCS_TRANSLATION_IMPORTS, tncTranslationImports, WITH_SUBTREE);
 		getDOMElementAttribute(currentTnCList, OPTIONS_ATTRIBUTE_TNC_ID, currentTnC_id, &currentTnC_id_len);
 
-		m_tnCDefs[i] = new TermsAndConditions(currentTnC_id, tncDefEntryList->getLength());
+		m_tnCDefs[i] = new TermsAndConditions(currentTnC_id, tncDefEntryList->getLength(), tncTranslationImports);
 
 		for (XMLSize_t j = 0; j < tncDefEntryList->getLength(); j++)
 		{
@@ -1270,10 +1272,12 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 	//Client requests lacking T&C resources.
 	if(XMLString::equals(reqName, TNC_REQUEST))
 	{
+		answer->exchangeFinished = false;
 		CAMsg::printMsg(LOG_DEBUG,"Handling TC request.\n");
 		XERCES_CPP_NAMESPACE::DOMDocument *response = createDOMDocument();
 		DOMElement *responseRoot = createDOMElement(response, TNC_RESPONSE);
-		DOMNodeList *requestedResources = getElementsByTagName(request->getDocumentElement(), TNC_RESOURCE);
+		response->appendChild(responseRoot);
+		DOMNodeList *requestedResources = getElementsByTagName(request->getDocumentElement(), TNC_RESOURCES);
 		DOMNode *currentNode = NULL;
 		DOMNode *currentAnswerNode = NULL;
 		DOMNode *currentAnswerResourceNode = NULL;
@@ -1288,28 +1292,39 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 
 		bool resourceError = false;
 
-		CAMsg::printMsg(LOG_DEBUG,"Handling TC request.\n");
+		if(requestedResources->getLength() == 0)
+		{
+			response->release();
+			response = createDOMDocument();
+			response->appendChild(createDOMElement(response, TNC_RESPONSE_INVALID_REQUEST));
+			answer->exchangeFinished = true;
+		}
+
 		for (XMLSize_t i = 0; i < requestedResources->getLength(); i++)
 		{
 			idLen = TMP_BUFF_SIZE;
 			localeLen = TMP_LOCALE_SIZE;
+			bool validResource = false;
 
 			currentNode = requestedResources->item(i);
 			//check validity of the T&C resource request. attributes "id" and locale must be proper set.
 			if( (getDOMElementAttribute(currentNode, OPTIONS_ATTRIBUTE_TNC_ID, id, &idLen) != E_SUCCESS) ||
 				(strlen((char *)id) < 1)  )
 			{
+				CAMsg::printMsg(LOG_DEBUG,"Error: invalid id.\n");
 				resourceError = true;
 			}
 			else if( (getDOMElementAttribute(currentNode, OPTIONS_ATTRIBUTE_TNC_LOCALE, locale, &localeLen) != E_SUCCESS) ||
 					(strlen((char *)locale) != ((TMP_LOCALE_SIZE) - 1) ) )
 			{
+				CAMsg::printMsg(LOG_DEBUG,"Error: Invalid locale.\n");
 				resourceError = true;
 			}
 
 			if(!currentNode->hasChildNodes())
 			{
 				//Empty Resource node is invalid!
+				CAMsg::printMsg(LOG_DEBUG,"Error: No children.\n");
 				resourceError = true;
 			}
 
@@ -1320,6 +1335,7 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 				{
 					termsAndConditionsTranslation_t *requestedTranslation =
 						requestedTnC->getTranslation(locale);
+					DOMNodeList *imports = requestedTnC->getTranslationImports();
 					if(requestedTranslation != NULL)
 					{
 						currentAnswerNode = response->importNode(currentNode->cloneNode(true), true);
@@ -1329,29 +1345,49 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 						{
 							currentAnswerResourceNode->appendChild(
 									response->importNode(requestedTranslation->tnc_template->getDocumentElement(), true));
+							validResource = true;
 						}
 
 						if( getDOMChildByName(currentAnswerNode, TNC_RESOURCE_CUSTOMIZED_SECT,
 												currentAnswerResourceNode, false) == E_SUCCESS)
 						{
-							currentAnswerResourceNode->appendChild(
-									response->importNode(requestedTranslation->tnc_customized, true));
+							DOMNode *importedNode =
+								response->importNode(requestedTranslation->tnc_customized, true);
+							if(imports != NULL)
+							{
+								for(XMLSize_t i = 0; i < imports->getLength(); i++)
+								{
+									importedNode->appendChild(response->importNode(imports->item(i), true));
+								}
+							}
+							currentAnswerResourceNode->appendChild(importedNode);
+							validResource = true;
 						}
-
-						answer->xmlAnswer = response;
-						answer->exchangeFinished = true;
-						return answer;
+					}
+					else
+					{
+						CAMsg::printMsg(LOG_DEBUG,"Error: no translation def found.\n");
 					}
 				}
+				else
+				{
+					CAMsg::printMsg(LOG_DEBUG,"Error: no tc def found.\n");
+				}
 			}
-			answer->xmlAnswer = NULL; //TODO: set errorMessage here
-			answer->exchangeFinished = true;
-			//only a manipulated client sends an invalid T&C resource request.
-			//Manipulation is interpreted as a rejection of the terms & conditions,
-			//so abort login immediately.
-			return answer;
+			if(!validResource)
+			{
+				//only a manipulated client sends an invalid T&C resource request.
+				//Manipulation is interpreted as a rejection of the terms & conditions,
+				//so abort login immediately.
+				response->release();
+				response = createDOMDocument();
+				response->appendChild(createDOMElement(response, TNC_RESPONSE_INVALID_REQUEST));
+				answer->exchangeFinished = true;
+				break;
+			}
 		}
-
+		answer->xmlAnswer = response;
+		return answer;
 		//answer->xmlAnswer = (XERCES_CPP_NAMESPACE::DOMDocument *) request->cloneNode(true);
 		//answer->exchangeFinished = true;
 	}
@@ -1360,6 +1396,10 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 	{
 		//TODO:
 		CAMsg::printMsg(LOG_DEBUG,"TODO: handling TC confirm.\n");
+		bool tcAccepted = false;
+		getDOMElementAttribute(request->getDocumentElement(), "accepted", tcAccepted);
+		CAMsg::printMsg(LOG_DEBUG,"Client has%s accepted the T&Cs.\n", (tcAccepted ? "" : " not")  );
+
 		answer->xmlAnswer = NULL; //TODO: set errorMessage here
 		answer->exchangeFinished = true;
 	}
@@ -1370,6 +1410,8 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 		answer->xmlAnswer = NULL; //TODO: set errorMessage here
 		answer->exchangeFinished = true;
 	}
+	answer->xmlAnswer = NULL; //TODO: set errorMessage here
+	answer->exchangeFinished = true;
 	return answer;
 }
 
@@ -1627,7 +1669,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		#endif
 		delete[] xml_buff;
 		xml_buff = NULL;
-#if 0
+
 		/* Terms And Conditions negotiation */
 		bool loginFailed = false;
 		bool tcProcedureFinished = false;
@@ -1678,6 +1720,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				UINT8 *answerBuff = DOM_Output::dumpToMem(answer->xmlAnswer, &size);
 				if(answerBuff != NULL)
 				{
+					CAMsg::printMsg(LOG_DEBUG,"User login: answer %s\n", answerBuff);
+
 					UINT32 netSize = htonl(size);
 
 					if (((CASocket*)pNewUser)->isClosed() ||
@@ -1719,7 +1763,6 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			return E_UNKNOWN;
 		}
 		/* end Terms And Conditions negotiation */
-#endif
 
 		SAVE_STACK("CAFirstMix::doUserLogin", "sent key exchange signature");
 

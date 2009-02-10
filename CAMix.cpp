@@ -491,7 +491,7 @@ DOMNode *CAMix::termsAndConditionsInfoNode(XERCES_CPP_NAMESPACE::DOMDocument *ow
 		UINT32 tmpLen = TMP_BUFF_SIZE;
 		memset(tmpBuff, 0, tmpLen);
 
-		DOMNodeList *list = getElementsByTagName(pglobalOptions->getTermsAndConditions(), OPTIONS_NODE_TNCS);
+		DOMNodeList *list = getElementsByTagName(pglobalOptions->getTermsAndConditions(), OPTIONS_NODE_TNCS_TRANSLATION);
 		DOMElement *iterator = NULL;
 		DOMElement *currentInfoNode = NULL;
 		bool defaultLangDefined = false;

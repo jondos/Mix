@@ -49,6 +49,17 @@ void CAFirstMixA::shutDown()
 	UINT32 connectionsClosed = 0;
 	fmHashTableEntry* timeoutHashEntry;
 
+
+	/* make sure no reconnect is possible when shutting down */
+	if(m_pthreadAcceptUsers!=NULL)
+	{
+		CAMsg::printMsg(LOG_CRIT,"Wait for LoopAcceptUsers!\n");
+		m_bRestart=true;
+		m_pthreadAcceptUsers->join();
+		delete m_pthreadAcceptUsers;
+	}
+	m_pthreadAcceptUsers=NULL;
+
 	if(m_pInfoService != NULL)
 	{
 		CAMsg::printMsg(LOG_DEBUG,"Shutting down infoservice.\n");

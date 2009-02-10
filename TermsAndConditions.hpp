@@ -52,7 +52,6 @@ typedef struct
 } termsAndConditionsTranslation_t;
 
 void cleanupTnCTranslation(termsAndConditionsTranslation_t *tnCTranslation);
-void printTranslation(termsAndConditionsTranslation_t *tnCTranslation);
 
 class TermsAndConditions
 {
@@ -66,6 +65,8 @@ private:
 	UINT32 currentTranslationIndex;
 	/* array containing pointers to the Terms & Conditions translations */
 	termsAndConditionsTranslation_t **allTranslations;
+
+	DOMNode *translationImports;
 
 	/* needed to import the customized sections XML elements. ensures that these
 	 * are not released accidently by former owner documents.
@@ -82,9 +83,10 @@ public:
 public:
 
 	/**
-	 * Constructor with the id (Operator SKI) and the number of translations
+	 * Constructor with the id (Operator SKI), the number of translations and those elements
+	 * to be imported to all translations
 	 */
-	TermsAndConditions(UINT8* id, UINT32 nrOfTranslations);
+	TermsAndConditions(UINT8* id, UINT32 nrOfTranslations, DOMElement *transImports);
 	virtual ~TermsAndConditions();
 
 	/**
@@ -106,6 +108,8 @@ public:
 	 */
 	DOMNode *getTranslationCustomizedSections(const UINT8 *locale);
 
+	DOMNodeList *getTranslationImports();
+
 	/**
 	 * removes the specific Terms & Conditions translation for the the language with the
 	 * specified language code including the template AND the customized sections.
@@ -122,8 +126,6 @@ public:
 	 * returns a POINTER, NOT A COPY of the ID of these T&Cs (the operator subject key identifier).
 	 */
 	UINT8* getID();
-
-	void printall(); //TODO: remove
 
 private:
 
