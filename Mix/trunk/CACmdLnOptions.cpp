@@ -3469,7 +3469,7 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 		return E_UNKNOWN;
 	}
 	DOMElement *elemTnCsList = NULL;
-	getDOMChildByName(elemTnCs, OPTIONS_NODE_TNCS_LIST, elemTnCsList);
+	getDOMChildByName(elemTnCs, OPTIONS_NODE_TNCS, elemTnCsList);
 
 	if(elemTnCsList == NULL)
 	{
@@ -3485,10 +3485,12 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 	UINT8 locale[localeLen];
 	memset(locale, 0, localeLen);
 
-	attrCheckLen = TMP_DATE_SIZE;
+	UINT32 dateLen = TMP_DATE_SIZE;
+	UINT8 date[dateLen];
+	memset(date, 0, dateLen);
 
-	if( (getDOMElementAttribute(elemTnCsList, OPTIONS_ATTRIBUTE_TNC_DATE, attrCheck, &attrCheckLen) != E_SUCCESS) ||
-		(strlen((char *)attrCheck) != ((TMP_DATE_SIZE) - 1) ) )
+	if( (getDOMElementAttribute(elemTnCsList, OPTIONS_ATTRIBUTE_TNC_DATE, date, &dateLen) != E_SUCCESS) ||
+		(strlen((char *)date) != ((TMP_DATE_SIZE) - 1) ) )
 	{
 		CAMsg::printMsg(LOG_CRIT,"Attribute '%s' is not proper set for the global definition of Terms And Conditions!\n",
 				OPTIONS_ATTRIBUTE_TNC_DATE);
@@ -3498,7 +3500,7 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 	m_docOpTnCs = createDOMDocument();
 
 	DOMElement *currentTnCEntry = NULL;
-	DOMNodeList *tncDefEntryList = getElementsByTagName(elemTnCsList, OPTIONS_NODE_TNCS);
+	DOMNodeList *tncDefEntryList = getElementsByTagName(elemTnCsList, OPTIONS_NODE_TNCS_TRANSLATION);
 
 	if(tncDefEntryList->getLength() < 1)
 	{
@@ -3533,7 +3535,7 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 					OPTIONS_ATTRIBUTE_TNC_LOCALE, (j+1));
 			return E_UNKNOWN;
 		}
-
+		//setDOMElementAttribute(currentTnCEntry, OPTIONS_ATTRIBUTE_TNC_DATE, date);
 		getDOMElementAttribute(currentTnCEntry,
 				OPTIONS_ATTRIBUTE_TNC_DEFAULT_LANG_DEFINED, defaultLangValue);
 

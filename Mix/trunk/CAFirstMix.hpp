@@ -55,9 +55,12 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #endif
 
 #define TNC_RESPONSE "TermsAndConditionsResponse"
-#define TNC_RESOURCE "Resource"
+#define TNC_RESOURCES "Resources"
 #define TNC_RESOURCE_TEMPLATE "Template"
 #define TNC_RESOURCE_CUSTOMIZED_SECT "CustomizedSections"
+
+#define TNC_RESPONSE_INVALID_REQUEST "InvalidTermsAndConditionsRequest"
+#define TNC_CONFIRM_REQ "TermsAndConditionsConfirm"
 
 class CAInfoService;
 
@@ -149,7 +152,7 @@ public:
 					m_bBreakNeeded = false;
 #endif
 					TNC_REQUEST = XMLString::transcode("TermsAndConditionsRequest");
-					TNC_CONFIRM = XMLString::transcode("TermsAndConditionsConfirm");
+					TNC_CONFIRM = XMLString::transcode(TNC_CONFIRM_REQ);
 				}
 
     	/*virtual ~CAFirstMix()

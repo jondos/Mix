@@ -716,7 +716,7 @@ UINT8 **CAInfoService::getOperatorTnCsAsStrings(UINT32 **lengths, XMLSize_t *nrO
 	}
 
 	XERCES_CPP_NAMESPACE::DOMNodeList *docTnCsList =
-		getElementsByTagName(tnCs, OPTIONS_NODE_TNCS);
+		getElementsByTagName(tnCs, OPTIONS_NODE_TNCS_TRANSLATION);
 
 	if(docTnCsList == NULL)
 	{
