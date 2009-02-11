@@ -3508,8 +3508,16 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 		return E_UNKNOWN;
 	}
 
+	DOMElement *tncTranslationImports = NULL;
+	DOMElement *tncOperatorNode = NULL;
+	getDOMChildByName(elemTnCsList, OPTIONS_NODE_TNCS_TRANSLATION_IMPORTS, tncTranslationImports, false);
+	if(tncTranslationImports != NULL)
+	{
+		getDOMChildByName(tncTranslationImports, OPTIONS_NODE_TNCS_OPERATOR, tncOperatorNode, false);
+	}
 	bool defaultLangValue = false;
 	bool defaultLangFound = false;
+	bool operatorImportNodeFound = (tncOperatorNode != NULL);
 
 	/* validity check for every definition: are all necessary attributes set (referenceId, locale), length ok
 	 * and is there EXACTLY ONE default language specified?
@@ -3535,6 +3543,20 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 					OPTIONS_ATTRIBUTE_TNC_LOCALE, (j+1));
 			return E_UNKNOWN;
 		}
+
+		if(!operatorImportNodeFound)
+		{
+			tncOperatorNode = NULL;
+			getDOMChildByName(currentTnCEntry, OPTIONS_NODE_TNCS_OPERATOR, tncOperatorNode, false);
+			if(tncOperatorNode == NULL)
+			{
+				CAMsg::printMsg(LOG_CRIT,"No Node '%s' defined for the translation [%s]. Either define it in '%s' or"
+						" in this %s.\n", OPTIONS_NODE_TNCS_OPERATOR, locale, OPTIONS_NODE_TNCS_TRANSLATION_IMPORTS,
+						OPTIONS_NODE_TNCS_TRANSLATION);
+				return E_UNKNOWN;
+			}
+		}
+
 		//setDOMElementAttribute(currentTnCEntry, OPTIONS_ATTRIBUTE_TNC_DATE, date);
 		getDOMElementAttribute(currentTnCEntry,
 				OPTIONS_ATTRIBUTE_TNC_DEFAULT_LANG_DEFINED, defaultLangValue);
@@ -3544,6 +3566,9 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 			CAMsg::printMsg(LOG_CRIT,"exactly ONE default language must be specified for the Terms And Conditions!\n");
 			return E_UNKNOWN;
 		}
+
+
+
 		defaultLangFound = (defaultLangFound || defaultLangValue);
 	}
 

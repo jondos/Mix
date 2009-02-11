@@ -196,6 +196,8 @@ SINT32 encodeXMLEncryptedKey(UINT8* key,UINT32 keylen, DOMElement* & elemRootEnc
 SINT32 decodeXMLEncryptedKey(UINT8* key,UINT32* keylen, const UINT8* const xml, UINT32 xmllen,CAASymCipher* pRSA);
 SINT32 decodeXMLEncryptedKey(UINT8* key,UINT32* keylen, const DOMNode* pRoot,CAASymCipher* pRSA);
 
+void integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, bool replace);
+
 /** Replaces a DOM element with an encrypted version of this element*/
 SINT32 encryptXMLElement(DOMNode* pElem , CAASymCipher* pRSA);
 

@@ -733,7 +733,7 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 
 		DOMNodeList *tncDefEntryList = getElementsByTagName(currentTnCList, OPTIONS_NODE_TNCS_TRANSLATION);
 		DOMElement *tncTranslationImports = NULL;
-		getDOMChildByName(currentTnCList, OPTIONS_NODE_TNCS_TRANSLATION_IMPORTS, tncTranslationImports, WITH_SUBTREE);
+		getDOMChildByName(currentTnCList, OPTIONS_NODE_TNCS_TRANSLATION_IMPORTS, tncTranslationImports, false);
 		getDOMElementAttribute(currentTnCList, OPTIONS_ATTRIBUTE_TNC_ID, currentTnC_id, &currentTnC_id_len);
 
 		m_tnCDefs[i] = new TermsAndConditions(currentTnC_id, tncDefEntryList->getLength(), tncTranslationImports);
@@ -1333,9 +1333,8 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 				TermsAndConditions *requestedTnC = getTermsAndConditions(id);
 				if(requestedTnC != NULL)
 				{
-					termsAndConditionsTranslation_t *requestedTranslation =
+					const termsAndConditionsTranslation_t *requestedTranslation =
 						requestedTnC->getTranslation(locale);
-					DOMNodeList *imports = requestedTnC->getTranslationImports();
 					if(requestedTranslation != NULL)
 					{
 						currentAnswerNode = response->importNode(currentNode->cloneNode(true), true);
@@ -1351,16 +1350,8 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 						if( getDOMChildByName(currentAnswerNode, TNC_RESOURCE_CUSTOMIZED_SECT,
 												currentAnswerResourceNode, false) == E_SUCCESS)
 						{
-							DOMNode *importedNode =
-								response->importNode(requestedTranslation->tnc_customized, true);
-							if(imports != NULL)
-							{
-								for(XMLSize_t i = 0; i < imports->getLength(); i++)
-								{
-									importedNode->appendChild(response->importNode(imports->item(i), true));
-								}
-							}
-							currentAnswerResourceNode->appendChild(importedNode);
+							currentAnswerResourceNode->appendChild(
+									response->importNode(requestedTranslation->tnc_customized, true));
 							validResource = true;
 						}
 					}
