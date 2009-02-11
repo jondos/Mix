@@ -434,7 +434,6 @@ SINT32 getDOMChildByName(const DOMNode* pNode,const XMLCh* const name,DOMNode* &
 		return E_UNKNOWN;
 	}
 
-
 SINT32 getDOMChildByName(const DOMNode* pNode,const char* const name,DOMNode* & a_child,bool deep)
 	{
 		a_child=NULL;
@@ -445,6 +444,112 @@ SINT32 getDOMChildByName(const DOMNode* pNode,const char* const name,DOMNode* & 
 		XMLString::release(&tmpName);
 		return ret;
 	}
+/**
+ * integrates the source node in the destination Node.
+ *  TODO specification
+ */
+void integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, bool replace)
+{
+	if( (srcNode->getNodeType() != DOMNode::ELEMENT_NODE) ||
+		(dstNode->getNodeType() != DOMNode::ELEMENT_NODE) )
+	{
+		return;
+	}
+
+	DOMNodeList *srcList = srcNode->getChildNodes();
+	XERCES_CPP_NAMESPACE::DOMDocument *srcOwnerDoc = srcNode->getOwnerDocument();
+	XERCES_CPP_NAMESPACE::DOMDocument *dstOwnerDoc = dstNode->getOwnerDocument();
+
+	if( (srcOwnerDoc != NULL) && (srcOwnerDoc == dstOwnerDoc) )
+	{
+		return;
+	}
+
+		if(srcList->getLength() == 0)
+	{
+		return;
+	}
+
+	DOMElement *srcElem = (DOMElement *) srcNode;
+	DOMElement *dstElem = (DOMElement *) dstNode;
+
+	DOMNode *currSrcChild = NULL;
+	XMLCh *nodeNames[srcList->getLength()];
+	UINT32 nodeNamesIndex = 0;
+	XMLCh *currSrcChildName = NULL;
+
+	DOMNodeList *currSrcChildren = NULL;
+	DOMNodeList *currDstChildren = NULL;
+	bool nodeAlreadyFinished = false;
+
+	for(XMLSize_t i = 0; i < srcList->getLength(); i++)
+	{
+		currSrcChild = srcList->item(i);
+		if( currSrcChild->getNodeType() == DOMNode::ELEMENT_NODE )
+		{
+			nodeAlreadyFinished = false;
+			currSrcChildName = (XMLCh *) ((DOMElement *) currSrcChild)->getTagName();
+			UINT8 *tn = (UINT8 *) XMLString::transcode(currSrcChildName);
+			XMLString::release(&tn);
+
+			for(UINT32 i = 0; i < nodeNamesIndex; i++ )
+			{
+				if(XMLString::equals(currSrcChildName, nodeNames[i]))
+				{
+					nodeAlreadyFinished = true;
+					break;
+				}
+			}
+			if(nodeAlreadyFinished)
+			{
+				continue;
+			}
+			currDstChildren = dstElem->getElementsByTagName(currSrcChildName);
+			currSrcChildren = srcElem->getElementsByTagName(currSrcChildName);
+
+			for(XMLSize_t j = 0;
+				j < currSrcChildren->getLength(); j++ )
+			{
+				if(j >= currDstChildren->getLength())
+				{
+					if(dstOwnerDoc != NULL)
+					{
+						dstNode->appendChild(dstOwnerDoc->importNode(currSrcChildren->item(j), true));
+					}
+					else
+					{
+						dstNode->appendChild(currSrcChildren->item(j)->cloneNode(true));
+					}
+				}
+				else if(replace)
+				{
+					if(dstOwnerDoc != NULL)
+					{
+						dstElem->replaceChild(
+							dstOwnerDoc->importNode(currSrcChildren->item(j),true),
+							currDstChildren->item(j));
+					}
+					else
+					{
+						dstElem->replaceChild(
+							dstOwnerDoc->cloneNode(currSrcChildren->item(j)),
+							currDstChildren->item(j));
+					}
+					continue;
+				}
+				else if(recursive)
+				{
+					if(currSrcChildren->item(j)->hasChildNodes() )
+					{
+						integrateDOMNode(currSrcChildren->item(j), currDstChildren->item(j), true, false);
+					}
+				}
+				nodeNames[nodeNamesIndex++];
+			}
+		}
+	}
+}
+
 bool equals(const XMLCh* const e1,const char* const e2)
 	{
 		XMLCh* e3=XMLString::transcode(e2);
@@ -972,9 +1077,9 @@ SINT32 decodeXMLEncryptedKey(UINT8* key,UINT32* keylen,const DOMNode* root,CAASy
 						*keylen=64;
 					else if(i>16)
 						*keylen=32;
-					else 
+					else
 						*keylen=16;
-				}	
+				}
 		}
 	memcpy(key,buff+128-(*keylen),(*keylen));
 	return E_SUCCESS;

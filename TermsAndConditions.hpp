@@ -48,7 +48,7 @@ typedef struct
 	UINT8 *tnc_locale; /* language code of the T&C translation. */
 	/*UINT8 *tnc_date;  the date when the terms andCondtions became valid */
 	DOMNode *tnc_customized; /* the operator specific Terms & Conditions definitions */
-	XERCES_CPP_NAMESPACE::DOMDocument *tnc_template; /* the template needed to render the whole Terms and Conditions translation */
+	const XERCES_CPP_NAMESPACE::DOMDocument *tnc_template; /* the template needed to render the whole Terms and Conditions translation */
 } termsAndConditionsTranslation_t;
 
 void cleanupTnCTranslation(termsAndConditionsTranslation_t *tnCTranslation);
@@ -71,7 +71,11 @@ private:
 	/* needed to import the customized sections XML elements. ensures that these
 	 * are not released accidently by former owner documents.
 	 */
-	XERCES_CPP_NAMESPACE::DOMDocument* custmoziedSectionsOwner;
+	XERCES_CPP_NAMESPACE::DOMDocument *customizedSectionsOwner;
+	/*
+	 * same for the language Node imports (which must differ from the language translation Nodes)
+	 */
+	XERCES_CPP_NAMESPACE::DOMDocument *translationImportsOwner;
 
 public:
 
@@ -94,21 +98,19 @@ public:
 	 * specified language code including the template AND the customized sections.
 	 * If no translation exists for the specified language code NULL is returned.
 	 */
-	termsAndConditionsTranslation_t *getTranslation(const UINT8 *locale);
+	const termsAndConditionsTranslation_t *getTranslation(const UINT8 *locale);
 
 	/**
 	 * returns only the template of the translation specified by the language code
 	 * or NULL if no such translation exist.
 	 */
-	XERCES_CPP_NAMESPACE::DOMDocument *getTranslationTemplate(const UINT8 *locale);
+	const XERCES_CPP_NAMESPACE::DOMDocument *getTranslationTemplate(const UINT8 *locale);
 
 	/**
 	 * returns only the customized sections of the translation specified by the language code
 	 * or NULL if no such translation exist.
 	 */
-	DOMNode *getTranslationCustomizedSections(const UINT8 *locale);
-
-	DOMNodeList *getTranslationImports();
+	const DOMNode *getTranslationCustomizedSections(const UINT8 *locale);
 
 	/**
 	 * removes the specific Terms & Conditions translation for the the language with the
@@ -125,7 +127,7 @@ public:
 	/*
 	 * returns a POINTER, NOT A COPY of the ID of these T&Cs (the operator subject key identifier).
 	 */
-	UINT8* getID();
+	const UINT8 *getID();
 
 private:
 
