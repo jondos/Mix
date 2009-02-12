@@ -448,26 +448,28 @@ SINT32 getDOMChildByName(const DOMNode* pNode,const char* const name,DOMNode* & 
  * integrates the source node in the destination Node.
  *  TODO specification
  */
-void integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, bool replace)
+SINT32 integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, bool replace)
 {
 	if( (srcNode->getNodeType() != DOMNode::ELEMENT_NODE) ||
 		(dstNode->getNodeType() != DOMNode::ELEMENT_NODE) )
 	{
-		return;
+		return E_UNKNOWN;
 	}
 
 	DOMNodeList *srcList = srcNode->getChildNodes();
 	XERCES_CPP_NAMESPACE::DOMDocument *srcOwnerDoc = srcNode->getOwnerDocument();
 	XERCES_CPP_NAMESPACE::DOMDocument *dstOwnerDoc = dstNode->getOwnerDocument();
 
-	if( (srcOwnerDoc != NULL) && (srcOwnerDoc == dstOwnerDoc) )
+	short int pos = srcNode->compareTreePosition(dstNode);
+	if( (pos & INTEGRATE_NOT_ALLOWED_POSITIONS)  )
 	{
-		return;
+		CAMsg::printMsg(LOG_ERR,"integrate impossible due to illeagl tree positions, (pos: 0x%x)\n", pos);
+		return E_UNKNOWN;
 	}
 
-		if(srcList->getLength() == 0)
+	if(srcList->getLength() == 0)
 	{
-		return;
+		return E_SUCCESS;
 	}
 
 	DOMElement *srcElem = (DOMElement *) srcNode;
@@ -489,9 +491,9 @@ void integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, 
 		{
 			nodeAlreadyFinished = false;
 			currSrcChildName = (XMLCh *) ((DOMElement *) currSrcChild)->getTagName();
-			UINT8 *tn = (UINT8 *) XMLString::transcode(currSrcChildName);
-			XMLString::release(&tn);
-
+			/*UINT8 *tn = (UINT8 *) XMLString::transcode(currSrcChildName);
+			CAMsg::printMsg(LOG_DEBUG,"handle %s\n", tn);
+			XMLString::release(&tn);*/
 			for(UINT32 i = 0; i < nodeNamesIndex; i++ )
 			{
 				if(XMLString::equals(currSrcChildName, nodeNames[i]))
@@ -500,6 +502,7 @@ void integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, 
 					break;
 				}
 			}
+
 			if(nodeAlreadyFinished)
 			{
 				continue;
@@ -512,7 +515,7 @@ void integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, 
 			{
 				if(j >= currDstChildren->getLength())
 				{
-					if(dstOwnerDoc != NULL)
+					if( (dstOwnerDoc != NULL) && (srcOwnerDoc != dstOwnerDoc) )
 					{
 						dstNode->appendChild(dstOwnerDoc->importNode(currSrcChildren->item(j), true));
 					}
@@ -523,7 +526,7 @@ void integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, 
 				}
 				else if(replace)
 				{
-					if(dstOwnerDoc != NULL)
+					if( (dstOwnerDoc != NULL) && (srcOwnerDoc != dstOwnerDoc) )
 					{
 						dstElem->replaceChild(
 							dstOwnerDoc->importNode(currSrcChildren->item(j),true),
@@ -544,10 +547,11 @@ void integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, 
 						integrateDOMNode(currSrcChildren->item(j), currDstChildren->item(j), true, false);
 					}
 				}
-				nodeNames[nodeNamesIndex++];
+				nodeNames[nodeNamesIndex++] = currSrcChildName;
 			}
 		}
 	}
+	return E_SUCCESS;
 }
 
 bool equals(const XMLCh* const e1,const char* const e2)

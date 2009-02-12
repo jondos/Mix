@@ -397,6 +397,10 @@ SINT32 CAFirstMix::processKeyExchange()
         return E_UNKNOWN;
     pglobalOptions->setCascadeName(cascadeName);
 */
+    if(pglobalOptions->getTermsAndConditions() != NULL)
+    {
+    	appendTermsAndConditionsExtension(doc, elemMixes);
+    }
     SINT32 extRet = handleKeyInfoExtensions(elemMixes);
     if(extRet != E_SUCCESS)
     {
@@ -690,6 +694,12 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 
 	DOMElement *tncDefs = NULL;
 	getDOMChildByName(extensionsRoot, KEYINFO_NODE_TNC_EXTENSION, tncDefs);
+	if(tncDefs == NULL)
+	{
+		CAMsg::printMsg(LOG_CRIT,"No TNCs in TNC extension found.\n");
+		return E_UNKNOWN;
+	}
+
 	UINT8 currentTnC_id[TMP_BUFF_SIZE];
 	UINT32 currentTnC_id_len = TMP_BUFF_SIZE;
 
@@ -704,39 +714,24 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 	memset(currentTnC_id, 0, TMP_BUFF_SIZE);
 	memset(currentTnCEntry_templateRefid, 0, TMP_BUFF_SIZE);
 
-	m_nrOfTermsAndConditionsDefs = 0;
-	DOMNodeList *tncDefList = NULL;
-	DOMElement *ownTncDef = pglobalOptions->getTermsAndConditions();
-
-	if(tncDefs != NULL)
+	DOMNodeList *tncDefList = getElementsByTagName(tncDefs, OPTIONS_NODE_TNCS);
+	if(tncDefList->getLength() == 0)
 	{
-		tncDefList = getElementsByTagName(tncDefs, OPTIONS_NODE_TNCS);
-		m_nrOfTermsAndConditionsDefs += tncDefList->getLength();
-	}
-	if(ownTncDef != NULL)
-	{
-		m_nrOfTermsAndConditionsDefs++;
+		CAMsg::printMsg(LOG_CRIT, "No TNCs definitions found.\n");
+		return E_UNKNOWN;
 	}
 
+	m_nrOfTermsAndConditionsDefs = tncDefList->getLength();
 	m_tnCDefs = new TermsAndConditions *[m_nrOfTermsAndConditionsDefs];
 
 	for (XMLSize_t i = 0; i < m_nrOfTermsAndConditionsDefs; i++)
 	{
-		if( (i == (m_nrOfTermsAndConditionsDefs - 1)) && (ownTncDef != NULL) )
-		{
-			currentTnCList = ownTncDef;
-		}
-		else
-		{
-			currentTnCList = (DOMElement *) tncDefList->item(i);
-		}
 
+		currentTnCList = (DOMElement *) tncDefList->item(i);
 		DOMNodeList *tncDefEntryList = getElementsByTagName(currentTnCList, OPTIONS_NODE_TNCS_TRANSLATION);
-		DOMElement *tncTranslationImports = NULL;
-		getDOMChildByName(currentTnCList, OPTIONS_NODE_TNCS_TRANSLATION_IMPORTS, tncTranslationImports, false);
 		getDOMElementAttribute(currentTnCList, OPTIONS_ATTRIBUTE_TNC_ID, currentTnC_id, &currentTnC_id_len);
 
-		m_tnCDefs[i] = new TermsAndConditions(currentTnC_id, tncDefEntryList->getLength(), tncTranslationImports);
+		m_tnCDefs[i] = new TermsAndConditions(currentTnC_id, tncDefEntryList->getLength());
 
 		for (XMLSize_t j = 0; j < tncDefEntryList->getLength(); j++)
 		{
@@ -752,7 +747,6 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 			{
 				m_tnCDefs[i]->synchLock->lock();
 				m_tnCDefs[i]->addTranslation(currentTnCEntry_locale, currentTnCEntry, templateNode);
-				//printTranslation(m_tnCDefs[i]->getTranslation(currentTnCEntry_locale));
 				m_tnCDefs[i]->synchLock->unlock();
 			}
 			else

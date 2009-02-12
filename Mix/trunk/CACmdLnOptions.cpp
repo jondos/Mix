@@ -3567,8 +3567,15 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 			return E_UNKNOWN;
 		}
 
-
-
+		//import nodes global for all translations
+		if(tncTranslationImports != NULL)
+		{
+			if(integrateDOMNode(tncTranslationImports, currentTnCEntry, true, false) != E_SUCCESS)
+			{
+				CAMsg::printMsg(LOG_CRIT,"Integrating imports failed!\n");
+				return E_UNKNOWN;
+			}
+		}
 		defaultLangFound = (defaultLangFound || defaultLangValue);
 	}
 
@@ -3577,7 +3584,10 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 		CAMsg::printMsg(LOG_CRIT,"There is no default language specified for the Terms And Conditions!\n");
 		return E_UNKNOWN;
 	}
-
+	if(tncTranslationImports != NULL)
+	{
+		elemTnCsList->removeChild(tncTranslationImports);
+	}
 	m_docOpTnCs->appendChild(m_docOpTnCs->importNode(elemTnCsList, WITH_SUBTREE));
 
 	return E_SUCCESS;

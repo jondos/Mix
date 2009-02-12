@@ -65,17 +65,10 @@ private:
 	UINT32 currentTranslationIndex;
 	/* array containing pointers to the Terms & Conditions translations */
 	termsAndConditionsTranslation_t **allTranslations;
-
-	DOMNode *translationImports;
-
 	/* needed to import the customized sections XML elements. ensures that these
 	 * are not released accidently by former owner documents.
 	 */
 	XERCES_CPP_NAMESPACE::DOMDocument *customizedSectionsOwner;
-	/*
-	 * same for the language Node imports (which must differ from the language translation Nodes)
-	 */
-	XERCES_CPP_NAMESPACE::DOMDocument *translationImportsOwner;
 
 public:
 
@@ -90,7 +83,7 @@ public:
 	 * Constructor with the id (Operator SKI), the number of translations and those elements
 	 * to be imported to all translations
 	 */
-	TermsAndConditions(UINT8* id, UINT32 nrOfTranslations, DOMElement *transImports);
+	TermsAndConditions(UINT8* id, UINT32 nrOfTranslations);
 	virtual ~TermsAndConditions();
 
 	/**
