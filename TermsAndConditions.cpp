@@ -71,10 +71,9 @@ void cleanupTnCTranslation(termsAndConditionsTranslation_t *tnCTranslation)
 /**
  * Constructor with the id (Operator SKI) and the number of translations
  */
-TermsAndConditions::TermsAndConditions(UINT8* id, UINT32 nrOfTranslations, DOMElement *transImports)
+TermsAndConditions::TermsAndConditions(UINT8* id, UINT32 nrOfTranslations)
 {
 	customizedSectionsOwner = createDOMDocument();
-	translationImportsOwner = createDOMDocument();
 	/* The id of the Terms & Conditions is the operator ski. */
 	if(id != NULL)
 	{
@@ -94,14 +93,6 @@ TermsAndConditions::TermsAndConditions(UINT8* id, UINT32 nrOfTranslations, DOMEl
 	for (UINT32 i = 0; i < translations; i++)
 	{
 		allTranslations[i] = NULL;
-	}
-	if(transImports != NULL)
-	{
-		translationImports = translationImportsOwner->importNode(transImports,true);
-	}
-	else
-	{
-		translationImports = NULL;
 	}
 	synchLock = new CAMutex();
 }
@@ -127,10 +118,6 @@ TermsAndConditions::~TermsAndConditions()
 	currentTranslationIndex = 0;
 	customizedSectionsOwner->release();
 	customizedSectionsOwner = NULL;
-	translationImports->release();
-	translationImports = NULL;
-	translationImportsOwner->release();
-	translationImportsOwner = NULL;
 }
 
 /**
@@ -204,10 +191,6 @@ void TermsAndConditions::addTranslation(const UINT8* locale, DOMNode *tnc_custom
 		//import the customized sections to the internal T & C document to ensure it is not
 		//released by it's former owner document.
 		newEntry->tnc_customized = customizedSectionsOwner->importNode(tnc_customized, true);
-		if(translationImports != NULL)
-		{
-			integrateDOMNode(translationImports, newEntry->tnc_customized, true, false);
-		}
 		newEntry->tnc_template = tnc_template;
 		newEntry->tnc_id = tnc_id;
 		newEntry->tnc_locale = new UINT8[TMP_LOCALE_SIZE];

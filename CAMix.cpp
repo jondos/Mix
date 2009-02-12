@@ -472,7 +472,12 @@ DOMNode *CAMix::appendTermsAndConditionsExtension(XERCES_CPP_NAMESPACE::DOMDocum
 		memset(tmpOpSKIBuff, 0, tmpOpSKILen);
 		pglobalOptions->getOperatorSubjectKeyIdentifier(tmpOpSKIBuff, &tmpOpSKILen);
 		setDOMElementAttribute(elemTnCs, OPTIONS_ATTRIBUTE_TNC_ID, tmpOpSKIBuff);
-		signXML(elemTnCs);
+
+		DOMNodeList *tncDefEntryList = getElementsByTagName((DOMElement *)elemTnCs, OPTIONS_NODE_TNCS_TRANSLATION);
+		for (XMLSize_t i = 0; i < tncDefEntryList->getLength(); i++)
+		{
+			signXML((DOMElement *)tncDefEntryList->item(i));
+		}
 		elemTnCExtension->appendChild(elemTnCs);
 		return elemTnCExtension;
 	}

@@ -35,6 +35,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define STR_VALUE_TRUE "true"
 #define STR_VALUE_FALSE "false"
 
+#define INTEGRATE_NOT_ALLOWED_POSITIONS \
+	(DOMNode::TREE_POSITION_ANCESTOR   | DOMNode::TREE_POSITION_DESCENDANT | \
+	 DOMNode::TREE_POSITION_EQUIVALENT | DOMNode::TREE_POSITION_SAME_NODE )
+
 UINT32 strtrim(UINT8*);
 
 SINT32 memtrim(UINT8* out,const UINT8* in,UINT32 len);
@@ -196,7 +200,7 @@ SINT32 encodeXMLEncryptedKey(UINT8* key,UINT32 keylen, DOMElement* & elemRootEnc
 SINT32 decodeXMLEncryptedKey(UINT8* key,UINT32* keylen, const UINT8* const xml, UINT32 xmllen,CAASymCipher* pRSA);
 SINT32 decodeXMLEncryptedKey(UINT8* key,UINT32* keylen, const DOMNode* pRoot,CAASymCipher* pRSA);
 
-void integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, bool replace);
+SINT32 integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, bool replace);
 
 /** Replaces a DOM element with an encrypted version of this element*/
 SINT32 encryptXMLElement(DOMNode* pElem , CAASymCipher* pRSA);
