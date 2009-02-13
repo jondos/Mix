@@ -652,7 +652,20 @@ SINT32 CAAccountingInstance::getPrepaidBytes(tAiAccountingInfo* pAccInfo)
 		return 0;
 	}
 
-	SINT32 prepaidBytes;
+	//most unlikely that either transferred bytes or confirmed bytes
+	//are > 0x8000000000000000
+
+	SINT64 prepaidBytes = pAccInfo->confirmedBytes - pAccInfo->transferredBytes;
+	//difference must be a value that fits into a signed 32 bit integer.
+	if (prepaidBytes & 0xFFFFFFFF00000000LL)
+	{
+		CAMsg::printMsg(LOG_CRIT, "PrepaidBytes overflow: %lld\n", prepaidBytes);
+		CAMsg::printMsg(LOG_INFO, "TransferredBytes: %llu  ConfirmedBytes: %llu\n", pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
+	}
+	CAMsg::printMsg(LOG_CRIT, "PrepaidBytes are %d\n", (SINT32) prepaidBytes);
+	return (SINT32) prepaidBytes;
+
+	/*SINT32 prepaidBytes;
 #ifdef DEBUG
 	CAMsg::printMsg(LOG_INFO, "Calculating TransferredBytes: %llu  ConfirmedBytes: %llu\n",
 			pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
@@ -680,7 +693,7 @@ SINT32 CAAccountingInstance::getPrepaidBytes(tAiAccountingInfo* pAccInfo)
 		prepaidBytes *= -1;
 	}
 
-	return prepaidBytes;
+	return prepaidBytes;*/
 }
 
 /**
