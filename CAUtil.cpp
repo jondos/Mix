@@ -823,6 +823,14 @@ SINT32 setDOMElementAttribute(DOMNode* pElem, const char* attrName, UINT64 value
 	return setDOMElementAttribute(pElem, attrName, tmp);
 }
 
+SINT32 setDOMElementAttribute(DOMNode* pElem, const char* attrName, SINT64 value)
+{
+	UINT8 tmp[50];
+	memset(tmp, 0, 50);
+	snprintf((char *) tmp, 50, "%lld", value);
+	return setDOMElementAttribute(pElem, attrName, tmp);
+}
+
 SINT32 setDOMElementAttribute(DOMNode* pElem,const char* attrName, SINT32 value)
 {
 	UINT8 tmp[10];
@@ -852,6 +860,21 @@ SINT32 getDOMElementAttribute(const DOMNode * const elem,const char* attrName,SI
 		return E_UNKNOWN;
 	}
 	if(parseS64(val,value)!=E_SUCCESS)
+	{
+		return E_UNKNOWN;
+	}
+	return E_SUCCESS;
+}
+
+SINT32 getDOMElementAttribute(const DOMNode * const elem,const char* attrName, UINT64& value)
+{
+	UINT8 val[50];
+	UINT32 len=50;
+	if(getDOMElementAttribute(elem,attrName,val,&len)!=E_SUCCESS)
+	{
+		return E_UNKNOWN;
+	}
+	if(parseU64(val,value)!=E_SUCCESS)
 	{
 		return E_UNKNOWN;
 	}
@@ -986,8 +1009,24 @@ SINT32 getDOMElementValue(const DOMElement* pElem, UINT64 &value)
 	return E_SUCCESS;
 }
 
+SINT32 getDOMElementValue(const DOMElement* const pElem, SINT64 &value)
+{
+	ASSERT(pElem!=NULL, "Element is NULL");
+	UINT8 buf[256];
+	UINT32 bufLen = 256;
+	if(getDOMElementValue(pElem,buf,&bufLen)!=E_SUCCESS)
+	{
+		return E_UNKNOWN;
+	}
+	if(parseS64(buf, value)!=E_SUCCESS)
+	{
+		return E_UNKNOWN;
+	}
+	return E_SUCCESS;
+}
 
-SINT32 getDOMElementValue(const DOMElement* pElem,UINT16* value)
+
+SINT32 getDOMElementValue(const DOMElement* const pElem,UINT16* value)
 {
 	UINT32 tmp;
 	if(getDOMElementValue(pElem,&tmp)!=E_SUCCESS)
@@ -1369,36 +1408,41 @@ UINT8* readFile(UINT8* name,UINT32* size)
  */
 SINT32 parseU64(const UINT8 * str, UINT64& value)
 {
-	#ifdef HAVE_NATIVE_UINT64
-			if (str == NULL)
-			{
-				return E_UNKNOWN;
-			}
-			UINT32 len=strlen((char*)str);
-			if (len < 1)
-			{
-				return E_UNKNOWN;
-			}
-			UINT64 u64 = 0;
-			for (UINT32 i = 0; i < len; i++)
-			{
-				UINT8 c=str[i];
-				if (c >= '0' && c <= '9')
-				{
-					u64 *= 10;
-					u64 += c - '0';
-				}
-				else if (i != 0 || str[i] != '+')
+	#ifdef	HAVE_STRTOULL
+		value = strtoull((const char *) str, NULL, 0);
+		return E_SUCCESS;
+	#else
+		#ifdef HAVE_NATIVE_UINT64
+				if (str == NULL)
 				{
 					return E_UNKNOWN;
 				}
-			}
-			value = u64;
-			return E_SUCCESS;
-	#else
-		#warning parseU64() is not implemented for platforms without native UINT64 support!!!
-		///@todo code if we do not have native UINT64
-		return E_UNKNOWN;
+				UINT32 len=strlen((char*)str);
+				if (len < 1)
+				{
+					return E_UNKNOWN;
+				}
+				UINT64 u64 = 0;
+				for (UINT32 i = 0; i < len; i++)
+				{
+					UINT8 c=str[i];
+					if (c >= '0' && c <= '9')
+					{
+						u64 *= 10;
+						u64 += c - '0';
+					}
+					else if (i != 0 || str[i] != '+')
+					{
+						return E_UNKNOWN;
+					}
+				}
+				value = u64;
+				return E_SUCCESS;
+		#else
+			#warning parseU64() is not implemented for platforms without native UINT64 support!!!
+			///@todo code if we do not have native UINT64
+			return E_UNKNOWN;
+		#endif
 	#endif
 }
 
@@ -1408,39 +1452,44 @@ SINT32 parseU64(const UINT8 * str, UINT64& value)
  */
 SINT32 parseS64(const UINT8 * str, SINT64& value)
 {
-	#ifdef HAVE_NATIVE_UINT64
-			if (str == NULL)
-			{
-				return E_UNKNOWN;
-			}
-			UINT32 len=strlen((char*)str);
-			if (len < 1)
-			{
-				return E_UNKNOWN;
-			}
-			SINT64 s64 = 0;
-			for (UINT32 i = 0; i < len; i++)
-			{
-				UINT8 c=str[i];
-				if (c >= '0' && c <= '9')
-				{
-					s64 *= 10;
-					s64 += c - '0';
-				}
-				else if (i != 0 || str[i] != '+'||str[i]!='-')
+	#ifdef	HAVE_ATOLL
+		value = atoll((const char *) str);
+		return E_SUCCESS;
+	#else
+		#ifdef HAVE_NATIVE_UINT64
+				if (str == NULL)
 				{
 					return E_UNKNOWN;
 				}
-			}
-			if(str[0]=='-')
-				value=-s64;
-			else
-				value = s64;
-			return E_SUCCESS;
-	#else
-		#warning parseS64() is not implemented for platforms without native INT64 support!!!
-		///@todo code if we do not have native UINT64
-		return E_UNKNOWN;
+				UINT32 len=strlen((char*)str);
+				if (len < 1)
+				{
+					return E_UNKNOWN;
+				}
+				SINT64 s64 = 0;
+				for (UINT32 i = 0; i < len; i++)
+				{
+					UINT8 c=str[i];
+					if (c >= '0' && c <= '9')
+					{
+						s64 *= 10;
+						s64 += c - '0';
+					}
+					else if (i != 0 || str[i] != '+'||str[i]!='-')
+					{
+						return E_UNKNOWN;
+					}
+				}
+				if(str[0]=='-')
+					value=-s64;
+				else
+					value = s64;
+				return E_SUCCESS;
+		#else
+			#warning parseS64() is not implemented for platforms without native INT64 support!!!
+			///@todo code if we do not have native UINT64
+			return E_UNKNOWN;
+		#endif
 	#endif
 }
 

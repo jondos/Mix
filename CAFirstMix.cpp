@@ -1327,6 +1327,10 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 				TermsAndConditions *requestedTnC = getTermsAndConditions(id);
 				if(requestedTnC != NULL)
 				{
+					//NOTE: No need to lock while working with the TC translation?
+					//because the translation are NOW only modfied during
+					//inter-mix-keyexchange and cleanup. Both do not run concurrent with this method if
+					//it is ensured that no connections are accepted during cleanup.
 					const termsAndConditionsTranslation_t *requestedTranslation =
 						requestedTnC->getTranslation(locale);
 					if(requestedTranslation != NULL)
@@ -1654,8 +1658,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		#endif
 		delete[] xml_buff;
 		xml_buff = NULL;
-
-		/* Terms And Conditions negotiation */
+#if 0 //terms and conditions sending disabled.
+		/* handle Terms And Conditions */
 		bool loginFailed = false;
 		bool tcProcedureFinished = false;
 
@@ -1748,7 +1752,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			return E_UNKNOWN;
 		}
 		/* end Terms And Conditions negotiation */
-
+#endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "sent key exchange signature");
 
 		((CASocket*)pNewUser)->setNonBlocking(true);
