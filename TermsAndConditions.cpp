@@ -48,7 +48,7 @@ void cleanupTnCMixAnswer(termsAndConditionMixAnswer_t *answer)
 			answer->xmlAnswer->release();
 			answer->xmlAnswer = NULL;
 		}
-		answer->exchangeFinished = false;
+		answer->exchangeFinished = TC_ANSWER_FAILED;
 	}
 }
 

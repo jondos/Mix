@@ -34,9 +34,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "StdAfx.h"
 #include "CAMutex.hpp"
 
+enum tcAnswerCode_t
+{
+	TC_ANSWER_FAILED = -1, TC_ANSWER_ONGOING, TC_ANSWER_FINISHED
+};
+
 typedef struct
 {
-	bool exchangeFinished;
+	tcAnswerCode_t exchangeFinished;
 	XERCES_CPP_NAMESPACE::DOMDocument* xmlAnswer;
 } termsAndConditionMixAnswer_t;
 
