@@ -1266,7 +1266,7 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 	//Client requests lacking T&C resources.
 	if(XMLString::equals(reqName, TNC_REQUEST))
 	{
-		answer->exchangeFinished = false;
+		answer->exchangeFinished = TC_ANSWER_ONGOING;
 		CAMsg::printMsg(LOG_DEBUG,"Handling TC request.\n");
 		XERCES_CPP_NAMESPACE::DOMDocument *response = createDOMDocument();
 		DOMElement *responseRoot = createDOMElement(response, TNC_RESPONSE);
@@ -1291,7 +1291,7 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 			response->release();
 			response = createDOMDocument();
 			response->appendChild(createDOMElement(response, TNC_RESPONSE_INVALID_REQUEST));
-			answer->exchangeFinished = true;
+			answer->exchangeFinished = TC_ANSWER_FAILED;
 		}
 
 		for (XMLSize_t i = 0; i < requestedResources->getLength(); i++)
@@ -1371,11 +1371,12 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 				response->release();
 				response = createDOMDocument();
 				response->appendChild(createDOMElement(response, TNC_RESPONSE_INVALID_REQUEST));
-				answer->exchangeFinished = true;
+				answer->exchangeFinished = TC_ANSWER_FAILED;
 				break;
 			}
 		}
 		answer->xmlAnswer = response;
+		answer->exchangeFinished = TC_ANSWER_FAILED;
 		return answer;
 		//answer->xmlAnswer = (XERCES_CPP_NAMESPACE::DOMDocument *) request->cloneNode(true);
 		//answer->exchangeFinished = true;
@@ -1390,17 +1391,18 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 		CAMsg::printMsg(LOG_DEBUG,"Client has%s accepted the T&Cs.\n", (tcAccepted ? "" : " not")  );
 
 		answer->xmlAnswer = NULL; //TODO: set errorMessage here
-		answer->exchangeFinished = true;
+		answer->exchangeFinished = TC_ANSWER_FINISHED;
+		return answer;
 	}
 	//Client sends an invalid message
 	else
 	{
 		CAMsg::printMsg(LOG_DEBUG,"TODO: invalid TC message.\n");
 		answer->xmlAnswer = NULL; //TODO: set errorMessage here
-		answer->exchangeFinished = true;
+		answer->exchangeFinished = TC_ANSWER_FAILED;
 	}
 	answer->xmlAnswer = NULL; //TODO: set errorMessage here
-	answer->exchangeFinished = true;
+	answer->exchangeFinished = TC_ANSWER_FAILED;
 	return answer;
 }
 
@@ -1658,7 +1660,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		#endif
 		delete[] xml_buff;
 		xml_buff = NULL;
-#if 0 //terms and conditions sending disabled.
+//#if 0 //terms and conditions sending disabled.
 		/* handle Terms And Conditions */
 		bool loginFailed = false;
 		bool tcProcedureFinished = false;
@@ -1709,7 +1711,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				UINT8 *answerBuff = DOM_Output::dumpToMem(answer->xmlAnswer, &size);
 				if(answerBuff != NULL)
 				{
-					CAMsg::printMsg(LOG_DEBUG,"User login: answer %s\n", answerBuff);
+					//CAMsg::printMsg(LOG_DEBUG,"User login: answer %s\n", answerBuff);
 
 					UINT32 netSize = htonl(size);
 
@@ -1728,7 +1730,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 					delete [] answerBuff;
 				}
 			}
-			tcProcedureFinished = answer->exchangeFinished;
+			tcProcedureFinished = (answer->exchangeFinished != TC_ANSWER_ONGOING);
+			loginFailed = (answer->exchangeFinished == TC_ANSWER_FAILED);
 			cleanupTnCMixAnswer(answer);
 			delete answer;
 			answer = NULL;
@@ -1752,7 +1755,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			return E_UNKNOWN;
 		}
 		/* end Terms And Conditions negotiation */
-#endif
+//#endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "sent key exchange signature");
 
 		((CASocket*)pNewUser)->setNonBlocking(true);
