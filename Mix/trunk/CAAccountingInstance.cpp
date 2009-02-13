@@ -662,7 +662,6 @@ SINT32 CAAccountingInstance::getPrepaidBytes(tAiAccountingInfo* pAccInfo)
 		CAMsg::printMsg(LOG_CRIT, "PrepaidBytes overflow: %lld\n", prepaidBytes);
 		CAMsg::printMsg(LOG_INFO, "TransferredBytes: %llu  ConfirmedBytes: %llu\n", pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
 	}
-	CAMsg::printMsg(LOG_CRIT, "PrepaidBytes are %d\n", (SINT32) prepaidBytes);
 	return (SINT32) prepaidBytes;
 
 	/*SINT32 prepaidBytes;
