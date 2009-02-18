@@ -54,7 +54,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include "CAMutex.hpp"
 #endif
 
+#define TNC_SREQUEST "TermsAndConditionsRequest"
 #define TNC_RESPONSE "TermsAndConditionsResponse"
+#define TNC_SINTERRUPT "TermsAndConditionsInterrupt"
+#define TNC_REQ_TRANSLATION "Translation"
 #define TNC_RESOURCES "Resources"
 #define TNC_RESOURCE_TEMPLATE "Template"
 #define TNC_RESOURCE_CUSTOMIZED_SECT "CustomizedSections"
@@ -151,8 +154,9 @@ public:
 #ifdef DYNAMIC_MIX
 					m_bBreakNeeded = false;
 #endif
-					TNC_REQUEST = XMLString::transcode("TermsAndConditionsRequest");
+					TNC_REQUEST = XMLString::transcode(TNC_SREQUEST);
 					TNC_CONFIRM = XMLString::transcode(TNC_CONFIRM_REQ);
+					TNC_INTERRUPT =  XMLString::transcode(TNC_SINTERRUPT);
 				}
 
     	/*virtual ~CAFirstMix()
@@ -343,6 +347,7 @@ protected:
 			/* constants for the XML root tags received from the client */
 			const XMLCh *TNC_REQUEST;
 			const XMLCh *TNC_CONFIRM;
+			const XMLCh *TNC_INTERRUPT;
 
 #ifdef COUNTRY_STATS
 		private:
