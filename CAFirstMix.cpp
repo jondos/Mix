@@ -1271,7 +1271,11 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 		XERCES_CPP_NAMESPACE::DOMDocument *response = createDOMDocument();
 		DOMElement *responseRoot = createDOMElement(response, TNC_RESPONSE);
 		response->appendChild(responseRoot);
+		//All elements with tag name 'Resources' (direct children of 'TermsAndConditionsRequest')
 		DOMNodeList *requestedResources = getElementsByTagName(request->getDocumentElement(), TNC_RESOURCES);
+		//All elements with tag name 'Translation' (direct children of 'Resources')
+		DOMNodeList *requestedResourceItems = NULL;
+
 		DOMNode *currentNode = NULL;
 		DOMNode *currentAnswerNode = NULL;
 		DOMNode *currentAnswerResourceNode = NULL;
@@ -1308,12 +1312,6 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 				CAMsg::printMsg(LOG_DEBUG,"Error: invalid id.\n");
 				resourceError = true;
 			}
-			else if( (getDOMElementAttribute(currentNode, OPTIONS_ATTRIBUTE_TNC_LOCALE, locale, &localeLen) != E_SUCCESS) ||
-					(strlen((char *)locale) != ((TMP_LOCALE_SIZE) - 1) ) )
-			{
-				CAMsg::printMsg(LOG_DEBUG,"Error: Invalid locale.\n");
-				resourceError = true;
-			}
 
 			if(!currentNode->hasChildNodes())
 			{
@@ -1324,38 +1322,61 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 
 			if(!resourceError)
 			{
+
 				TermsAndConditions *requestedTnC = getTermsAndConditions(id);
 				if(requestedTnC != NULL)
 				{
-					//NOTE: No need to lock while working with the TC translation?
-					//because the translation are NOW only modfied during
-					//inter-mix-keyexchange and cleanup. Both do not run concurrent with this method if
-					//it is ensured that no connections are accepted during cleanup.
-					const termsAndConditionsTranslation_t *requestedTranslation =
-						requestedTnC->getTranslation(locale);
-					if(requestedTranslation != NULL)
+					requestedResourceItems = getElementsByTagName((DOMElement *)currentNode, TNC_REQ_TRANSLATION);
+					for(XMLSize_t j = 0; j < requestedResourceItems->getLength(); j++)
 					{
-						currentAnswerNode = response->importNode(currentNode->cloneNode(true), true);
-						responseRoot->appendChild(currentAnswerNode);
-						if( getDOMChildByName(currentAnswerNode, TNC_RESOURCE_TEMPLATE,
-								currentAnswerResourceNode, false) == E_SUCCESS)
+						validResource = false;
+						localeLen = TMP_LOCALE_SIZE;
+						if( (getDOMElementAttribute(requestedResourceItems->item(j),
+								OPTIONS_ATTRIBUTE_TNC_LOCALE,
+								locale, &localeLen) != E_SUCCESS) ||
+							(strlen((char *)locale) != ((TMP_LOCALE_SIZE) - 1) ) )
 						{
-							currentAnswerResourceNode->appendChild(
-									response->importNode(requestedTranslation->tnc_template->getDocumentElement(), true));
-							validResource = true;
+							CAMsg::printMsg(LOG_DEBUG,"Error: Invalid locale for tnc %s\n", id);
+							break;
 						}
 
-						if( getDOMChildByName(currentAnswerNode, TNC_RESOURCE_CUSTOMIZED_SECT,
-												currentAnswerResourceNode, false) == E_SUCCESS)
+						const termsAndConditionsTranslation_t *requestedTranslation =
+								requestedTnC->getTranslation(locale);
+						//NOTE: No need to lock while working with the TC translation?
+						//because the translation are NOW only modfied during
+						//inter-mix-keyexchange and cleanup. Both do not run concurrent with this method if
+						//it is ensured that no connections are accepted during cleanup.
+
+						if(requestedTranslation != NULL)
 						{
-							currentAnswerResourceNode->appendChild(
-									response->importNode(requestedTranslation->tnc_customized, true));
-							validResource = true;
+
+							currentAnswerNode = response->importNode(currentNode, false);
+							responseRoot->appendChild(currentAnswerNode);
+							if( getDOMChildByName(requestedResourceItems->item(j), TNC_RESOURCE_TEMPLATE,
+									currentAnswerResourceNode, false) == E_SUCCESS)
+							{
+								currentAnswerResourceNode = response->importNode(currentAnswerResourceNode, true);
+								currentAnswerResourceNode->appendChild(
+										response->importNode(requestedTranslation->tnc_template->getDocumentElement(), true));
+								currentAnswerNode->appendChild(currentAnswerResourceNode);
+								validResource = true;
+							}
+
+							if( getDOMChildByName(requestedResourceItems->item(j), TNC_RESOURCE_CUSTOMIZED_SECT,
+													currentAnswerResourceNode, false) == E_SUCCESS)
+							{
+								currentAnswerResourceNode = response->importNode(currentAnswerResourceNode, true);
+								currentAnswerResourceNode->appendChild(
+										response->importNode(requestedTranslation->tnc_customized, true));
+								currentAnswerNode->appendChild(currentAnswerResourceNode);
+								validResource = true;
+							}
 						}
-					}
-					else
-					{
-						CAMsg::printMsg(LOG_DEBUG,"Error: no translation def found.\n");
+						else
+						{
+							CAMsg::printMsg(LOG_DEBUG,"Error: no translation def found.\n");
+							break;
+						}
 					}
 				}
 				else
@@ -1363,6 +1384,7 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 					CAMsg::printMsg(LOG_DEBUG,"Error: no tc def found.\n");
 				}
 			}
+
 			if(!validResource)
 			{
 				//only a manipulated client sends an invalid T&C resource request.
@@ -1376,23 +1398,28 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 			}
 		}
 		answer->xmlAnswer = response;
-		answer->exchangeFinished = TC_ANSWER_FAILED;
+		//answer->exchangeFinished = TC_ANSWER_ONGOING;
 		return answer;
-		//answer->xmlAnswer = (XERCES_CPP_NAMESPACE::DOMDocument *) request->cloneNode(true);
-		//answer->exchangeFinished = true;
 	}
 	//Client accepts/rejects the T&Cs.
 	else if(XMLString::equals(reqName, TNC_CONFIRM))
 	{
 		//TODO:
-		CAMsg::printMsg(LOG_DEBUG,"TODO: handling TC confirm.\n");
+		CAMsg::printMsg(LOG_DEBUG,"Thandling TC confirm.\n");
 		bool tcAccepted = false;
 		getDOMElementAttribute(request->getDocumentElement(), "accepted", tcAccepted);
 		CAMsg::printMsg(LOG_DEBUG,"Client has%s accepted the T&Cs.\n", (tcAccepted ? "" : " not")  );
 
 		answer->xmlAnswer = NULL; //TODO: set errorMessage here
-		answer->exchangeFinished = TC_ANSWER_FINISHED;
+		answer->exchangeFinished = tcAccepted ? TC_ANSWER_FINISHED : TC_ANSWER_FAILED;
 		return answer;
+	}
+	//stops the message exchange (if client needs time for showing the T & Cs, etc.)
+	else if(XMLString::equals(reqName, TNC_INTERRUPT))
+	{
+		CAMsg::printMsg(LOG_DEBUG,"client requested interrupting the tc login.\n");
+		answer->xmlAnswer = NULL;
+		answer->exchangeFinished = TC_ANSWER_FAILED;
 	}
 	//Client sends an invalid message
 	else
