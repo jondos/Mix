@@ -439,13 +439,13 @@ DOMNode *CAMix::appendTermsAndConditionsExtension(XERCES_CPP_NAMESPACE::DOMDocum
 {
 	if(pglobalOptions->getTermsAndConditions() != NULL)
 	{
-
 		if( (root == NULL) || (ownerDoc == NULL) )
 		{
 			return NULL;
 		}
 
-		DOMElement *elemTnCExtension = NULL, *elemExtensions = NULL;
+		DOMElement *elemTnCExtension = NULL, *elemExtensions = NULL,
+					*elemTemplates = NULL;
 		/* Tag for Nodes that can be removed without destroying the signature.
 		 * To be appended to the "mixes"-node so older mix versions won't get confused.
 		 */
@@ -464,6 +464,27 @@ DOMNode *CAMix::appendTermsAndConditionsExtension(XERCES_CPP_NAMESPACE::DOMDocum
 		{
 			elemTnCExtension = createDOMElement(ownerDoc, KEYINFO_NODE_TNC_EXTENSION);
 			elemExtensions->appendChild(elemTnCExtension);
+		}
+
+		//First add templates if there are any
+		UINT32 nrOfTemplates = pglobalOptions->getNumberOfTermsAndConditionsTemplates();
+		if(nrOfTemplates > 0)
+		{
+			getDOMChildByName(elemTnCExtension, OPTIONS_NODE_TNCS_TEMPLATES, elemTemplates);
+			if(elemTemplates == NULL)
+			{
+				elemTemplates = createDOMElement(ownerDoc, OPTIONS_NODE_TNCS_TEMPLATES);
+				elemTnCExtension->appendChild(elemTemplates);
+
+			}
+
+			XERCES_CPP_NAMESPACE::DOMDocument **allTemplates = pglobalOptions->getAllTermsAndConditionsTemplates();
+			for(UINT32 i = 0; i < nrOfTemplates; i++)
+			{
+				elemTemplates->appendChild(ownerDoc->importNode(
+						allTemplates[i]->getDocumentElement(), true));
+				CAMsg::printMsg(LOG_DEBUG,"appended a tc node!\n");
+			}
 		}
 
 		DOMNode* elemTnCs = ownerDoc->importNode(pglobalOptions->getTermsAndConditions(), true);
@@ -500,7 +521,7 @@ DOMNode *CAMix::termsAndConditionsInfoNode(XERCES_CPP_NAMESPACE::DOMDocument *ow
 		DOMElement *iterator = NULL;
 		DOMElement *currentInfoNode = NULL;
 		bool defaultLangDefined = false;
-		for (int i = 0; i < list->getLength(); i++)
+		for (XMLSize_t i = 0; i < list->getLength(); i++)
 		{
 			iterator = (DOMElement *) list->item(i);
 			currentInfoNode = createDOMElement(ownerDoc, KEYINFO_NODE_TNC_INFO);

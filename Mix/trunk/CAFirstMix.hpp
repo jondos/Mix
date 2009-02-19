@@ -60,6 +60,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define TNC_REQ_TRANSLATION "Translation"
 #define TNC_RESOURCES "Resources"
 #define TNC_RESOURCE_TEMPLATE "Template"
+#define TNC_TEMPLATE_ROOT_ELEMENT "TermsAndConditionsFramework" //TODO: naming error: framework != template
 #define TNC_RESOURCE_CUSTOMIZED_SECT "CustomizedSections"
 
 #define TNC_RESPONSE_INVALID_REQUEST "InvalidTermsAndConditionsRequest"
@@ -140,6 +141,9 @@ public:
 					m_pthreadsLogin=NULL;
 					m_nrOfTermsAndConditionsDefs = 0;
 					m_tnCDefs = NULL;
+					m_nrOfTermsAndConditionsTemplates = 0;
+					m_templatesOwner = NULL;
+					m_tcTemplates = NULL;
 					m_bIsShuttingDown=false;
 #ifdef LOG_PACKET_TIMES
 					m_pLogPacketStats=NULL;
@@ -213,6 +217,7 @@ public:
 		SINT32 getLevel(SINT32* puser,SINT32* prisk,SINT32* ptraffic);
 
 		TermsAndConditions *getTermsAndConditions(const UINT8 *opSki);
+		DOMNode *getTermsAndConditionsTemplate(UINT8 *templateRefID);
 
 		friend THREAD_RETURN fm_loopSendToMix(void*);
 		friend THREAD_RETURN fm_loopReadFromMix(void*);
@@ -343,6 +348,9 @@ protected:
 
 			UINT32 m_nrOfTermsAndConditionsDefs;
 			TermsAndConditions **m_tnCDefs;
+			UINT32 m_nrOfTermsAndConditionsTemplates;
+			DOMNode **m_tcTemplates;
+			XERCES_CPP_NAMESPACE::DOMDocument *m_templatesOwner; //owner for the TC templates stored in tcTemplates
 
 			/* constants for the XML root tags received from the client */
 			const XMLCh *TNC_REQUEST;

@@ -439,7 +439,8 @@ class CACmdLnOptions
 			//SINT32 getMixXml(UINT8* strxml,UINT32* len);
 			SINT32 getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo);
 
-			XERCES_CPP_NAMESPACE::DOMDocument *getTermsAndConditionsTemplate(UINT8 *templateRefID);
+			UINT32 getNumberOfTermsAndConditionsTemplates();
+			XERCES_CPP_NAMESPACE::DOMDocument **getAllTermsAndConditionsTemplates();
 			XERCES_CPP_NAMESPACE::DOMElement *getTermsAndConditions();
 
 			UINT32 getKeepAliveSendInterval()
