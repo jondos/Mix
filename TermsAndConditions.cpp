@@ -48,7 +48,7 @@ void cleanupTnCMixAnswer(termsAndConditionMixAnswer_t *answer)
 			answer->xmlAnswer->release();
 			answer->xmlAnswer = NULL;
 		}
-		answer->exchangeFinished = TC_ANSWER_FAILED;
+		answer->result = TC_UNFINISHED;
 	}
 }
 
@@ -150,7 +150,7 @@ const termsAndConditionsTranslation_t *TermsAndConditions::getTranslation(const 
  * returns only the template of the translation specified by the language code
  * or NULL if no such translation exist.
  */
-const XERCES_CPP_NAMESPACE::DOMDocument *TermsAndConditions::getTranslationTemplate(const UINT8 *locale)
+const DOMNode *TermsAndConditions::getTranslationTemplate(const UINT8 *locale)
 {
 	const termsAndConditionsTranslation_t *foundEntry = getTranslation(locale);
 	if(foundEntry != NULL)
@@ -178,7 +178,7 @@ const DOMNode *TermsAndConditions::getTranslationCustomizedSections(const UINT8 
  * add a language specific terms and Conditions document, which can be
  * retrieved by *getTermsAndConditionsDoc with the language code
  */
-void TermsAndConditions::addTranslation(const UINT8* locale, DOMNode *tnc_customized, XERCES_CPP_NAMESPACE::DOMDocument *tnc_template)
+void TermsAndConditions::addTranslation(const UINT8* locale, DOMNode *tnc_customized, DOMNode *tnc_template)
 {
 	if(locale == NULL)
 	{

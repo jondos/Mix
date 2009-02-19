@@ -1632,42 +1632,13 @@ SINT32 CACmdLnOptions::getMixXml(XERCES_CPP_NAMESPACE::DOMDocument* & docMixInfo
 	return E_SUCCESS;
 }
 
-XERCES_CPP_NAMESPACE::DOMDocument *CACmdLnOptions::getTermsAndConditionsTemplate(UINT8 *templateRefID)
+UINT32 CACmdLnOptions::getNumberOfTermsAndConditionsTemplates()
 {
-	UINT32 tmpTypeLen = TMP_BUFF_SIZE;
-	UINT8 tmpType[tmpTypeLen];
-
-	UINT32 tmpLocaleLen = TMP_LOCALE_SIZE;
-	UINT8 tmpLocale[tmpLocaleLen];
-
-	UINT32 tmpDateLen = TMP_DATE_SIZE;
-	UINT8 tmpDate[tmpDateLen];
-
-
-	char currentRefId[TMP_BUFF_SIZE];
-
-	for (UINT32 i = 0; i < m_nrOfTermsAndConditionsTemplates; i++)
-	{
-		getDOMElementAttribute(m_termsAndConditionsTemplates[i]->getDocumentElement(), OPTIONS_ATTRIBUTE_TNC_TEMPLATE_TYPE, tmpType, &tmpTypeLen);
-		getDOMElementAttribute(m_termsAndConditionsTemplates[i]->getDocumentElement(), OPTIONS_ATTRIBUTE_TNC_LOCALE, tmpLocale, &tmpLocaleLen);
-		getDOMElementAttribute(m_termsAndConditionsTemplates[i]->getDocumentElement(), OPTIONS_ATTRIBUTE_TNC_DATE, tmpDate, &tmpDateLen);
-
-		memset(currentRefId, 0, TMP_BUFF_SIZE);
-		snprintf(currentRefId, TMP_BUFF_SIZE, "%s_%s_%s", (char *) tmpType, (char *) tmpLocale, (char *) tmpDate);
-		//CAMsg::printMsg(LOG_DEBUG, "template refid: %s\n", currentRefId);
-		if(strncmp((char *)templateRefID, currentRefId, (tmpTypeLen+tmpLocaleLen+tmpDateLen+2) ) == 0)
-		{
-			return m_termsAndConditionsTemplates[i];
-		}
-		memset(tmpDate, 0, TMP_DATE_SIZE);
-		memset(tmpLocale, 0, TMP_LOCALE_SIZE);
-		memset(tmpType, 0, TMP_BUFF_SIZE);
-
-		tmpLocaleLen = TMP_LOCALE_SIZE;
-		tmpDateLen = TMP_DATE_SIZE;
-		tmpTypeLen = TMP_BUFF_SIZE;
-	}
-	return NULL;
+	return m_nrOfTermsAndConditionsTemplates;
+}
+XERCES_CPP_NAMESPACE::DOMDocument **CACmdLnOptions::getAllTermsAndConditionsTemplates()
+{
+	return m_termsAndConditionsTemplates;
 }
 
 /* a reference to the Terms and conditions document stored by this class.
