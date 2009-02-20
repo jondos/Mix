@@ -3418,6 +3418,7 @@ SINT32 CACmdLnOptions::setTermsAndConditionsTemplates(DOMElement *elemTnCs)
 				{
 					CAMsg::printMsg(LOG_WARNING, "Cannot load Terms And Conditions template '%s'.\n",
 							currentTemplateURL);
+					return E_UNKNOWN;
 				}
 				len = TMP_BUFF_SIZE;
 				//memset(currentTemplateURL, 0, len);
