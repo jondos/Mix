@@ -497,7 +497,7 @@ DOMNode *CAMix::appendTermsAndConditionsExtension(XERCES_CPP_NAMESPACE::DOMDocum
 		DOMNodeList *tncDefEntryList = getElementsByTagName((DOMElement *)elemTnCs, OPTIONS_NODE_TNCS_TRANSLATION);
 		for (XMLSize_t i = 0; i < tncDefEntryList->getLength(); i++)
 		{
-			signXML((DOMElement *)tncDefEntryList->item(i));
+			m_pSignature->signXML((DOMElement *)tncDefEntryList->item(i));
 		}
 		elemTnCExtension->appendChild(elemTnCs);
 		return elemTnCExtension;
