@@ -516,7 +516,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 		else
 		{
 			CAMsg::printMsg(LOG_CRIT, "CAAccountingInstance: handleJapPacket did not find user login hash entry for account %llu!\n", pAccInfo->accountNumber);
-			//pAccInfo->sessionPackets = 0;
+			ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
 			return returnKickout(pAccInfo);
 		}
 
