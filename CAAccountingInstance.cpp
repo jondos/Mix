@@ -760,7 +760,13 @@ SINT32 CAAccountingInstance::returnPrepareKickout(tAiAccountingInfo* pAccInfo, C
 SINT32 CAAccountingInstance::sendInitialCCRequest(tAiAccountingInfo* pAccInfo, CAXMLCostConfirmation *pCC, SINT32 prepaidBytes)
 {
 	XERCES_CPP_NAMESPACE::DOMDocument* doc=NULL;
-	makeInitialCCRequest(pCC, doc, prepaidBytes);
+
+	SINT32 ret = makeInitialCCRequest(pCC, doc, prepaidBytes);
+	if( (ret != E_SUCCESS) || (doc == NULL))
+	{
+		CAMsg::printMsg(LOG_DEBUG, "cannot send initial CC request, ret: %d\n", ret);
+		return E_UNKNOWN;
+	}
 #ifdef DEBUG
 	UINT32 debuglen = 3000;
 	UINT8 debugout[3000];
@@ -768,7 +774,7 @@ SINT32 CAAccountingInstance::sendInitialCCRequest(tAiAccountingInfo* pAccInfo, C
 	debugout[debuglen] = 0;
 	CAMsg::printMsg(LOG_DEBUG, "the CC sent looks like this: %s \n",debugout);
 #endif
-	SINT32 ret = pAccInfo->pControlChannel->sendXMLMessage(doc);
+	ret = pAccInfo->pControlChannel->sendXMLMessage(doc);
 	if (doc != NULL)
 	{
 		doc->release();
@@ -2087,6 +2093,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			pAccInfo->accountNumber);
 	/** @todo We need this trick so that the program does not freeze with active AI ThreadPool!!!! */
 	//pAccInfo->mutex->lock();
+	SINT32 sendStatus = E_SUCCESS;
 	if (bSendCCRequest)
 	{
 		// fetch cost confirmation from last session if available, and send it
@@ -2114,12 +2121,12 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 				(strncmp((char*)pAccInfo->clientVersion, PREPAID_PROTO_CLIENT_VERSION, CLIENT_VERSION_STR_LEN) < 0) )
 			{
 				//old CC without payRequest and prepaid bytes.
-				pAccInfo->pControlChannel->sendXMLMessage(pCC->getXMLDocument());
+				sendStatus = pAccInfo->pControlChannel->sendXMLMessage(pCC->getXMLDocument());
 				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Old prepaid proto version.\n");
 			}
 			else
 			{
-				sendInitialCCRequest(pAccInfo, pCC, prepaidAmount);
+				sendStatus = sendInitialCCRequest(pAccInfo, pCC, prepaidAmount);
 				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: New prepaid proto version.\n");
 			}
 		}
@@ -2131,7 +2138,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 				// Delete any previously stored prepaid amount; there should not be any! CC lost?
 				pAccInfo->transferredBytes += prepaidAmount;
 			}
-			sendCCRequest(pAccInfo);
+			sendStatus = sendCCRequest(pAccInfo);
 		}
 	}
 
@@ -2148,7 +2155,14 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	//CAMsg::printMsg( LOG_ERR, "CAAccountingInstance::handleChallengeResponse stop\n");
 
 	pAccInfo->mutex->unlock();
-	return CAXMLErrorMessage::ERR_OK;
+	if(sendStatus == E_SUCCESS)
+	{
+		return CAXMLErrorMessage::ERR_OK;
+	}
+	else
+	{
+		return CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR;
+	}
 }
 
 UINT32 CAAccountingInstance::handleCostConfirmation(tAiAccountingInfo* pAccInfo, DOMElement* root)
