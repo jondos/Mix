@@ -1773,7 +1773,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			//abort if another thread is logging in but ...
 			if(!isLoginFree)
 			{
-				CAMsg::printMsg(LOG_DEBUG, "Exiting because login is occupied for owner %x.\n", ownerRef);
+				CAMsg::printMsg(LOG_DEBUG, "Exiting because login is occupied for owner %p of account %llu.\n", ownerRef);
 				pAccInfo->authFlags |= AUTH_MULTIPLE_LOGIN;
 				pAccInfo->mutex->unlock();
 				return CAXMLErrorMessage::ERR_MULTIPLE_LOGIN;
@@ -1786,7 +1786,8 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			//Note: the ownerRef hashEntry can already be cleared at that point.
 			if(  m_mix->forceKickout(ownerRef, errDoc)  )
 			{
-				CAMsg::printMsg(LOG_DEBUG, "Kickout was requested for owner %x, waiting...\n", ownerRef);
+				CAMsg::printMsg(LOG_DEBUG, "Kickout was requested for owner %p of account %llu, waiting...\n", ownerRef,
+						pAccInfo->accountNumber);
 				//Synchronize until the main thread can sure that the connection is closed. (After FirstMixA::checkConnections()
 				// in main loop)
 				loginCV->wait();
@@ -1795,7 +1796,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			{
 				//if the forceKickout returns false the ownerRef was already cleared.
 				//no need to wait any further.
-				CAMsg::printMsg(LOG_INFO, "ownerRef %x already kicked out.\n", ownerRef);
+				CAMsg::printMsg(LOG_INFO, "ownerRef %p of account %llu already kicked out.\n", ownerRef, pAccInfo->accountNumber);
 			}
 			errDoc->release();
 			errDoc = NULL;
@@ -1805,8 +1806,8 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			if(loginEntry != NULL)
 			{
 				//When login ownership was obtained: cleanup the former entry.
-				CAMsg::printMsg(LOG_CRIT, "finally cleaning up loginEntry %x for former owner %x\n",
-													loginEntry, loginEntry->ownerRef);
+				CAMsg::printMsg(LOG_CRIT, "finally cleaning up loginEntry %p for former owner %p of account %llu\n",
+													loginEntry, loginEntry->ownerRef, pAccInfo->accountNumber);
 				ms_pInstance->m_currentAccountsHashtable->remove(&(pAccInfo->accountNumber));
 				delete loginEntry->ownerLock;
 				delete loginEntry;
