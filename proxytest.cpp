@@ -156,6 +156,10 @@ void init()
 /**do necessary cleanups of libraries etc.*/
 void cleanup()
 	{
+#ifdef ENABLE_GPERFTOOLS_CPU_PROFILER
+		ProfilerFlush();
+		ProfilerStop();
+#endif
 //		delete pRTT;
 #ifndef ONLY_LOCAL_PROXY
 		if(pMix!=NULL)
@@ -597,6 +601,12 @@ int main(int argc, const char* argv[])
 
 		exit(0);
 */
+//#ifdef INTEL_IPP_CRYPTO
+//		CAASymCipher::testSpeed();
+//		getch();
+//		exit(0);
+//#endif
+
 		if(pglobalOptions->parse(argc,argv) != E_SUCCESS)
 		{
 			CAMsg::printMsg(LOG_CRIT,"Error: Cannot parse configuration file!\n");
@@ -615,6 +625,10 @@ int main(int argc, const char* argv[])
 			CADatabase::measurePerformance((UINT8*)"dbperformace.log",1,10000001,500000,10,100000);
 			exit(0);
 #endif
+
+
+
+
 		UINT8 buff[255];
 #ifndef _WIN32
 		if(pglobalOptions->getDaemon()&&pglobalOptions->getAutoRestart()) //we need two forks...
@@ -739,6 +753,7 @@ RESTART_MIX:
 #endif
 
 
+
 #if defined (_DEBUG) &&!defined(ONLY_LOCAL_PROXY)
 		//		CADatabase::test();
 		if(CAQueue::test()!=E_SUCCESS)
@@ -765,6 +780,10 @@ RESTART_MIX:
 
 		CAMsg::printMsg(LOG_INFO,"Anon proxy started!\n");
 		CAMsg::printMsg(LOG_INFO,MIX_VERSION_INFO);
+
+#ifdef ENABLE_GPERFTOOLS_CPU_PROFILER
+		ProfilerStart("gperf.cpuprofiler.data");
+#endif
 
 #ifndef _WIN32
 	#ifdef _DEBUG

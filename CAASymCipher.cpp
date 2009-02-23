@@ -459,3 +459,84 @@ SINT32 CAASymCipher::setPublicKey(const UINT8* m,UINT32 mlen,const UINT8* e,UINT
 		RSA_free(tmpRSA);
 		return E_UNKNOWN;
 	}
+
+#ifdef INTEL_IPP_CRYPTO
+IppStatus __STDCALL myIppBitSupplier(Ipp32u* pData, int nBits,void* pEbsParams)
+	{
+		getRandom((UINT8*)pData,(nBits+7)/8);
+		return ippStsNoErr;
+	}
+#endif
+
+SINT32 CAASymCipher::testSpeed()
+	{
+		const UINT32 runs=10000;
+		UINT8* inBuff=new UINT8[128];
+		UINT8* outBuff=new UINT8[128];
+		getRandom(inBuff,128);
+		inBuff[0]&=0x7F;
+#ifdef INTEL_IPP_CRYPTO
+		int size=0;
+		ippsRSAGetSize(1024, 512, IppRSAprivate, &size);
+		IppsRSAState* pCtx=(IppsRSAState*)new UINT8[size];
+		IppStatus ret=ippsRSAInit(1024, 512, IppRSAprivate,pCtx);
+		if(ret!=ippStsNoErr)
+			{
+				printf("Error in RSA init!\n");
+				return E_UNKNOWN;
+			}
+		ippsBigNumGetSize(1, &size);
+		IppsBigNumState* pE = (IppsBigNumState*)( new UINT8 [size] );
+		ippsBigNumInit(1, pE);
+		UINT32 pEValue[]= {0x010001};
+		ret=ippsSet_BN(IppsBigNumPOS, 1, pEValue, pE);
+		if(ret!=ippStsNoErr)
+			{
+				printf("Error in setBN(e)!\n");
+				return E_UNKNOWN;
+			}
+		ippsRSAGenerate(pE,1024,512,1024,pCtx, myIppBitSupplier, NULL);
+		if(ret!=ippStsNoErr)
+			{
+				printf("Error in RSA generate key!\n");
+				return E_UNKNOWN;
+			}
+
+		ippsBigNumGetSize(32, &size);
+		IppsBigNumState* pY = (IppsBigNumState*)( new UINT8 [size] );
+		ippsBigNumInit(32, pY);
+
+		IppsBigNumState* pX = (IppsBigNumState*)( new UINT8 [size] );
+		ippsBigNumInit(32, pX);
+		UINT32* pXValue=new UINT32[32];
+		memcpy(pXValue,inBuff,128);
+		pXValue[0]&=0x7FFFFFFF;
+		ippsSet_BN(IppsBigNumPOS, 32, pXValue, pX);
+
+#else
+		CAASymCipher* pCipher=new CAASymCipher();
+		pCipher->generateKeyPair(1024);
+		UINT32 iLen=128;
+		pCipher->encryptOAEP(inBuff,86,inBuff,&iLen);
+#endif
+		UINT64 start,end;
+		getcurrentTimeMillis(start);
+		for(UINT32 i=0;i<runs;i++)
+			{
+#ifdef INTEL_IPP_CRYPTO
+				IppStatus ret=ippsRSADecrypt(pX,pY,pCtx);
+				if(ret!=ippStsNoErr)
+				{
+					printf("Error in RSADEcrypt %i!\n",ret);
+					return E_UNKNOWN;
+				}
+#else
+				pCipher->decryptOAEP(inBuff,outBuff,&iLen);
+//				pCipher->decrypt(inBuff,outBuff);
+#endif
+			}
+		getcurrentTimeMillis(end);
+		UINT32 d=diff64(end,start);
+		printf("CAASymCiper::testSpeed() takes %u ms for %u decrypts!\n",d,runs);
+		return E_SUCCESS;
+	}
