@@ -1745,7 +1745,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		#endif
 		delete[] xml_buff;
 		xml_buff = NULL;
-#if 0 //terms and conditions sending disabled.
+//#if 0 //terms and conditions sending disabled.
 		/* handle Terms And Conditions */
 		bool loginFailed = false;
 		bool tcProcedureFinished = false;
@@ -1842,7 +1842,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			return E_UNKNOWN;
 		}
 		/* end Terms And Conditions negotiation */
-#endif
+//#endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "sent key exchange signature");
 
 		((CASocket*)pNewUser)->setNonBlocking(true);
