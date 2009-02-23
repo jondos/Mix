@@ -998,8 +998,10 @@ SINT32 CAAccountingInstance::prepareCCRequest(CAMix* callingMix, UINT8* a_AiName
  */
 SINT32 CAAccountingInstance::makeInitialCCRequest(CAXMLCostConfirmation *pCC, XERCES_CPP_NAMESPACE::DOMDocument* & doc, SINT32 prepaidBytes)
 	{
-		if( (pCC == NULL) || (pCC->getXMLDocument()->getDocumentElement() == NULL) )
+		if( (pCC == NULL) || (pCC->getXMLDocument() == NULL) ||
+			(pCC->getXMLDocument()->getDocumentElement() == NULL) )
 		{
+			CAMsg::printMsg(LOG_DEBUG, "Error creating initial CCrequest (pCC ref: %p)\n", pCC);
 			return E_UNKNOWN;
 		}
 		DOMNode* elemCC=NULL;
@@ -2080,6 +2082,8 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	}
 	m_currentAccountsHashtable->getMutex()->unlock();
 
+	CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: After checking accountstatus for account %llu.\n",
+			pAccInfo->accountNumber);
 	/** @todo We need this trick so that the program does not freeze with active AI ThreadPool!!!! */
 	//pAccInfo->mutex->lock();
 	if (bSendCCRequest)
