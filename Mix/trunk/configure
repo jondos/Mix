@@ -1351,6 +1351,8 @@ Optional Features:
                           Enable enhanced channel encryption
   --enable-google-cpuprofiler
                           Enable CPU profiling using Googles Perftools
+  --enable-google-heapchecker
+                          Enable heap checking using Googles Perftools
   --enable-crime-detection
                           Enable crime detection mode
   --enable-tests          Build also some functional tests
@@ -14018,6 +14020,20 @@ if test "${enable_google_cpuprofiler+set}" = set; then
 
 
 fi
+
+
+# Check whether --enable-google-heapchecker was given.
+if test "${enable_google_heapchecker+set}" = set; then
+  enableval=$enable_google_heapchecker;
+	    if test "x$enableval" != "xno" ; then
+		CFLAGS="$CFLAGS -DENABLE_GPERFTOOLS_HEAP_CHECKER"
+		CXXFLAGS="$CXXFLAGS -DENABLE_GPERFTOOLS_HEAP_CHECKER"
+		LIBS="$LIBS -ltcmalloc"
+	    fi
+
+
+fi
+
 
 
 CRIME=""

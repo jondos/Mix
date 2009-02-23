@@ -48,7 +48,15 @@ class CASymCipher
 			CASymCipher()
 				{
 					m_bKeySet=false;
-					m_keyAES=new AES_KEY;/*keyInstance[1];*/
+#ifdef INTEL_IPP_CRYPTO
+					int size=0;
+					ippsRijndael128GetSize(&size);
+					m_keyAES1=(IppsRijndael128Spec*)new UINT8[size];
+					m_keyAES2=(IppsRijndael128Spec*)new UINT8[size];
+#else
+					m_keyAES1=new AES_KEY;
+					m_keyAES2=new AES_KEY;
+#endif
 					m_iv1=new UINT8[16];
 					m_iv2=new UINT8[16];
 				}
@@ -58,8 +66,15 @@ class CASymCipher
 #ifndef ONLY_LOCAL_PROXY
 					waitForDestroy();
 #endif
-					delete m_keyAES;
-					m_keyAES = NULL;
+#ifdef INTEL_IPP_CRYPTO
+					delete[] (UINT8*)m_keyAES1;
+					delete[] (UINT8*)m_keyAES2;
+#else
+					delete m_keyAES1;
+					delete m_keyAES2;
+#endif
+					m_keyAES1 = NULL;
+					m_keyAES2 = NULL;
 					delete[] m_iv1;
 					m_iv1 = NULL;
 					delete[] m_iv2;
@@ -70,7 +85,13 @@ class CASymCipher
 					return m_bKeySet;
 				}
 
+			/** Sets the keys for crypt1() and crypt2() to the same key*/
 			SINT32 setKey(const UINT8* key);	
+			
+			/** Sets the keys for crypt1() and crypt2() either to the same key (if keysize==KEY_SIZE) or to
+			 * different values, if keysize==2* KEY_SIZE*/
+			SINT32 setKeys(const UINT8* key,UINT32 keysize);	
+			
 			SINT32 setKey(const UINT8* key,bool bEncrypt);	
 
 			/** Sets iv1 and iv2 to p_iv.
@@ -98,8 +119,17 @@ class CASymCipher
 			SINT32 crypt2(const UINT8* in,UINT8* out,UINT32 len);
 			SINT32 decrypt1CBCwithPKCS7(const UINT8* in,UINT8* out,UINT32* len);
 			SINT32 encrypt1CBCwithPKCS7(const UINT8* in,UINT32 inlen,UINT8* out,UINT32* len);
+			static SINT32 testSpeed();
 		protected:
-			AES_KEY* m_keyAES;
+
+#ifdef INTEL_IPP_CRYPTO
+			IppsRijndael128Spec* m_keyAES1;
+			IppsRijndael128Spec* m_keyAES2;
+#else
+			AES_KEY* m_keyAES1;
+			AES_KEY* m_keyAES2;
+#endif
+
 			UINT8* m_iv1;
 			UINT8* m_iv2;
 			bool m_bKeySet;

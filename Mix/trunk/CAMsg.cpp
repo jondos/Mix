@@ -191,7 +191,6 @@ SINT32 CAMsg::printMsg(UINT32 type,const char* format,...)
 	#endif
 							case MSG_STDOUT:
 								printf("%s",pMsg->m_strMsgBuff);
-
 							break;
 							default:
 							ret=E_UNKNOWN;

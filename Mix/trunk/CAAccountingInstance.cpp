@@ -659,7 +659,7 @@ SINT32 CAAccountingInstance::getPrepaidBytes(tAiAccountingInfo* pAccInfo)
 
 	SINT64 prepaidBytes = pAccInfo->confirmedBytes - pAccInfo->transferredBytes;
 	//difference must be a value that fits into a signed 32 bit integer.
-	if (prepaidBytes & 0x7FFFFFFF00000000LL)
+	if ((prepaidBytes > 0) && (prepaidBytes & 0x7FFFFFFF00000000LL))
 	{
 		CAMsg::printMsg(LOG_CRIT, "PrepaidBytes overflow: %lld\n", prepaidBytes);
 		CAMsg::printMsg(LOG_INFO, "TransferredBytes: %llu  ConfirmedBytes: %llu\n", pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
