@@ -73,6 +73,7 @@ THREAD_RETURN fm_loopReadFromMix(void*);
 THREAD_RETURN fm_loopAcceptUsers(void*);
 THREAD_RETURN fm_loopReadFromUsers(void*);
 THREAD_RETURN fm_loopDoUserLogin(void* param);
+THREAD_RETURN fm_loopLogChannelsOpened(void* param);
 THREAD_RETURN	fm_loopLog(void*);
 
 #ifdef COUNTRY_STATS
