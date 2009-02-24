@@ -766,7 +766,7 @@ SINT32 CAAccountingInstance::sendInitialCCRequest(tAiAccountingInfo* pAccInfo, C
 	SINT32 ret = makeInitialCCRequest(pCC, doc, prepaidBytes);
 	if( (ret != E_SUCCESS) || (doc == NULL))
 	{
-		CAMsg::printMsg(LOG_DEBUG, "cannot send initial CC request, ret: %d\n", ret);
+		CAMsg::printMsg(LOG_ERR, "cannot send initial CC request, ret: %d\n", ret);
 		return E_UNKNOWN;
 	}
 #ifdef DEBUG
@@ -776,7 +776,6 @@ SINT32 CAAccountingInstance::sendInitialCCRequest(tAiAccountingInfo* pAccInfo, C
 	debugout[debuglen] = 0;
 	CAMsg::printMsg(LOG_DEBUG, "the CC sent looks like this: %s \n",debugout);
 #endif
-	CAMsg::printMsg(LOG_DEBUG, "sending initial CC request for account %llu\n", pAccInfo->accountNumber);
 	ret = pAccInfo->pControlChannel->sendXMLMessage(doc);
 	if (doc != NULL)
 	{
@@ -1010,14 +1009,16 @@ SINT32 CAAccountingInstance::makeInitialCCRequest(CAXMLCostConfirmation *pCC, XE
 		if( (pCC == NULL) || (pCC->getXMLDocument() == NULL) ||
 			(pCC->getXMLDocument()->getDocumentElement() == NULL) )
 		{
-			CAMsg::printMsg(LOG_DEBUG, "Error creating initial CCrequest (pCC ref: %p)\n", pCC);
+			CAMsg::printMsg(LOG_ERR, "Error creating initial CCrequest (pCC ref: %p)\n", pCC);
 			return E_UNKNOWN;
 		}
 		DOMNode* elemCC=NULL;
 
 		doc = createDOMDocument();
+		CAMsg::printMsg(LOG_ERR, "After initial CCRequest doc created (ref: %p)\n", doc);
 		DOMNode *ccRoot = doc->importNode(pCC->getXMLDocument()->getDocumentElement(),true);
 		doc->appendChild(doc->importNode(m_preparedCCRequest->getDocumentElement(),true));
+		CAMsg::printMsg(LOG_ERR, "After initial CCRequest doc imports.\n", doc);
 		setDOMElementAttribute(doc->getDocumentElement(), "initialCC", true);
 		DOMElement *elemPrepaidBytes = createDOMElement(doc, "PrepaidBytes");
 		setDOMElementValue(elemPrepaidBytes, prepaidBytes);
@@ -1026,7 +1027,9 @@ SINT32 CAAccountingInstance::makeInitialCCRequest(CAXMLCostConfirmation *pCC, XE
 		{
 			return E_UNKNOWN;
 		}
+		CAMsg::printMsg(LOG_ERR, "before CCRequest node replacing.\n", doc);
 		doc->getDocumentElement()->replaceChild(ccRoot, elemCC);
+		CAMsg::printMsg(LOG_ERR, "after CCRequest node replacing.\n", doc);
 		doc->getDocumentElement()->appendChild(elemPrepaidBytes);
 		return E_SUCCESS;
 	}
@@ -1725,11 +1728,11 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			delete [] clientVersionStr;
 			clientVersionStr = NULL;
 		}
-//#ifdef DEBUG
+#ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG, "Client Version (account %llu): %s\n",
 				pAccInfo->accountNumber,
 				(clientVersionStr != NULL ? clientVersionStr : (UINT8*) "<not set>"));
-//#endif
+#endif
 		pAccInfo->clientVersion = clientVersionStr;
 	}
 	else
@@ -2124,13 +2127,13 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 				(strncmp((char*)pAccInfo->clientVersion, PREPAID_PROTO_CLIENT_VERSION, CLIENT_VERSION_STR_LEN) < 0) )
 			{
 				//old CC without payRequest and prepaid bytes.
-				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu: Old prepaid proto version.\n", pAccInfo->accountNumber);
+				//CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu: Old prepaid proto version.\n", pAccInfo->accountNumber);
 				sendStatus = pAccInfo->pControlChannel->sendXMLMessage(pCC->getXMLDocument());
 
 			}
 			else
 			{
-				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu: New prepaid proto version.\n", pAccInfo->accountNumber);
+				//CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu: New prepaid proto version.\n", pAccInfo->accountNumber);
 				sendStatus = sendInitialCCRequest(pAccInfo, pCC, prepaidAmount);
 			}
 		}
