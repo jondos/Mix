@@ -346,6 +346,10 @@ SINT32 CAFirstMixA::loop()
 														delete pEntry->pCipher;              // forget the symetric key of this connection
 														pEntry->pCipher = NULL;
 														m_pChannelList->removeChannel(pMuxSocket,pEntry->channelIn);
+
+														nrOfChOpMutex->lock();
+														currentOpenedChannels--;
+														nrOfChOpMutex->unlock();
 													}
 													#ifdef _DEBUG
 													else
@@ -417,6 +421,7 @@ SINT32 CAFirstMixA::loop()
 																	lastLogTime;
 																nrOfOpenedChannels++;
 															}
+															currentOpenedChannels++;
 															nrOfChOpMutex->unlock();
 															#ifdef LOG_PACKET_TIMES
 																getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
@@ -533,6 +538,10 @@ NEXT_USER:
 											delete pEntry->pCipher;              // forget the symetric key of this connection
 											pEntry->pCipher = NULL;
 											m_pChannelList->removeChannel(pEntry->pHead->pMuxSocket, pEntry->channelIn);
+
+											nrOfChOpMutex->lock();
+											currentOpenedChannels--;
+											nrOfChOpMutex->unlock();
 										/* a hack to solve the SSL problem:
 										 * remove channel after the close packet is enqueued
 										 * from pEntry->pQueueSend
@@ -933,6 +942,9 @@ void CAFirstMixA::finishPacket(fmHashTableEntry *pfmHashEntry)
 			delete cListEntry->pCipher;
 			cListEntry->pCipher = NULL;
 			m_pChannelList->removeChannel(pfmHashEntry->pMuxSocket, cListEntry->channelIn);
+			nrOfChOpMutex->lock();
+			currentOpenedChannels--;
+			nrOfChOpMutex->unlock();
 		}
 	}
 }

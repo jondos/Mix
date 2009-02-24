@@ -124,6 +124,7 @@ public:
 					nrOfChOpMutex = new CAMutex();
 					nrOfChThread = NULL;
 					nrOfOpenedChannels = 0;
+					currentOpenedChannels = 0;
 					lastLogTime = 0;
 
 					m_nMixedPackets=0;
@@ -369,6 +370,7 @@ protected:
 protected:
 			CAMutex *nrOfChOpMutex;
 			UINT32 nrOfOpenedChannels;
+			UINT32 currentOpenedChannels;
 			CAThread *nrOfChThread;
 			time_t lastLogTime;
 

@@ -1307,6 +1307,7 @@ THREAD_RETURN fm_loopLogChannelsOpened(void* param)
 		pFirstMix->m_bRunLog=true;
 		UINT32 countLog= 10;
 		UINT32 value = 0;
+		UINT32 total = 0;
 		time_t newIvalTS = 0, ival = 0;
 
 		pFirstMix->nrOfChOpMutex->lock();
@@ -1319,13 +1320,14 @@ THREAD_RETURN fm_loopLogChannelsOpened(void* param)
 			{
 				pFirstMix->nrOfChOpMutex->lock();
 				value = pFirstMix->nrOfOpenedChannels;
+				total = pFirstMix->currentOpenedChannels;
 				pFirstMix->nrOfOpenedChannels = 0;
 				newIvalTS = time(NULL);
 				ival = newIvalTS - pFirstMix->lastLogTime;
 				pFirstMix->lastLogTime = newIvalTS;
 				pFirstMix->nrOfChOpMutex->unlock();
-				CAMsg::printMsg(LOG_INFO,"Analyzing channels: %d channels opened in the last %u seconds.\n", value,
-										ival );
+				CAMsg::printMsg(LOG_INFO,"Analyzing channels: Opened channels for %u JonDo connections in the last %u seconds, overall open channels: %u\n", value,
+										ival, total );
 				countLog = 10;
 			}
 			sSleep(1);
