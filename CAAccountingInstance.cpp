@@ -2094,8 +2094,6 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	}
 	m_currentAccountsHashtable->getMutex()->unlock();
 
-	CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: After checking accountstatus for account %llu.\n",
-			pAccInfo->accountNumber);
 	/** @todo We need this trick so that the program does not freeze with active AI ThreadPool!!!! */
 	//pAccInfo->mutex->lock();
 	SINT32 sendStatus = E_SUCCESS;

@@ -409,6 +409,15 @@ SINT32 CAFirstMixA::loop()
 														}
 														else
 														{
+															nrOfChOpMutex->lock();
+															if(pHashEntry->channelOpenedLastIntervalTS !=
+																lastLogTime)
+															{
+																pHashEntry->channelOpenedLastIntervalTS =
+																	lastLogTime;
+																nrOfOpenedChannels++;
+															}
+															nrOfChOpMutex->unlock();
 															#ifdef LOG_PACKET_TIMES
 																getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 															#endif

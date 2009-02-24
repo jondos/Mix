@@ -120,6 +120,12 @@ public:
 					m_pmutexMixedPackets=new CAMutex();
 					m_pmutexLoginThreads=new CAMutex();
 					m_pmutexNewConnections=new CAMutex();
+					//log nr of opened channels per minute
+					nrOfChOpMutex = new CAMutex();
+					nrOfChThread = NULL;
+					nrOfOpenedChannels = 0;
+					lastLogTime = 0;
+
 					m_nMixedPackets=0;
 					m_nUser=0;
 					m_nSocketsIn=0;
@@ -224,6 +230,9 @@ public:
 		friend THREAD_RETURN fm_loopAcceptUsers(void*);
 		friend THREAD_RETURN fm_loopReadFromUsers(void*);
 		friend THREAD_RETURN fm_loopDoUserLogin(void* param);
+		friend THREAD_RETURN fm_loopLogChannelsOpened(void* param);
+
+
 
 		//How many mixes are in the cascade?
 		SINT32 getMixCount()
@@ -356,6 +365,12 @@ protected:
 			const XMLCh *TNC_REQUEST;
 			const XMLCh *TNC_CONFIRM;
 			const XMLCh *TNC_INTERRUPT;
+
+protected:
+			CAMutex *nrOfChOpMutex;
+			UINT32 nrOfOpenedChannels;
+			CAThread *nrOfChThread;
+			time_t lastLogTime;
 
 #ifdef COUNTRY_STATS
 		private:
