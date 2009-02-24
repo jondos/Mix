@@ -1,28 +1,28 @@
 /*
-Copyright (c) 2000, The JAP-Team 
+Copyright (c) 2000, The JAP-Team
 All rights reserved.
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-	- Redistributions of source code must retain the above copyright notice, 
+	- Redistributions of source code must retain the above copyright notice,
 	  this list of conditions and the following disclaimer.
 
-	- Redistributions in binary form must reproduce the above copyright notice, 
-	  this list of conditions and the following disclaimer in the documentation and/or 
+	- Redistributions in binary form must reproduce the above copyright notice,
+	  this list of conditions and the following disclaimer in the documentation and/or
 		other materials provided with the distribution.
 
-	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors 
-	  may be used to endorse or promote products derived from this software without specific 
-		prior written permission. 
+	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors
+	  may be used to endorse or promote products derived from this software without specific
+		prior written permission.
 
-	
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS 
-OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
-OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
-IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 #include "../StdAfx.h"
@@ -38,12 +38,12 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 extern CACmdLnOptions* pglobalOptions;
 #ifdef LOG_CHANNEL
-//CAMsg::printMsg(LOG_DEBUG,"Channel time log format is as follows: Channel-ID,Channel Start [micros], Channel End [micros], Upload (bytes), Download (bytes), DataAndOpenAndClosePacketsFromUser, DataAndClosePacketsToUser\n"); 
+//CAMsg::printMsg(LOG_DEBUG,"Channel time log format is as follows: Channel-ID,Channel Start [micros], Channel End [micros], Upload (bytes), Download (bytes), DataAndOpenAndClosePacketsFromUser, DataAndClosePacketsToUser\n");
 #define MACRO_DO_LOG_CHANNEL(a)\
 	CAMsg::printMsg(LOG_DEBUG,#a ":%u,%Lu,%Lu,%u,%u,%u,%u\n",\
 			pChannelListEntry->channelIn,pChannelListEntry->timeCreated,pQueueEntry->timestamp_proccessing_end,\
 			pChannelListEntry->trafficInFromUser,pChannelListEntry->trafficOutToUser,\
-			pChannelListEntry->packetsDataInFromUser,pChannelListEntry->packetsDataOutToUser); 
+			pChannelListEntry->packetsDataInFromUser,pChannelListEntry->packetsDataOutToUser);
 #define MACRO_DO_LOG_CHANNEL_CLOSE_FROM_USER MACRO_DO_LOG_CHANNEL(1)
 #define MACRO_DO_LOG_CHANNEL_CLOSE_FROM_MIX MACRO_DO_LOG_CHANNEL(2)
 #endif
@@ -62,12 +62,12 @@ SINT32 CALastMixA::loop()
 #ifdef DELAY_CHANNELS
 		m_pChannelList->setDelayParameters(	pglobalOptions->getDelayChannelUnlimitTraffic(),
 																			pglobalOptions->getDelayChannelBucketGrow(),
-																			pglobalOptions->getDelayChannelBucketGrowIntervall());	
-#endif		
+																			pglobalOptions->getDelayChannelBucketGrowIntervall());
+#endif
 #ifdef DELAY_CHANNELS_LATENCY
 		m_pChannelList->setDelayLatencyParameters(	pglobalOptions->getDelayChannelLatency());
-#endif		
-#ifdef HAVE_EPOLL	
+#endif
+#ifdef HAVE_EPOLL
 		CASocketGroupEpoll* psocketgroupCacheRead=new CASocketGroupEpoll(false);
 		CASocketGroupEpoll* psocketgroupCacheWrite=new CASocketGroupEpoll(true);
 #else
@@ -91,7 +91,7 @@ SINT32 CALastMixA::loop()
 		pLogThread->start(this);
 
 		#ifdef LOG_CHANNEL
-			CAMsg::printMsg(LOG_DEBUG,"Channel time log format is as follows: Channel-ID,Channel Start [micros], Channel End [micros], Upload (bytes), Download (bytes), DataAndOpenPacketsFromUser, DataPacketsToUser\n"); 
+			CAMsg::printMsg(LOG_DEBUG,"Channel time log format is as follows: Channel-ID,Channel Start [micros], Channel End [micros], Upload (bytes), Download (bytes), DataAndOpenPacketsFromUser, DataPacketsToUser\n");
 		#endif
 
 		while(!m_bRestart)
@@ -126,7 +126,7 @@ SINT32 CALastMixA::loop()
 									{
 										if(pMixPacket->flags==CHANNEL_OPEN)
 											{
-												#if defined(_DEBUG) 
+												#if defined(_DEBUG)
 													CAMsg::printMsg(LOG_DEBUG,"New Connection from previous Mix!\n");
 												#endif
 
@@ -170,7 +170,7 @@ SINT32 CALastMixA::loop()
 														if(ret==E_SUCCESS)
 															break;
 														tmpSocket->close();
-													}	
+													}
 												if(ret!=E_SUCCESS)
 														{
 	    												#if defined (_DEBUG) || defined (DELAY_CHANNELS_LATENCY)
@@ -187,8 +187,8 @@ SINT32 CALastMixA::loop()
 															#ifdef LOG_PACKET_TIMES
 																setZero64(pQueueEntry->timestamp_proccessing_start);
 															#endif
-															m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));			
-															m_logDownloadedPackets++;	
+															m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));
+															m_logDownloadedPackets++;
 															delete newCipher;
 															newCipher = NULL;
 													}
@@ -234,8 +234,8 @@ SINT32 CALastMixA::loop()
 															    #ifdef LOG_PACKET_TIMES
 																    setZero64(pQueueEntry->timestamp_proccessing_start);
 															    #endif
-															    m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));			
-															    m_logDownloadedPackets++;	
+															    m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));
+															    m_logDownloadedPackets++;
 																	delete newCipher;
 																	newCipher = NULL;
  																}
@@ -291,8 +291,8 @@ SINT32 CALastMixA::loop()
 												pChannelListEntry->pSocket = NULL;
 												delete pChannelListEntry->pCipher;
 												pChannelListEntry->pCipher = NULL;
-												delete pChannelListEntry->pQueueSend;	
-												pChannelListEntry->pQueueSend = NULL;									
+												delete pChannelListEntry->pQueueSend;
+												pChannelListEntry->pQueueSend = NULL;
 												#if defined (LOG_PACKET_TIMES) ||defined (LOG_CHANNEL)
 													getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end);
 												#endif
@@ -308,17 +308,17 @@ SINT32 CALastMixA::loop()
 											}
 										else if(pMixPacket->flags==CHANNEL_SUSPEND)
 											{
-												#ifdef _DEBUG
+												//#ifdef _DEBUG
 													CAMsg::printMsg(LOG_DEBUG,"Suspending channel %u Socket: %u\n",pMixPacket->channel,(SOCKET)(*pChannelListEntry->pSocket));
-												#endif
+												//#endif
 												psocketgroupCacheRead->remove(*(pChannelListEntry->pSocket));
 											}
 										else if(pMixPacket->flags==CHANNEL_RESUME)
 											{
-												#ifdef _DEBUG
+												//#ifdef _DEBUG
 													CAMsg::printMsg(LOG_DEBUG,"Resuming channel %u Socket: %u\n",pMixPacket->channel,(SOCKET)(*pChannelListEntry->pSocket));
-												#endif
-	
+												//#endif
+
 #ifdef HAVE_EPOLL
 												psocketgroupCacheRead->add(*(pChannelListEntry->pSocket),pChannelListEntry);
 #else
@@ -336,6 +336,7 @@ SINT32 CALastMixA::loop()
 												if(ret&NEW_FLOW_CONTROL_FLAG)
 													{
 														pChannelListEntry->sendmeCounter=max(0,pChannelListEntry->sendmeCounter-FLOW_CONTROL_SENDME_SOFT_LIMIT);
+														CAMsg::printMsg(LOG_DEBUG,"received sendme, new sendme counter: %u\n", pChannelListEntry->sendmeCounter);
 														ret&=(!NEW_FLOW_CONTROL_FLAG);
 													}
 												#endif
@@ -374,8 +375,8 @@ SINT32 CALastMixA::loop()
 														#ifdef LOG_PACKET_TIMES
 															setZero64(pQueueEntry->timestamp_proccessing_start);
 														#endif
-														m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));			
-														m_logDownloadedPackets++;	
+														m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));
+														m_logDownloadedPackets++;
 													}
 												else
 													{
@@ -444,8 +445,8 @@ SINT32 CALastMixA::loop()
 														#ifdef LOG_PACKET_TIMES
 															setZero64(pQueueEntry->timestamp_proccessing_start);
 														#endif
-														m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));			
-														m_logDownloadedPackets++;	
+														m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));
+														m_logDownloadedPackets++;
 														#ifdef LOG_CHANNEL
 															pChannelListEntry->packetsDataOutToUser++;
 														#endif
@@ -453,7 +454,7 @@ SINT32 CALastMixA::loop()
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end);
 															MACRO_DO_LOG_CHANNEL_CLOSE_FROM_MIX
 														#endif
-														m_pChannelList->removeChannel(pChannelListEntry->channelIn);											 
+														m_pChannelList->removeChannel(pChannelListEntry->channelIn);
 													}
 											}
 #ifdef HAVE_EPOLL
@@ -503,7 +504,7 @@ SINT32 CALastMixA::loop()
 												#ifdef NEW_FLOW_CONTROL
 													&&(pChannelListEntry->sendmeCounter<FLOW_CONTROL_SENDME_HARD_LIMIT)
 												#endif
-											#ifdef NEED_IF_12	
+											#ifdef NEED_IF_12
 											)
 											#endif
 											{
@@ -539,8 +540,8 @@ SINT32 CALastMixA::loop()
 														#ifdef LOG_PACKET_TIMES
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 														#endif
-														m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));			
-														m_logDownloadedPackets++;	
+														m_pQueueSendToMix->add(pQueueEntry,sizeof(tQueueEntry));
+														m_logDownloadedPackets++;
 														#ifdef LOG_CHANNEL
 															pChannelListEntry->packetsDataOutToUser++;
 														#endif
@@ -550,7 +551,7 @@ SINT32 CALastMixA::loop()
 														#endif
 														m_pChannelList->removeChannel(pChannelListEntry->channelIn);
 													}
-												else 
+												else
 													{
 														add64((UINT64&)m_logDownloadedBytes,ret);
 														#if defined(LOG_CHANNEL)
@@ -569,7 +570,7 @@ SINT32 CALastMixA::loop()
 																//CAMsg::printMsg(LOG_DEBUG,"Send sendme request\n");
 														//	}
 														//else
-														//	pMixPacket->payload.len=htons((UINT16)ret);															
+														//	pMixPacket->payload.len=htons((UINT16)ret);
 														//#else
 														pMixPacket->payload.len=htons((UINT16)ret);
 														//#endif
@@ -577,7 +578,7 @@ SINT32 CALastMixA::loop()
 														#ifdef LOG_PACKET_TIMES
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 														#endif
-														m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));			
+														m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
 														m_logDownloadedPackets++;
 														#if defined(LOG_CHANNEL)
 															pChannelListEntry->packetsDataOutToUser++;
@@ -610,7 +611,7 @@ SINT32 CALastMixA::loop()
 
 //ERR:
 		CAMsg::printMsg(LOG_CRIT,"Seems that we are restarting now!!\n");
-		m_bRunLog=false;		
+		m_bRunLog=false;
 		//clean();
 
 		delete []tmpBuff;
