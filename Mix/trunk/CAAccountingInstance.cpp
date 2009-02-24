@@ -764,6 +764,7 @@ SINT32 CAAccountingInstance::sendInitialCCRequest(tAiAccountingInfo* pAccInfo, C
 	XERCES_CPP_NAMESPACE::DOMDocument* doc=NULL;
 
 	SINT32 ret = makeInitialCCRequest(pCC, doc, prepaidBytes);
+	CAMsg::printMsg(LOG_DEBUG, "after make initial request, acc. %llu\n",pAccInfo->accountNumber);
 	if( (ret != E_SUCCESS) || (doc == NULL))
 	{
 		CAMsg::printMsg(LOG_ERR, "cannot send initial CC request, ret: %d\n", ret);
@@ -1015,10 +1016,10 @@ SINT32 CAAccountingInstance::makeInitialCCRequest(CAXMLCostConfirmation *pCC, XE
 		DOMNode* elemCC=NULL;
 
 		doc = createDOMDocument();
-		CAMsg::printMsg(LOG_ERR, "After initial CCRequest doc created (ref: %p)\n", doc);
+		//CAMsg::printMsg(LOG_ERR, "After initial CCRequest doc created (ref: %p)\n", doc);
 		DOMNode *ccRoot = doc->importNode(pCC->getXMLDocument()->getDocumentElement(),true);
 		doc->appendChild(doc->importNode(m_preparedCCRequest->getDocumentElement(),true));
-		CAMsg::printMsg(LOG_ERR, "After initial CCRequest doc imports.\n");
+		//CAMsg::printMsg(LOG_ERR, "After initial CCRequest doc imports.\n");
 		setDOMElementAttribute(doc->getDocumentElement(), "initialCC", true);
 		DOMElement *elemPrepaidBytes = createDOMElement(doc, "PrepaidBytes");
 		setDOMElementValue(elemPrepaidBytes, prepaidBytes);
@@ -1027,10 +1028,11 @@ SINT32 CAAccountingInstance::makeInitialCCRequest(CAXMLCostConfirmation *pCC, XE
 		{
 			return E_UNKNOWN;
 		}
-		CAMsg::printMsg(LOG_ERR, "before CCRequest node replacing.\n");
+		//CAMsg::printMsg(LOG_ERR, "before CCRequest node replacing.\n");
 		doc->getDocumentElement()->replaceChild(ccRoot, elemCC);
 		CAMsg::printMsg(LOG_ERR, "after CCRequest node replacing.\n");
 		doc->getDocumentElement()->appendChild(elemPrepaidBytes);
+		CAMsg::printMsg(LOG_ERR, "after prepaid node appending.\n");
 		return E_SUCCESS;
 	}
 
