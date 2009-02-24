@@ -776,6 +776,7 @@ SINT32 CAAccountingInstance::sendInitialCCRequest(tAiAccountingInfo* pAccInfo, C
 	debugout[debuglen] = 0;
 	CAMsg::printMsg(LOG_DEBUG, "the CC sent looks like this: %s \n",debugout);
 #endif
+	CAMsg::printMsg(LOG_DEBUG, "sending initial CC request for account %llu\n", pAccInfo->accountNumber);
 	ret = pAccInfo->pControlChannel->sendXMLMessage(doc);
 	if (doc != NULL)
 	{
@@ -1724,9 +1725,11 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			delete [] clientVersionStr;
 			clientVersionStr = NULL;
 		}
-#ifdef DEBUG
-		CAMsg::printMsg(LOG_DEBUG, "Client Version: %s\n", (clientVersionStr != NULL ? clientVersionStr : (UINT8*) "<not set>"));
-#endif
+//#ifdef DEBUG
+		CAMsg::printMsg(LOG_DEBUG, "Client Version (account %llu): %s\n",
+				pAccInfo->accountNumber,
+				(clientVersionStr != NULL ? clientVersionStr : (UINT8*) "<not set>"));
+//#endif
 		pAccInfo->clientVersion = clientVersionStr;
 	}
 	else
@@ -2123,13 +2126,14 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 				(strncmp((char*)pAccInfo->clientVersion, PREPAID_PROTO_CLIENT_VERSION, CLIENT_VERSION_STR_LEN) < 0) )
 			{
 				//old CC without payRequest and prepaid bytes.
+				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu: Old prepaid proto version.\n", pAccInfo->accountNumber);
 				sendStatus = pAccInfo->pControlChannel->sendXMLMessage(pCC->getXMLDocument());
-				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Old prepaid proto version.\n");
+
 			}
 			else
 			{
+				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu: New prepaid proto version.\n", pAccInfo->accountNumber);
 				sendStatus = sendInitialCCRequest(pAccInfo, pCC, prepaidAmount);
-				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: New prepaid proto version.\n");
 			}
 		}
 		else
@@ -2626,6 +2630,9 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 
 		delete [] pAccInfo->pstrBIID;
 		pAccInfo->pstrBIID = NULL;
+
+		delete [] pAccInfo->clientVersion;
+		pAccInfo->clientVersion = NULL;
 
 		pHashEntry->pAccountingInfo=NULL;
 
