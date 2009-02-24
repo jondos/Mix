@@ -57,6 +57,9 @@ struct t_fmhashtableentry
 			SINT32			uAlreadySendPacketSize;
 			tQueueEntry		oQueueEntry;
 			UINT32				cSuspend;
+
+			time_t channelOpenedLastIntervalTS;
+
 #ifdef LOG_TRAFFIC_PER_USER
 			UINT32				trafficIn;
 			UINT32				trafficOut;

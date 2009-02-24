@@ -134,6 +134,7 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 		}
 
 		//SAVE_STACK("CAFirstMixChannelList::add", "initialising table entry");
+		pHashTableEntry->channelOpenedLastIntervalTS = 0;
 
 		pHashTableEntry->pMuxSocket=pMuxSocket;
 		pHashTableEntry->pQueueSend=pQueueSend;

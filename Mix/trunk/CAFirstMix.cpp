@@ -283,6 +283,10 @@ SINT32 CAFirstMix::init()
 		m_pthreadReadFromMix->setMainLoop(fm_loopReadFromMix);
 		m_pthreadReadFromMix->start(this);
 
+		nrOfChThread = new CAThread((UINT8*)"CAFirstMix - Channel open logging thread");
+		nrOfChThread->setMainLoop(fm_loopLogChannelsOpened);
+		nrOfChThread->start(this);
+
 		//Starting thread for logging
 #ifdef LOG_PACKET_TIMES
 		m_pLogPacketStats=new CALogPacketStats();
@@ -1297,6 +1301,40 @@ THREAD_RETURN fm_loopLog(void* param)
 	}
 
 
+THREAD_RETURN fm_loopLogChannelsOpened(void* param)
+	{
+		CAFirstMix* pFirstMix=(CAFirstMix*)param;
+		pFirstMix->m_bRunLog=true;
+		UINT32 countLog= 10;
+		UINT32 value = 0;
+		time_t newIvalTS = 0, ival = 0;
+
+		pFirstMix->nrOfChOpMutex->lock();
+		pFirstMix->lastLogTime = time(NULL);
+		pFirstMix->nrOfChOpMutex->unlock();
+
+		while(pFirstMix->m_bRunLog)
+		{
+			if(countLog == 0)
+			{
+				pFirstMix->nrOfChOpMutex->lock();
+				value = pFirstMix->nrOfOpenedChannels;
+				pFirstMix->nrOfOpenedChannels = 0;
+				newIvalTS = time(NULL);
+				ival = newIvalTS - pFirstMix->lastLogTime;
+				pFirstMix->lastLogTime = newIvalTS;
+				pFirstMix->nrOfChOpMutex->unlock();
+				CAMsg::printMsg(LOG_INFO,"Analyzing channels: %d channels opened in the last %u seconds.\n", value,
+										ival );
+				countLog = 10;
+			}
+			sSleep(1);
+			countLog--;
+		}
+		THREAD_RETURN_SUCCESS;
+	}
+
+
 THREAD_RETURN fm_loopDoUserLogin(void* param)
 	{
 		INIT_STACK;
@@ -2270,6 +2308,15 @@ SINT32 CAFirstMix::clean()
 		}
 	m_pthreadReadFromMix=NULL;
 
+	if(nrOfChThread != NULL)
+	{
+		CAMsg::printMsg(LOG_CRIT,"Before joining chThread!\n");
+		nrOfChThread->join();
+		CAMsg::printMsg(LOG_CRIT,"Before deleting chThread!\n");
+		delete nrOfChThread;
+		CAMsg::printMsg(LOG_CRIT,"After deleting chThread!\n");
+		nrOfChThread = NULL;
+	}
 
 #ifdef LOG_PACKET_TIMES
 		if(m_pLogPacketStats!=NULL)
