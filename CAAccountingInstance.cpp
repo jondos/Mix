@@ -1030,9 +1030,27 @@ SINT32 CAAccountingInstance::makeInitialCCRequest(CAXMLCostConfirmation *pCC, XE
 		}
 		//CAMsg::printMsg(LOG_ERR, "before CCRequest node replacing.\n");
 		doc->getDocumentElement()->replaceChild(ccRoot, elemCC);
-		CAMsg::printMsg(LOG_ERR, "after CCRequest node replacing.\n");
-		doc->getDocumentElement()->appendChild(elemPrepaidBytes);
-		CAMsg::printMsg(LOG_ERR, "after prepaid node appending.\n");
+		CAMsg::printMsg(LOG_ERR, "before critical append: doc ref: %p, documentElement ref: %p, elemPrepaidBytes ref: %p\n",
+				doc, ((doc == NULL) ? NULL : doc->getDocumentElement()), elemPrepaidBytes);
+		try
+		{
+			doc->getDocumentElement()->appendChild(elemPrepaidBytes);
+		}
+		catch(DOMException & e1)
+		{
+			char *eMessage = XMLString::transcode(e1.getMessage());
+			CAMsg::printMsg(LOG_ERR, "DOMException: %s.\n", (UINT8*) eMessage);
+			XMLString::release(&eMessage);
+			return E_UNKNOWN;
+		}
+		catch(DOMError & e2)
+		{
+			char *eMessage = XMLString::transcode(e2.getMessage());
+			CAMsg::printMsg(LOG_ERR, "DOMError: %s.\n", (UINT8*) eMessage);
+			XMLString::release(&eMessage);
+			return E_UNKNOWN;
+		}
+		//CAMsg::printMsg(LOG_ERR, "after prepaid node appending.\n");
 		return E_SUCCESS;
 	}
 
