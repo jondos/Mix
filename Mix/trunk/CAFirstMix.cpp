@@ -286,6 +286,7 @@ SINT32 CAFirstMix::init()
 		nrOfChThread = new CAThread((UINT8*)"CAFirstMix - Channel open logging thread");
 		nrOfChThread->setMainLoop(fm_loopLogChannelsOpened);
 		nrOfChThread->start(this);
+		currentOpenedChannels = 0;
 
 		//Starting thread for logging
 #ifdef LOG_PACKET_TIMES
@@ -1326,8 +1327,8 @@ THREAD_RETURN fm_loopLogChannelsOpened(void* param)
 				ival = newIvalTS - pFirstMix->lastLogTime;
 				pFirstMix->lastLogTime = newIvalTS;
 				pFirstMix->nrOfChOpMutex->unlock();
-				CAMsg::printMsg(LOG_INFO,"Analyzing channels: Opened channels for %u JonDo connections in the last %u seconds, overall open channels: %u\n", value,
-										ival, total );
+				CAMsg::printMsg(LOG_INFO,"Analyzing channels: Opened channels for %u JonDo connections in the last %u seconds, overall open channels: %u, users online: %u\n",
+						value, ival, total, pFirstMix->getNrOfUsers() );
 				countLog = 10;
 			}
 			sSleep(1);
