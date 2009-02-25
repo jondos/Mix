@@ -1319,19 +1319,15 @@ Optional Features:
   --disable-epoll         do not use epoll
   --enable-pool=POOLSIZE  Specify if to build a pool mix and optionally the
                           poolsize
-  --enable-bandwidth-limitation=LIMITATION_START
-                          Specify if to build with bandwith limitation and
-                          optionally the number of bytes which are transferred
-                          without any limitation
-  --enable-bandwidth-limitation-throughput=LIMITATION_THROUGHPUT
-                          Specify if to build with bandwith limitation and
-                          optionally the limit in kByte/s of each
-                          communication channel
+  --enable-bandwidth-limitation
+                          Specify if to build with last mix bandwidth
+                          limitation. The limitation parameters can be
+                          specified in the mix configuration file.
   --enable-payment        Specify if to build with payment support
   --enable-user-bandwidth-limitation
                           Specify if to build with bandwith limitation for
-                          users. The limitation parameters can be specified in
-                          the mix configuration file.
+                          users (first mix). The limitation parameters can be
+                          specified in the mix configuration file.
   --enable-server_monitoring
                           Specify if to build with state tracking for server
                           monitoring
@@ -4553,27 +4549,11 @@ if test "${enable_bandwidth_limitation+set}" = set; then
   enableval=$enable_bandwidth_limitation;
 		if test "x$enableval" != "xno" ; then
 		    BANDWIDTH_LIMIT="-DDELAY_CHANNELS"
-		    if test "x$enableval" != "xyes" ; then
-			BANDWIDTH_LIMIT="$BANDWIDTH_LIMIT -DDELAY_CHANNEL_TRAFFIC=$enableval"
-		    fi
 		fi
 
 
 fi
 
-BANDWIDTH_LIMIT_THROUGHPUT=""
-# Check whether --enable-bandwidth-limitation-throughput was given.
-if test "${enable_bandwidth_limitation_throughput+set}" = set; then
-  enableval=$enable_bandwidth_limitation_throughput;
-		if test "x$enableval" != "xno" ; then
-		    BANDWIDTH_LIMIT_THROUGHPUT="-DDELAY_CHANNELS"
-		    if test "x$enableval" != "xyes" ; then
-			BANDWIDTH_LIMIT_THROUGHPUT="$BANDWIDTH_LIMIT_THROUGHPUT -DDELAY_CHANNEL_KBYTE_PER_SECOND=$enableval"
-		    fi
-		fi
-
-
-fi
 
 
 PAYMENT=""
@@ -12615,12 +12595,11 @@ for xmldir in "" $tryxmlincludedir ; do
 	CFLAGS="$saved_CFLAGS -I$xmldir -I$xmldir/xercesc"
 	CXXFLAGS="$saved_CXXFLAGS -I$xmldir -I$xmldir/xercesc"
 	if test "$cross_compiling" = yes; then
-
-		        if test -f "$xmldir/xercesc/util/XMLString.hpp"; then
-			  found_xmldir=1
-			  break;
-                        fi
-
+  { { echo "$as_me:$LINENO: error: cannot run test program while cross compiling
+See \`config.log' for more details." >&5
+echo "$as_me: error: cannot run test program while cross compiling
+See \`config.log' for more details." >&2;}
+   { (exit 1); exit 1; }; }
 else
   cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
@@ -12668,7 +12647,12 @@ echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
 ( exit $ac_status )
-
+if test -f "$xmldir/xercesc/util/XMLString.hpp"; then
+			  	{ echo "$as_me:$LINENO: result: found in $xmldir" >&5
+echo "${ECHO_T}found in $xmldir" >&6; }
+			  	found_xmldir=1
+			  	break;
+              fi
 
 fi
 rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext

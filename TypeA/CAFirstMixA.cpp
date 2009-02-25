@@ -122,6 +122,9 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 		delete pEntry->pCipher;
 		pEntry->pCipher = NULL;
 		pEntry=m_pChannelList->getNextChannel(pEntry);
+		nrOfChOpMutex->lock();
+		currentOpenedChannels--;
+		nrOfChOpMutex->unlock();
 	}
 	ASSERT(pHashEntry->pQueueSend!=NULL,"Send queue is NULL");
 	delete pHashEntry->pQueueSend;
