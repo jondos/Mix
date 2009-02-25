@@ -446,7 +446,8 @@ SINT32 getDOMChildByName(const DOMNode* pNode,const char* const name,DOMNode* & 
 	}
 /**
  * integrates the source node in the destination Node.
- *  TODO specification
+ *  TODO 1. test for XERCES >= 3.0.1
+ *  	 2. specification
  */
 SINT32 integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive, bool replace)
 {
@@ -460,7 +461,12 @@ SINT32 integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive
 	XERCES_CPP_NAMESPACE::DOMDocument *srcOwnerDoc = srcNode->getOwnerDocument();
 	XERCES_CPP_NAMESPACE::DOMDocument *dstOwnerDoc = dstNode->getOwnerDocument();
 
-	short int pos = srcNode->compareTreePosition(dstNode);
+	short int pos =
+#if _XERCES_VERSION >= 30001
+		srcNode->compareDocumentPosition(dstNode);
+#else
+		srcNode->compareTreePosition(dstNode);
+#endif
 	if( (pos & INTEGRATE_NOT_ALLOWED_POSITIONS)  )
 	{
 		CAMsg::printMsg(LOG_ERR,"integrate impossible due to illegal tree positions, (pos: 0x%x)\n", pos);
