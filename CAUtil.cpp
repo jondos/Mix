@@ -463,7 +463,7 @@ SINT32 integrateDOMNode(const DOMNode *srcNode, DOMNode *dstNode, bool recursive
 	short int pos = srcNode->compareTreePosition(dstNode);
 	if( (pos & INTEGRATE_NOT_ALLOWED_POSITIONS)  )
 	{
-		CAMsg::printMsg(LOG_ERR,"integrate impossible due to illeagl tree positions, (pos: 0x%x)\n", pos);
+		CAMsg::printMsg(LOG_ERR,"integrate impossible due to illegal tree positions, (pos: 0x%x)\n", pos);
 		return E_UNKNOWN;
 	}
 
