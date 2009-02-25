@@ -111,7 +111,7 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 					CAMsg::printMsg(LOG_DEBUG,"InfoService: Could not send Status information.\n");
 				}
 				/* send terms and conditions */
-				pInfoService->sendOperatorTnCData();
+				//pInfoService->sendOperatorTnCData();
 			}
 
 			// check every minute if configuring, every 10 minutes otherwise
@@ -1067,6 +1067,7 @@ SINT32 CAInfoService::sendHelo(UINT8* a_strXML, UINT32 a_len, THREAD_RETURN (*a_
 	{
 		if (threads[i]->join() == E_SUCCESS)
 		{
+			CAMsg::printMsg(LOG_DEBUG,"InfoService: helo thread %u joined.\n", i);
 			returnValue = E_SUCCESS;
 		}
 		delete messages[i]->addr;
@@ -1077,6 +1078,7 @@ SINT32 CAInfoService::sendHelo(UINT8* a_strXML, UINT32 a_len, THREAD_RETURN (*a_
 		threads[i] = NULL;
 	}
 
+	CAMsg::printMsg(LOG_DEBUG,"InfoService: all helo threads joined. continue.\n");
 	delete[] messages;
 	messages = NULL;
 	delete[] threads;
