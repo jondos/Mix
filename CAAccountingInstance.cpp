@@ -1030,8 +1030,23 @@ SINT32 CAAccountingInstance::makeInitialCCRequest(CAXMLCostConfirmation *pCC, XE
 		}
 		//CAMsg::printMsg(LOG_ERR, "before CCRequest node replacing.\n");
 		doc->getDocumentElement()->replaceChild(ccRoot, elemCC);
-		CAMsg::printMsg(LOG_ERR, "before critical append: doc ref: %p, documentElement ref: %p, elemPrepaidBytes ref: %p\n",
-				doc, ((doc == NULL) ? NULL : doc->getDocumentElement()), elemPrepaidBytes);
+		/*CAMsg::printMsg(LOG_ERR, "before critical append: doc ref: %p, documentElement ref: %p, elemPrepaidBytes ref: %p\n",
+				doc, ((doc == NULL) ? NULL : doc->getDocumentElement()), elemPrepaidBytes);*/
+	//#ifdef DEBUG
+		CAMsg::printMsg(LOG_DEBUG, "dout doc\n");
+		UINT32 debuglen = 3000;
+		UINT8 debugout[3000];
+		DOM_Output::dumpToMem(doc,debugout,&debuglen);
+		debugout[debuglen] = 0;
+
+		CAMsg::printMsg(LOG_DEBUG, "dout pb\n");
+		UINT32 debuglen2 = 3000;
+		UINT8 debugout2[3000];
+		DOM_Output::dumpToMem(elemPrepaidBytes,debugout2,&debuglen2);
+		debugout2[debuglen2] = 0;
+
+		CAMsg::printMsg(LOG_DEBUG, "critical append: doc: %s\nprepaidElement: %s\n",debugout, debugout2);
+	//#endif
 		try
 		{
 			doc->getDocumentElement()->appendChild(elemPrepaidBytes);
