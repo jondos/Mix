@@ -2130,7 +2130,8 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 			}
 			else
 			{
-				//CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu: New prepaid proto version.\n", pAccInfo->accountNumber);
+				//CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu: New prepaid proto version. prepaid bytes: %d\n",
+				//		pAccInfo->accountNumber, prepaidAmount);
 				sendStatus = sendInitialCCRequest(pAccInfo, pCC, prepaidAmount);
 			}
 		}

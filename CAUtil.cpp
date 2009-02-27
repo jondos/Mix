@@ -782,10 +782,11 @@ SINT32 setDOMElementValue(DOMElement* pElem, SINT32 value)
 //TODO: check the maximum string size of tmp
 SINT32 setDOMElementValue(DOMElement* pElem,double floatValue)
 	{
-		UINT8 tmp[12];
-		memset(tmp, 0, 12);
-		snprintf((char*)tmp, 11, "%.2f", floatValue);
-		setDOMElementValue(pElem,tmp);
+		char *tmp = NULL;
+		asprintf(&tmp, "%.2f", floatValue);
+		setDOMElementValue(pElem,(UINT8 *)tmp);
+		//NOTE: asprintf allocates with malloc
+		free(tmp);
 		return E_SUCCESS;
 	}
 
@@ -797,6 +798,7 @@ SINT32 setDOMElementValue(DOMElement* pElem,double floatValue)
 SINT32 setDOMElementValue(DOMElement* pElem, const UINT64 text)
 	{
 		UINT8 tmp[32];
+		memset(tmp, 0, 32);
 		print64(tmp,text);
 		setDOMElementValue(pElem,tmp);
 		return E_SUCCESS;
