@@ -762,24 +762,29 @@ XERCES_CPP_NAMESPACE::DOMDocument* createDOMDocument()
 
 SINT32 setDOMElementValue(DOMElement* pElem, UINT32 value)
 	{
-		UINT8 tmp[10];
-		sprintf((char*)tmp,"%u", value);
+		UINT8 tmp[11];
+		memset(tmp, 0, 11);
+		snprintf((char*)tmp, 10, "%u", value);
 		setDOMElementValue(pElem,tmp);
 		return E_SUCCESS;
 	}
 
 SINT32 setDOMElementValue(DOMElement* pElem, SINT32 value)
 	{
-		UINT8 tmp[10];
-		sprintf((char*)tmp,"%i", value);
+		//One more char for the sign of negative numbers
+		UINT8 tmp[12];
+		memset(tmp, 0, 12);
+		snprintf((char*)tmp, 11, "%d", value);
 		setDOMElementValue(pElem,tmp);
 		return E_SUCCESS;
 	}
 
+//TODO: check the maximum string size of tmp
 SINT32 setDOMElementValue(DOMElement* pElem,double floatValue)
 	{
-		UINT8 tmp[10];
-		sprintf((char*)tmp,"%.2f",floatValue);
+		UINT8 tmp[12];
+		memset(tmp, 0, 12);
+		snprintf((char*)tmp, 11, "%.2f", floatValue);
 		setDOMElementValue(pElem,tmp);
 		return E_SUCCESS;
 	}
