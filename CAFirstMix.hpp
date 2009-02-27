@@ -73,7 +73,9 @@ THREAD_RETURN fm_loopReadFromMix(void*);
 THREAD_RETURN fm_loopAcceptUsers(void*);
 THREAD_RETURN fm_loopReadFromUsers(void*);
 THREAD_RETURN fm_loopDoUserLogin(void* param);
+#ifdef CH_LOG_STUDY
 THREAD_RETURN fm_loopLogChannelsOpened(void* param);
+#endif //CH_LOG_STUDY
 THREAD_RETURN	fm_loopLog(void*);
 
 #ifdef COUNTRY_STATS
@@ -121,13 +123,14 @@ public:
 					m_pmutexMixedPackets=new CAMutex();
 					m_pmutexLoginThreads=new CAMutex();
 					m_pmutexNewConnections=new CAMutex();
+#ifdef CH_LOG_STUDY
 					//log nr of opened channels per minute
 					nrOfChOpMutex = new CAMutex();
 					nrOfChThread = NULL;
 					nrOfOpenedChannels = 0;
 					currentOpenedChannels = 0;
 					lastLogTime = 0;
-
+#endif //CH_LOG_STUDY
 					m_nMixedPackets=0;
 					m_nUser=0;
 					m_nSocketsIn=0;
@@ -232,8 +235,9 @@ public:
 		friend THREAD_RETURN fm_loopAcceptUsers(void*);
 		friend THREAD_RETURN fm_loopReadFromUsers(void*);
 		friend THREAD_RETURN fm_loopDoUserLogin(void* param);
+#ifdef CH_LOG_STUDY
 		friend THREAD_RETURN fm_loopLogChannelsOpened(void* param);
-
+#endif //CH_LOG_STUDY
 
 
 		//How many mixes are in the cascade?
@@ -367,13 +371,14 @@ protected:
 			const XMLCh *TNC_REQUEST;
 			const XMLCh *TNC_CONFIRM;
 			const XMLCh *TNC_INTERRUPT;
-
+#ifdef CH_LOG_STUDY
 protected:
 			CAMutex *nrOfChOpMutex;
 			UINT32 nrOfOpenedChannels;
 			UINT32 currentOpenedChannels;
 			CAThread *nrOfChThread;
 			time_t lastLogTime;
+#endif //CH_LOG_STUDY
 
 #ifdef COUNTRY_STATS
 		private:
