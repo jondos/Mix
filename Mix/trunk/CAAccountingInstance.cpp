@@ -764,7 +764,6 @@ SINT32 CAAccountingInstance::sendInitialCCRequest(tAiAccountingInfo* pAccInfo, C
 	XERCES_CPP_NAMESPACE::DOMDocument* doc=NULL;
 
 	SINT32 ret = makeInitialCCRequest(pCC, doc, prepaidBytes);
-	CAMsg::printMsg(LOG_DEBUG, "after make initial request, acc. %llu\n",pAccInfo->accountNumber);
 	if( (ret != E_SUCCESS) || (doc == NULL))
 	{
 		CAMsg::printMsg(LOG_ERR, "cannot send initial CC request, ret: %d\n", ret);
@@ -1016,10 +1015,8 @@ SINT32 CAAccountingInstance::makeInitialCCRequest(CAXMLCostConfirmation *pCC, XE
 		DOMNode* elemCC=NULL;
 
 		doc = createDOMDocument();
-		//CAMsg::printMsg(LOG_ERR, "After initial CCRequest doc created (ref: %p)\n", doc);
 		DOMNode *ccRoot = doc->importNode(pCC->getXMLDocument()->getDocumentElement(),true);
 		doc->appendChild(doc->importNode(m_preparedCCRequest->getDocumentElement(),true));
-		//CAMsg::printMsg(LOG_ERR, "After initial CCRequest doc imports.\n");
 		setDOMElementAttribute(doc->getDocumentElement(), "initialCC", true);
 		DOMElement *elemPrepaidBytes = createDOMElement(doc, "PrepaidBytes");
 		setDOMElementValue(elemPrepaidBytes, prepaidBytes);
@@ -1028,44 +1025,8 @@ SINT32 CAAccountingInstance::makeInitialCCRequest(CAXMLCostConfirmation *pCC, XE
 		{
 			return E_UNKNOWN;
 		}
-		//CAMsg::printMsg(LOG_ERR, "before CCRequest node replacing.\n");
 		doc->getDocumentElement()->replaceChild(ccRoot, elemCC);
-		/*CAMsg::printMsg(LOG_ERR, "before critical append: doc ref: %p, documentElement ref: %p, elemPrepaidBytes ref: %p\n",
-				doc, ((doc == NULL) ? NULL : doc->getDocumentElement()), elemPrepaidBytes);*/
-	//#ifdef DEBUG
-		CAMsg::printMsg(LOG_DEBUG, "dout doc\n");
-		UINT32 debuglen = 3000;
-		UINT8 debugout[3000];
-		DOM_Output::dumpToMem(doc,debugout,&debuglen);
-		debugout[debuglen] = 0;
-
-		CAMsg::printMsg(LOG_DEBUG, "dout pb\n");
-		UINT32 debuglen2 = 3000;
-		UINT8 debugout2[3000];
-		DOM_Output::dumpToMem(elemPrepaidBytes,debugout2,&debuglen2);
-		debugout2[debuglen2] = 0;
-
-		CAMsg::printMsg(LOG_DEBUG, "critical append: doc: %s\nprepaidElement: %s\n",debugout, debugout2);
-	//#endif
-		try
-		{
-			doc->getDocumentElement()->appendChild(elemPrepaidBytes);
-		}
-		catch(DOMException & e1)
-		{
-			char *eMessage = XMLString::transcode(e1.getMessage());
-			CAMsg::printMsg(LOG_ERR, "DOMException: %s.\n", (UINT8*) eMessage);
-			XMLString::release(&eMessage);
-			return E_UNKNOWN;
-		}
-		catch(DOMError & e2)
-		{
-			char *eMessage = XMLString::transcode(e2.getMessage());
-			CAMsg::printMsg(LOG_ERR, "DOMError: %s.\n", (UINT8*) eMessage);
-			XMLString::release(&eMessage);
-			return E_UNKNOWN;
-		}
-		//CAMsg::printMsg(LOG_ERR, "after prepaid node appending.\n");
+		doc->getDocumentElement()->appendChild(elemPrepaidBytes);
 		return E_SUCCESS;
 	}
 
@@ -2033,6 +1994,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	}
 	else
 	{
+		prepaidAmount = 0;
 		CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: No database record for prepaid bytes found for account nr. %s.\n", tmp);
 	}
 	//CAMsg::printMsg(LOG_DEBUG, "Number of prepaid (confirmed-transferred) bytes : %d \n",pAccInfo->confirmedBytes-pAccInfo->transferredBytes);
