@@ -282,12 +282,12 @@ SINT32 CAFirstMix::init()
 		m_pthreadReadFromMix=new CAThread((UINT8*)"CAFirstMix - ReadFromMix");
 		m_pthreadReadFromMix->setMainLoop(fm_loopReadFromMix);
 		m_pthreadReadFromMix->start(this);
-
+#ifdef CH_LOG_STUDY
 		nrOfChThread = new CAThread((UINT8*)"CAFirstMix - Channel open logging thread");
 		nrOfChThread->setMainLoop(fm_loopLogChannelsOpened);
 		nrOfChThread->start(this);
 		currentOpenedChannels = 0;
-
+#endif //CH_LOG_STUDY
 		//Starting thread for logging
 #ifdef LOG_PACKET_TIMES
 		m_pLogPacketStats=new CALogPacketStats();
@@ -1301,7 +1301,7 @@ THREAD_RETURN fm_loopLog(void* param)
 		THREAD_RETURN_SUCCESS;
 	}
 
-
+#ifdef CH_LOG_STUDY
 THREAD_RETURN fm_loopLogChannelsOpened(void* param)
 	{
 		CAFirstMix* pFirstMix=(CAFirstMix*)param;
@@ -1336,7 +1336,7 @@ THREAD_RETURN fm_loopLogChannelsOpened(void* param)
 		}
 		THREAD_RETURN_SUCCESS;
 	}
-
+#endif //CH_LOG_STUDY
 
 THREAD_RETURN fm_loopDoUserLogin(void* param)
 	{
@@ -2311,15 +2311,14 @@ SINT32 CAFirstMix::clean()
 		}
 	m_pthreadReadFromMix=NULL;
 
+#ifdef CH_LOG_STUDY
 	if(nrOfChThread != NULL)
 	{
-		CAMsg::printMsg(LOG_CRIT,"Before joining chThread!\n");
 		nrOfChThread->join();
-		CAMsg::printMsg(LOG_CRIT,"Before deleting chThread!\n");
 		delete nrOfChThread;
-		CAMsg::printMsg(LOG_CRIT,"After deleting chThread!\n");
 		nrOfChThread = NULL;
 	}
+#endif
 
 #ifdef LOG_PACKET_TIMES
 		if(m_pLogPacketStats!=NULL)

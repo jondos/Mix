@@ -122,9 +122,11 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 		delete pEntry->pCipher;
 		pEntry->pCipher = NULL;
 		pEntry=m_pChannelList->getNextChannel(pEntry);
+#ifdef CH_LOG_STUDY
 		nrOfChOpMutex->lock();
 		currentOpenedChannels--;
 		nrOfChOpMutex->unlock();
+#endif //CH_LOG_STUDY
 	}
 	ASSERT(pHashEntry->pQueueSend!=NULL,"Send queue is NULL");
 	delete pHashEntry->pQueueSend;
@@ -350,9 +352,11 @@ SINT32 CAFirstMixA::loop()
 														pEntry->pCipher = NULL;
 														m_pChannelList->removeChannel(pMuxSocket,pEntry->channelIn);
 
+														#ifdef CH_LOG_STUDY
 														nrOfChOpMutex->lock();
 														currentOpenedChannels--;
 														nrOfChOpMutex->unlock();
+														#endif //CH_LOG_STUDY
 													}
 													#ifdef _DEBUG
 													else
@@ -416,6 +420,7 @@ SINT32 CAFirstMixA::loop()
 														}
 														else
 														{
+															#ifdef CH_LOG_STUDY
 															nrOfChOpMutex->lock();
 															if(pHashEntry->channelOpenedLastIntervalTS !=
 																lastLogTime)
@@ -426,6 +431,8 @@ SINT32 CAFirstMixA::loop()
 															}
 															currentOpenedChannels++;
 															nrOfChOpMutex->unlock();
+															#endif //CH_LOG_STUDY
+
 															#ifdef LOG_PACKET_TIMES
 																getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end_OP);
 															#endif
@@ -945,9 +952,11 @@ void CAFirstMixA::finishPacket(fmHashTableEntry *pfmHashEntry)
 			delete cListEntry->pCipher;
 			cListEntry->pCipher = NULL;
 			m_pChannelList->removeChannel(pfmHashEntry->pMuxSocket, cListEntry->channelIn);
+#ifdef CH_LOG_STUDY
 			nrOfChOpMutex->lock();
 			currentOpenedChannels--;
 			nrOfChOpMutex->unlock();
+#endif //CH_LOG_STUDY
 		}
 	}
 }
