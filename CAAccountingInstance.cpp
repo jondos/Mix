@@ -486,7 +486,9 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 				 * If confirmedBytes > 0,  any remaining prepaid bytes may be used.
 				 */
 				pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
-				CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: Account %llu is empty!\n", pAccInfo->accountNumber);
+				//CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: Account %llu is empty!\n", pAccInfo->accountNumber);
+				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu empty with %d prepaid bytes, (transferred bytes: %llu, confirmed bytes: %llu)!\n",
+										pAccInfo->accountNumber, getPrepaidBytes(pAccInfo), pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
 			}
 			else if (loginEntry->authFlags & AUTH_INVALID_ACCOUNT)
 			{
@@ -530,8 +532,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 			pAccInfo->lastHardLimitSeconds = time(NULL);
 
 			//#ifdef DEBUG
-				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu empty with %d prepaid bytes, (transferred bytes: %llu, confirmed bytes: %llu)!\n",
-						pAccInfo->accountNumber, getPrepaidBytes(pAccInfo), pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
+
 			//#endif
 
 			if (getPrepaidBytes(pAccInfo) <= 0)
