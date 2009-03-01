@@ -70,14 +70,16 @@ SINT32 CAMix::start()
 #ifndef MULTI_CERT
 		if(m_pSignature != NULL && pglobalOptions->isInfoServiceEnabled())
 #else
+		CAMsg::printMsg(LOG_DEBUG, "CAMix: start\n");
 		if(m_multiSig == NULL)
+		{
 			CAMsg::printMsg(LOG_ERR, "Error starting Infoservice, MultiSig not initialized!");
+		}
 		if(m_multiSig != NULL && pglobalOptions->isInfoServiceEnabled())
 #endif
 		{
 			CAMsg::printMsg(LOG_DEBUG, "CAMix start: creating InfoService object\n");
 			m_pInfoService=new CAInfoService(this);
-
 
 #ifndef MULTI_CERT
 			UINT32 opCertLength;

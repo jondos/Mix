@@ -15,6 +15,11 @@ CAMultiSignature::CAMultiSignature()
 {
 	m_signatures = NULL;
 	m_sigCount = 0;
+	m_xoredID = new UINT8[SHA_DIGEST_LENGTH];
+	for(SINT32 i = 0; i<SHA_DIGEST_LENGTH; i++)
+	{
+		m_xoredID[i] = 0;
+	}
 }
 
 CAMultiSignature::~CAMultiSignature()
@@ -37,10 +42,14 @@ CAMultiSignature::~CAMultiSignature()
 	}
 }
 
-SINT32 CAMultiSignature::addSignature(CASignature* a_signature, CACertStore* a_certs)
+SINT32 CAMultiSignature::addSignature(CASignature* a_signature, CACertStore* a_certs, UINT8* a_ski, UINT32 a_skiLen)
 {
-	if(a_signature == NULL || a_certs == NULL)
+	if(a_signature == NULL || a_certs == NULL || a_ski == NULL || a_skiLen != SHA_DIGEST_LENGTH)
 		return E_UNKNOWN;
+	for(SINT32 i=0; i<SHA_DIGEST_LENGTH; i++)
+	{
+		m_xoredID[i] = m_xoredID[i] ^ a_ski[i];
+	}
 	SIGNATURE* newSignature = new SIGNATURE;
 	newSignature->pSig = a_signature->clone();
 	newSignature->pCerts = a_certs;
@@ -354,16 +363,9 @@ SINT32 CAMultiSignature::sign(UINT8* in,UINT32 inlen,UINT8* sig,UINT32* siglen)
 
 SINT32 CAMultiSignature::getXORofSKIs(UINT8* in, UINT32 inlen)
 {
-	// TODO
-	/*SIGNATURE* currentSignature;
-
-	if(in == NULL || inlen < 24)
-		hex_to_string()
-
-	for(UINT32 i=0; i<m_sigCount; i++)
-	{
-
-	}*/
+	UINT8* tmp = (UINT8*) hex_to_string(m_xoredID, SHA_DIGEST_LENGTH);
+	CACertificate::removeColons(tmp, strlen((const char*)tmp), in, &inlen);
+	return E_SUCCESS;
 }
 
 
