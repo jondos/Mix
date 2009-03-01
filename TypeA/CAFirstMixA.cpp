@@ -548,10 +548,11 @@ NEXT_USER:
 											delete pEntry->pCipher;              // forget the symetric key of this connection
 											pEntry->pCipher = NULL;
 											m_pChannelList->removeChannel(pEntry->pHead->pMuxSocket, pEntry->channelIn);
-
+										#ifdef CH_LOG_STUDY
 											nrOfChOpMutex->lock();
 											currentOpenedChannels--;
 											nrOfChOpMutex->unlock();
+										#endif
 										/* a hack to solve the SSL problem:
 										 * remove channel after the close packet is enqueued
 										 * from pEntry->pQueueSend
