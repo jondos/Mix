@@ -1,28 +1,28 @@
 /*
-Copyright (c) 2000, The JAP-Team 
+Copyright (c) 2000, The JAP-Team
 All rights reserved.
-Redistribution and use in source and binary forms, with or without modification, 
+Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-	- Redistributions of source code must retain the above copyright notice, 
+	- Redistributions of source code must retain the above copyright notice,
 	  this list of conditions and the following disclaimer.
 
-	- Redistributions in binary form must reproduce the above copyright notice, 
-	  this list of conditions and the following disclaimer in the documentation and/or 
+	- Redistributions in binary form must reproduce the above copyright notice,
+	  this list of conditions and the following disclaimer in the documentation and/or
 		other materials provided with the distribution.
 
-	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors 
-	  may be used to endorse or promote products derived from this software without specific 
-		prior written permission. 
+	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors
+	  may be used to endorse or promote products derived from this software without specific
+		prior written permission.
 
-	
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS 
-OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY 
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS
+OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY
 AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS
 BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, 
-OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER 
-IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
 */
 
@@ -45,7 +45,7 @@ CACertificate* CACertificate::decode(const DOMNode* n,UINT32 type,const char* pa
 		const DOMNode* node=n;
 		switch(type)
 			{
-				case CERT_PKCS12:					
+				case CERT_PKCS12:
 					while(node!=NULL)
 						{
 							if(equals(node->getNodeName(),"X509PKCS12"))
@@ -120,9 +120,9 @@ CACertificate* CACertificate::decode(const UINT8* buff,UINT32 bufflen,UINT32 typ
 				case CERT_PKCS12:
 					PKCS12* tmpPKCS12;
 					#if OPENSSL_VERSION_NUMBER	> 0x009070CfL
-						tmpPKCS12=d2i_PKCS12(NULL,&buff,bufflen);	
+						tmpPKCS12=d2i_PKCS12(NULL,&buff,bufflen);
 					#else
-						tmpPKCS12=d2i_PKCS12(NULL,(UINT8**)&buff,bufflen);	
+						tmpPKCS12=d2i_PKCS12(NULL,(UINT8**)&buff,bufflen);
 					#endif
 					if(PKCS12_parse(tmpPKCS12,passwd,NULL,&tmpCert,NULL)!=1)
 						{
@@ -209,6 +209,33 @@ SINT32 CACertificate::encode(DOMElement* & elemRoot,XERCES_CPP_NAMESPACE::DOMDoc
 		return E_SUCCESS;
 	}
 
+SINT32 CACertificate::getRawSubjectKeyIdentifier(UINT8* r_ski, UINT32* r_skiLen)
+{
+	ASN1_OCTET_STRING *pSki = NULL;
+	pSki = (ASN1_OCTET_STRING*)X509_get_ext_d2i(m_pCert, NID_subject_key_identifier, NULL, NULL );
+	if ( pSki==NULL )
+	{
+		setSubjectKeyIdentifier();
+	    pSki = (ASN1_OCTET_STRING*)X509_get_ext_d2i(m_pCert, NID_subject_key_identifier, NULL, NULL );
+		if( pSki==NULL )
+		{
+			CAMsg::printMsg( LOG_ERR, "Unable to retrieve SKI from Certificate\n");
+			return E_UNKNOWN;
+		}
+	}
+	if(*r_skiLen < (UINT32) pSki->length)
+	{
+		CAMsg::printMsg( LOG_ERR, "Unable to copy SKI to target array, size must at least be %i but is only %i!\n", pSki->length, r_skiLen );
+		return E_UNKNOWN;
+	}
+	*r_skiLen = pSki->length;
+	for(SINT32 i=0; i<pSki->length; i++)
+	{
+		r_ski[i] = pSki->data[i];
+	}
+	return E_SUCCESS;
+}
+
 /**
   * LERNGRUPPE
   * Accessor method for the subjectKeyIdentifier (SKI) extension stored in this certificate
@@ -229,11 +256,11 @@ SINT32 CACertificate::getSubjectKeyIdentifier(UINT8* r_ski, UINT32 *r_skiLen)
 #endif
         setSubjectKeyIdentifier();
         pSki = (ASN1_OCTET_STRING*)X509_get_ext_d2i(m_pCert, NID_subject_key_identifier, NULL, NULL );
-        if( pSki==NULL ) 
+        if( pSki==NULL )
         {
             CAMsg::printMsg( LOG_ERR, "Unable to retrieve SKI from Certificate\n");
             return E_UNKNOWN;
-        } 
+        }
 #ifdef DEBUG
         else
         {
@@ -262,8 +289,8 @@ SINT32 CACertificate::getSubjectKeyIdentifier(UINT8* r_ski, UINT32 *r_skiLen)
   * Removes the colons from the string representation of the given SKI
   * @param a_cSkid The string from which the colons should be removed
   * @param a_cSkidLen The length of a_cSkid
-  * @param r_ski 
-  * @param r_skiLen 
+  * @param r_ski
+  * @param r_skiLen
   * @return r_ski The SKI as colon-free string
   * @return r_skiLen The length of r_ski
   * @retval E_SUCCESS upon successful removal
@@ -297,7 +324,7 @@ SINT32 CACertificate::removeColons(UINT8* a_cSkid, UINT32 a_cSkidLen, UINT8 *&r_
   * @retval E_SUCCESS upon successful removal
   * @retval E_UNKNOWN otherwise
   */
-SINT32 CACertificate::setSubjectKeyIdentifier() 
+SINT32 CACertificate::setSubjectKeyIdentifier()
 {
     UINT32 len = 0;
     UINT8 sha_hash[SHA_DIGEST_LENGTH];

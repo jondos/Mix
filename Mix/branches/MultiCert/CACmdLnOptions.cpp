@@ -1732,12 +1732,21 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 					 CACertificate* tmpOpCert = CACertificate::decode(a_opCert,CERT_X509CERTIFICATE);
 					 certs->add(tmpOpCert);
 					 opCertCount++;
-					 //TODO delete tmpOpCert?
+					 delete tmpOpCert;
+					 tmpOpCert = NULL;
 				}
 			}
-			certs->add(CACertificate::decode(a_cert, CERT_PKCS12, (char*)passwd));
+			CACertificate* tmpCert = CACertificate::decode(a_cert, CERT_PKCS12, (char*)passwd);
+			certs->add(tmpCert);
+			//get SKI
+			UINT32 tmpSKIlen = 255;
+			UINT8 tmpSKI[tmpSKIlen];
+			if(tmpCert->getRawSubjectKeyIdentifier(tmpSKI, &tmpSKIlen) != E_SUCCESS)
+			{
+				return E_UNKNOWN;
+			}
 			CAMsg::printMsg(LOG_DEBUG, "Adding Sign-Key ID=%d with %d Operator-Certificate(s)\n", cert_id, opCertCount);
-			m_multiSig->addSignature(signature, certs);
+			m_multiSig->addSignature(signature, certs, tmpSKI, tmpSKIlen);
 		}
 		if (m_multiSig->getSignatureCount() == 0)
 		{
@@ -1777,12 +1786,14 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 			}
 		}
 #endif
-
 		//get MixID
 		tmpLen=255;
-		//TODO for MULTI_CERT
-		/*if (m_pOwnCertificate->getSubjectKeyIdentifier(tmpBuff, &tmpLen) != E_SUCCESS)
-		{*/
+#ifdef MULTI_CERT
+		if(m_multiSig->getXORofSKIs(tmpBuff, tmpLen) != E_SUCCESS)
+#else
+		if (m_pOwnCertificate->getSubjectKeyIdentifier(tmpBuff, &tmpLen) != E_SUCCESS)
+#endif
+		{
 			DOMElement* elemMixID=NULL;
 			getDOMChildByName(elemGeneral,"MixID",elemMixID,false);
 			if(elemMixID==NULL)
@@ -1795,10 +1806,11 @@ SINT32 CACmdLnOptions::processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument
 				CAMsg::printMsg(LOG_CRIT,"Node \"MixID\" is empty!\n");
 				return E_UNKNOWN;
 			}
-		//}
+		}
 		strtrim(tmpBuff);
 		m_strMixID=new char[strlen((char*)tmpBuff)+1];
 		strcpy(m_strMixID,(char*) tmpBuff);
+		CAMsg::printMsg(LOG_DEBUG, "Mix-ID is: %s\n", m_strMixID);
 
 #ifdef DYNAMIC_MIX
 			/* LERNGRUPPE: Dynamic Mixes must have a cascade name, as MiddleMixes may be reconfigured to be FirstMixes */
