@@ -479,16 +479,20 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 			}
 			else if (loginEntry->authFlags & AUTH_ACCOUNT_EMPTY)
 			{
-				// Do not reset the flag, so that the confirmedBytes are always reset.
-				//loginEntry->authFlags &= ~AUTH_ACCOUNT_EMPTY;
-				pAccInfo->authFlags |= AUTH_ACCOUNT_EMPTY;
-				/* confirmedBytes = 0 leads to immediate disconnection.
-				 * If confirmedBytes > 0,  any remaining prepaid bytes may be used.
-				 */
-				pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
-				//CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: Account %llu is empty!\n", pAccInfo->accountNumber);
-				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu empty with %d prepaid bytes, (transferred bytes: %llu, confirmed bytes: %llu)!\n",
-										pAccInfo->accountNumber, getPrepaidBytes(pAccInfo), pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
+				if(!(pAccInfo->authFlags & AUTH_ACCOUNT_EMPTY))
+				{
+					// Do not reset the flag, so that the confirmedBytes are always reset.
+					//loginEntry->authFlags &= ~AUTH_ACCOUNT_EMPTY;
+					pAccInfo->authFlags |= AUTH_ACCOUNT_EMPTY;
+					/* confirmedBytes = 0 leads to immediate disconnection.
+					 * If confirmedBytes > 0,  any remaining prepaid bytes may be used.
+					 */
+					//pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
+					//CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: Account %llu is empty!\n", pAccInfo->accountNumber);
+					CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu empty with %d prepaid bytes, (transferred bytes: %llu, confirmed bytes: %llu)!\n",
+											pAccInfo->accountNumber, getPrepaidBytes(pAccInfo), pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
+				}
+
 			}
 			else if (loginEntry->authFlags & AUTH_INVALID_ACCOUNT)
 			{
