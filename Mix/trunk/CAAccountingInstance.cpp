@@ -2545,7 +2545,7 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 						if (loginEntry->authFlags & AUTH_ACCOUNT_EMPTY)
 						{
 							// make sure to store the correct number of prepaid bytes
-							pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
+							//pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
 						}
 						//store prepaid bytes in database, so the user wont lose the prepaid amount by disconnecting
 						prepaidBytes = getPrepaidBytes(pAccInfo);
