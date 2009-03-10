@@ -2703,11 +2703,6 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	UINT32 size, qSize, nrOfCCs;
 	SettleEntry *entry = NULL, *nextEntry = NULL;
 
-	bool bDeleteCC = false;
-	UINT32 authFlags = 0;
-	UINT32 authRemoveFlags = 0;
-	UINT64 confirmedBytes = 0;
-	UINT64 diffBytes = 0;
 	CAAccountingDBInterface *dbInterface = NULL;
 
 	/* This should never happen */
@@ -2815,6 +2810,12 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			ms_pInstance->m_pPiInterface->terminateBIConnection();
 			CAMsg::printMsg(LOG_DEBUG, "Settlement transaction: settle done!\n");
 		}
+
+		bool bDeleteCC = false;
+		UINT32 authFlags = 0;
+		UINT32 authRemoveFlags = 0;
+		UINT64 confirmedBytes = 0;
+		UINT64 diffBytes = 0;
 
 		// check returncode
 		if(pErrMsg == NULL)  //no returncode -> connection error
