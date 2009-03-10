@@ -487,7 +487,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 					/* confirmedBytes = 0 leads to immediate disconnection.
 					 * If confirmedBytes > 0,  any remaining prepaid bytes may be used.
 					 */
-					//pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
+					pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
 					//CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: Account %llu is empty!\n", pAccInfo->accountNumber);
 					CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu empty with %d prepaid bytes, (transferred bytes: %llu, confirmed bytes: %llu)!\n",
 											pAccInfo->accountNumber, getPrepaidBytes(pAccInfo), pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
@@ -2546,7 +2546,7 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 						if (loginEntry->authFlags & AUTH_ACCOUNT_EMPTY)
 						{
 							// make sure to store the correct number of prepaid bytes
-							//pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
+							pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
 						}
 						//store prepaid bytes in database, so the user wont lose the prepaid amount by disconnecting
 						prepaidBytes = getPrepaidBytes(pAccInfo);
