@@ -521,10 +521,10 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 		}
 		else
 		{
-			CAMsg::printMsg(LOG_CRIT, "CAAccountingInstance: handleJapPacket %s,%s did not find user login hash entry for account %llu, owner: %p/%p!\n",
+			CAMsg::printMsg(LOG_CRIT, "CAAccountingInstance: handleJapPacket %s,%s did not find user login hash entry for account %llu, owner/accInfo: %p/%p!\n",
 					(a_bMessageToJAP ? "downstream" : "upstream"),
 					(a_bControlMessage ? "ctl" : "data"),
-					pAccInfo->accountNumber, pAccInfo->ownerRef, pHashEntry);
+					pAccInfo->accountNumber, pAccInfo->ownerRef, pHashEntry->pAccountingInfo);
 			ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
 			return returnKickout(pAccInfo);
 		}
@@ -2524,7 +2524,8 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 		}
 
 		//pAccInfo->mutex->lock();
-
+		CAMsg::printMsg(LOG_ERR, "cleaning up entry %p of accountno. %llu (pAccInfo ref: %p)\n",
+				pHashEntry, pAccInfo->accountNumber, pAccInfo);
 		pHashEntry->pAccountingInfo=NULL;
 
 		if (pAccInfo->accountNumber)
