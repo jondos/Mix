@@ -863,6 +863,7 @@ SINT32 CAFirstMixA::accountTrafficUpstream(fmHashTableEntry* pHashEntry)
 	else if (CAAccountingInstance::HANDLE_PACKET_CLOSE_CONNECTION == handleResult)
 	{
 		// kickout this user - he deserves it...
+		CAMsg::printMsg(LOG_DEBUG, "CAFirstMixA: kickout upstream!\n", ret);
 		closeConnection(pHashEntry);
 		ret = E_UNKNOWN;
 	}
