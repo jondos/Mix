@@ -2339,6 +2339,32 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 			pAccInfo->transferredBytes);
 #endif
 
+	if(pCC->getTransferredBytes() > (pAccInfo->transferredBytes+pglobalOptions->getPrepaidInterval()) )
+	{
+		CAMsg::printMsg( LOG_ERR, "Warning: ignoring this CC for account %llu "
+				"because it tries to confirm %lld prepaid bytes where only %u prepaid bytes are allowed (cc->tranferredbytes: %llu, accInfo->tranferredBytes: %llu)\n",
+				pAccInfo->accountNumber, (pCC->getTransferredBytes() - pAccInfo->transferredBytes),
+				pglobalOptions->getPrepaidInterval(),
+				pCC->getTransferredBytes(), pAccInfo->transferredBytes);
+
+		CAXMLErrorMessage err(CAXMLErrorMessage::ERR_WRONG_DATA,
+			(UINT8*)"More bytes confirmed than allowed.");
+		XERCES_CPP_NAMESPACE::DOMDocument* errDoc=NULL;
+		err.toXmlDocument(errDoc);
+		pAccInfo->pControlChannel->sendXMLMessage(errDoc);
+		if (errDoc != NULL)
+		{
+			errDoc->release();
+			errDoc = NULL;
+		}
+		//mark as account empty has the effect is that the user can empty his prepaid amount and then will be kicked out.
+		pAccInfo->authFlags |= AUTH_ACCOUNT_EMPTY;
+		delete pCC;
+		pCC = NULL;
+		pAccInfo->mutex->unlock();
+		return CAXMLErrorMessage::ERR_WRONG_DATA;
+	}
+
 	if (pCC->getTransferredBytes() < pAccInfo->confirmedBytes)
 	{
 
@@ -2524,12 +2550,13 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 		}
 
 		//pAccInfo->mutex->lock();
-		CAMsg::printMsg(LOG_ERR, "cleaning up entry %p of accountno. %llu (pAccInfo ref: %p)\n",
-				pHashEntry, pAccInfo->accountNumber, pAccInfo);
+
 		pHashEntry->pAccountingInfo=NULL;
 
 		if (pAccInfo->accountNumber)
 		{
+			CAMsg::printMsg(LOG_ERR, "cleaning up entry %p of accountno. %llu (pAccInfo ref: %p)\n",
+							pHashEntry, pAccInfo->accountNumber, pAccInfo);
 			if (pAccInfo->authFlags & AUTH_ACCOUNT_OK)
 			{
 				// remove login
