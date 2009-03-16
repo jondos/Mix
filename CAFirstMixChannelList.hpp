@@ -107,6 +107,8 @@ struct t_fmhashtableentry
 				struct t_fmhashtableentry* next;
 				SINT32 timoutSecs;
 			} list_TimeoutHashEntries;
+
+			CAConditionVariable *cleanupNotifier;
 #endif
 		friend class CAFirstMixChannelList;
 

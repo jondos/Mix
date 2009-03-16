@@ -48,6 +48,9 @@ CAFirstMixChannelList::CAFirstMixChannelList()
 			{
 				m_HashTable[i]=new fmHashTableEntry;
 				memset(m_HashTable[i],0,sizeof(fmHashTableEntry));
+#ifdef PAYMENT
+				m_HashTable[i]->cleanupNotifier = new CAConditionVariable();
+#endif
 			}
 		m_listHashTableHead=NULL;
 		m_listHashTableNext=NULL;
@@ -88,6 +91,11 @@ CAFirstMixChannelList::~CAFirstMixChannelList()
 #endif
 		for(int i=0;i<MAX_HASH_KEY;i++)
 				{
+
+#ifdef PAYMENT
+					delete m_HashTable[i]->cleanupNotifier;
+					m_HashTable[i]->cleanupNotifier = NULL;
+#endif
 					delete m_HashTable[i];
 					m_HashTable[i] = NULL;
 				}
@@ -734,7 +742,18 @@ SINT32 CAFirstMixChannelList::remove(CAMuxSocket* pMuxSocket)
 		delete[] pHashTableEntry->strDialog;
 		pHashTableEntry->strDialog = NULL;
 #endif
+#ifdef PAYMENT
+		CAConditionVariable *rescue = pHashTableEntry->cleanupNotifier;
+#endif
+		//TODO: a bit more precise reference cleanup
 		memset(pHashTableEntry,0,sizeof(fmHashTableEntry)); //'delete' the connection from the connection hash table
+
+#ifdef PAYMENT
+		pHashTableEntry->cleanupNotifier = rescue;
+		pHashTableEntry->cleanupNotifier->lock();
+		pHashTableEntry->cleanupNotifier->signal();
+		pHashTableEntry->cleanupNotifier->unlock();
+#endif
 		m_Mutex.unlock();
 		return E_SUCCESS;
 	}

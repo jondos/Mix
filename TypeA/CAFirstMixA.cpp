@@ -216,7 +216,6 @@ SINT32 CAFirstMixA::loop()
 				// while checking if there are connections to close: synch with login threads
 				loginCV->lock();
 				checkUserConnections();
-				loginCV->broadcast();
 				loginCV->unlock();
 #endif
 //First Step
@@ -863,7 +862,7 @@ SINT32 CAFirstMixA::accountTrafficUpstream(fmHashTableEntry* pHashEntry)
 	else if (CAAccountingInstance::HANDLE_PACKET_CLOSE_CONNECTION == handleResult)
 	{
 		// kickout this user - he deserves it...
-		CAMsg::printMsg(LOG_DEBUG, "CAFirstMixA: kickout upstream!\n", ret);
+		CAMsg::printMsg(LOG_DEBUG, "CAFirstMixA: kickout upstream!\n");
 		closeConnection(pHashEntry);
 		ret = E_UNKNOWN;
 	}

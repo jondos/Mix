@@ -308,16 +308,16 @@ SINT32 CALastMixA::loop()
 											}
 										else if(pMixPacket->flags==CHANNEL_SUSPEND)
 											{
-												//#ifdef _DEBUG
+												#ifdef _DEBUG
 													CAMsg::printMsg(LOG_DEBUG,"Suspending channel %u Socket: %u\n",pMixPacket->channel,(SOCKET)(*pChannelListEntry->pSocket));
-												//#endif
+												#endif
 												psocketgroupCacheRead->remove(*(pChannelListEntry->pSocket));
 											}
 										else if(pMixPacket->flags==CHANNEL_RESUME)
 											{
-												//#ifdef _DEBUG
+												#ifdef _DEBUG
 													CAMsg::printMsg(LOG_DEBUG,"Resuming channel %u Socket: %u\n",pMixPacket->channel,(SOCKET)(*pChannelListEntry->pSocket));
-												//#endif
+												#endif
 
 #ifdef HAVE_EPOLL
 												psocketgroupCacheRead->add(*(pChannelListEntry->pSocket),pChannelListEntry);
