@@ -59,7 +59,7 @@ extern CACmdLnOptions* pglobalOptions;
 #include "CAStatusManager.hpp"
 
 const UINT32 CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS = NUM_LOGIN_WORKER_TRHEADS * 2;
-CAConditionVariable *loginCV = new CAConditionVariable();
+CAMutex *loginCV = new CAConditionVariable();
 
 bool CAFirstMix::isShuttingDown()
 {

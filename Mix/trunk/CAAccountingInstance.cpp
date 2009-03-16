@@ -1806,17 +1806,24 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 						pAccInfo->accountNumber);
 				//Synchronize until the main thread can sure that the connection is closed. (After FirstMixA::checkConnections()
 				// in main loop)
-				loginCV->wait();
+				//not dangerous if ensured that the cleanup notifier is always locked after loginCV
+				//but it is necessary to lock cleanupNotifier before releasing loginCV. otherwise we might lose
+				//the signal from cleanupNotifier. This can't happen if the main thread that
+				//peforms the cleanup is still blokced by loginCV before it can acquire cleanupNotifier during the cleanup.
+				ownerRef->cleanupNotifier->lock();
+				loginCV->unlock();
+				ownerRef->cleanupNotifier->wait();
+				ownerRef->cleanupNotifier->unlock();
 			}
 			else
 			{
+				loginCV->unlock();
 				//if the forceKickout returns false the ownerRef was already cleared.
 				//no need to wait any further.
 				CAMsg::printMsg(LOG_INFO, "ownerRef %p of account %llu already kicked out.\n", ownerRef, pAccInfo->accountNumber);
 			}
 			errDoc->release();
 			errDoc = NULL;
-			loginCV->unlock();
 			//obtain hashtable lock again.
 			m_currentAccountsHashtable->getMutex()->lock();
 			if(loginEntry != NULL)
