@@ -35,6 +35,12 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define STR_VALUE_TRUE "true"
 #define STR_VALUE_FALSE "false"
 
+#define TMP_BUFF_SIZE 255
+#define TMP_LOCALE_SIZE 3
+#define TMP_DATE_SIZE 9
+
+#define TEMPLATE_REFID_MAXLEN ((TMP_BUFF_SIZE) + (TMP_LOCALE_SIZE) + (TMP_DATE_SIZE) + 2)
+
 #if _XERCES_VERSION >= 30001
 	#define INTEGRATE_NOT_ALLOWED_POSITIONS \
 		(DOMNode::DOCUMENT_POSITION_CONTAINED_BY | DOMNode::DOCUMENT_POSITION_CONTAINS )
@@ -204,6 +210,9 @@ SINT32 getLastDOMChildByName(const DOMNode* pNode,const char * const name,DOMNod
 SINT32 getLastDOMChildByName(const DOMNode* pNode,const char * const name,DOMElement* & a_child);
 
 SINT32 setCurrentTimeMilliesAsDOMAttribute(DOMNode *pElem);
+
+//if not null the returned char pointer must be explicitely freed by the caller with 'delete []'
+UINT8 *getTermsAndConditionsTemplateRefId(DOMNode *tcTemplateRoot);
 
 SINT32 encodeXMLEncryptedKey(UINT8* key,UINT32 keylen, UINT8* xml, UINT32* xmllen,CAASymCipher* pRSA);
 SINT32 encodeXMLEncryptedKey(UINT8* key,UINT32 keylen, DOMElement* & elemRootEncodedKey,XERCES_CPP_NAMESPACE::DOMDocument* docOwner,CAASymCipher* pRSA);

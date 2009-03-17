@@ -740,6 +740,50 @@ SINT32 setCurrentTimeMilliesAsDOMAttribute(DOMNode *pElem)
 
 }
 
+//if not null the returned char pointer must be explicitely freed by the caller with 'delete []'
+UINT8 *getTermsAndConditionsTemplateRefId(DOMNode *tcTemplateRoot)
+{
+	UINT32 tmpTypeLen = TMP_BUFF_SIZE;
+	UINT8 tmpType[tmpTypeLen];
+
+	UINT32 tmpLocaleLen = TMP_LOCALE_SIZE;
+	UINT8 tmpLocale[tmpLocaleLen];
+
+	UINT32 tmpDateLen = TMP_DATE_SIZE;
+	UINT8 tmpDate[tmpDateLen];
+	memset(tmpDate, 0, TMP_DATE_SIZE);
+	memset(tmpLocale, 0, TMP_LOCALE_SIZE);
+	memset(tmpType, 0, TMP_BUFF_SIZE);
+
+	//TODO replace magic strings
+	if(getDOMElementAttribute(tcTemplateRoot, "type", tmpType, &tmpTypeLen) != E_SUCCESS)
+	{
+		return NULL;
+	}
+	else if(getDOMElementAttribute(tcTemplateRoot, "locale", tmpLocale, &tmpLocaleLen) != E_SUCCESS)
+	{
+		return NULL;
+	}
+	else if(getDOMElementAttribute(tcTemplateRoot, "date", tmpDate, &tmpDateLen) != E_SUCCESS)
+	{
+		return NULL;
+	}
+	if( (tmpTypeLen == 0) ||
+		(tmpLocaleLen == 0) ||
+		(tmpDateLen) == 0)
+	{
+		return NULL;
+	}
+	//reserve 2 more chars for the both underlines between the fields ...
+	size_t templateRefIdLen = tmpTypeLen+tmpLocaleLen+tmpDateLen+2;
+	//... and 1 more for zero termination.
+	char *templateRefId = new char[templateRefIdLen+1];
+	memset(templateRefId, 0, templateRefIdLen+1);
+	snprintf(templateRefId, templateRefIdLen+1, "%s_%s_%s", (char *) tmpType, (char *) tmpLocale, (char *) tmpDate);
+
+	return (UINT8 *) templateRefId;
+}
+
 #ifndef ONLY_LOCAL_PROXY
 DOMNodeList* getElementsByTagName(DOMElement* pElem,const char* const name)
 	{
