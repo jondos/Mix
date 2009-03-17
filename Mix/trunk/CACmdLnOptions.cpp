@@ -3398,14 +3398,21 @@ SINT32 CACmdLnOptions::setTermsAndConditionsTemplates(DOMElement *elemTnCs)
 	DOMNodeList *templateList = NULL;
 	bool nothingFound = true;
 	getDOMChildByName(elemTnCs, OPTIONS_NODE_TNCS_TEMPLATES, elemTnCsTemplates);
+
+	UINT8** loadedTemplateRefIds = NULL;
+	bool templateError = false;
+
 	if(elemTnCsTemplates != NULL)
 	{
 		templateList = getElementsByTagName(elemTnCsTemplates, OPTIONS_NODE_TNCS_TEMPLATE);
 		if(templateList->getLength() > 0)
 		{
 			nothingFound = false;
-			m_termsAndConditionsTemplates = new DOMDocument*[templateList->getLength()];
 			m_nrOfTermsAndConditionsTemplates = templateList->getLength();
+			m_termsAndConditionsTemplates = new DOMDocument*[m_nrOfTermsAndConditionsTemplates];
+			loadedTemplateRefIds = new UINT8*[m_nrOfTermsAndConditionsTemplates];
+			memset(loadedTemplateRefIds, 0, (sizeof(UINT8*)*m_nrOfTermsAndConditionsTemplates) );
+
 			UINT8 currentTemplateURL[TMP_BUFF_SIZE];
 			UINT32 len = TMP_BUFF_SIZE;
 			memset(currentTemplateURL, 0, len);
@@ -3420,9 +3427,51 @@ SINT32 CACmdLnOptions::setTermsAndConditionsTemplates(DOMElement *elemTnCs)
 							currentTemplateURL);
 					return E_UNKNOWN;
 				}
+				UINT8* refId = getTermsAndConditionsTemplateRefId(m_termsAndConditionsTemplates[i]->getDocumentElement());
+				if(refId != NULL)
+				{
+					loadedTemplateRefIds[i] = refId;
+					for(XMLSize_t j = 0; j < i; j++)
+					{
+						if(strncmp((char *)refId, (char *) loadedTemplateRefIds[j], TEMPLATE_REFID_MAXLEN) == 0 )
+						{
+							templateError = true;
+							CAMsg::printMsg(LOG_ERR, "duplicate Terms And Conditions template '%s'.\n",refId);
+							break;
+						}
+					}
+				}
+				else
+				{
+					templateError = true;
+					CAMsg::printMsg(LOG_ERR, "Terms And Conditions template with invalid refid found.\n");
+					break;
+				}
+
+				if(!templateError)
+				{
+					CAMsg::printMsg(LOG_INFO, "loaded Terms And Conditions template '%s'.\n",refId);
+				}
+				else
+				{
+					break;
+				}
 				len = TMP_BUFF_SIZE;
-				//memset(currentTemplateURL, 0, len);
 			}
+		}
+		if(loadedTemplateRefIds != NULL)
+		{
+			for(XMLSize_t j = 0; j < m_nrOfTermsAndConditionsTemplates; j++)
+			{
+				delete [] loadedTemplateRefIds[j];
+				loadedTemplateRefIds[j] = NULL;
+			}
+			delete [] loadedTemplateRefIds;
+			loadedTemplateRefIds = NULL;
+		}
+		if(templateError)
+		{
+			return E_UNKNOWN;
 		}
 	}
 

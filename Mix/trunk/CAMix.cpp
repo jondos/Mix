@@ -483,23 +483,72 @@ DOMNode *CAMix::appendTermsAndConditionsExtension(XERCES_CPP_NAMESPACE::DOMDocum
 
 		//First add templates if there are any
 		UINT32 nrOfTemplates = pglobalOptions->getNumberOfTermsAndConditionsTemplates();
+
 		if(nrOfTemplates > 0)
 		{
+			UINT32 nrOfSentTemplates = 0;
+			UINT8 **sentTemplatesRefIds = NULL;
 			getDOMChildByName(elemTnCExtension, OPTIONS_NODE_TNCS_TEMPLATES, elemTemplates);
 			if(elemTemplates == NULL)
 			{
 				elemTemplates = createDOMElement(ownerDoc, OPTIONS_NODE_TNCS_TEMPLATES);
 				elemTnCExtension->appendChild(elemTemplates);
-
+			}
+			else
+			{
+				DOMNodeList *nl = getElementsByTagName(elemTemplates, "TermsAndConditionsFramework");
+				nrOfSentTemplates = nl->getLength();
+				if(nrOfSentTemplates > 0)
+				{
+					sentTemplatesRefIds = new UINT8*[nrOfSentTemplates];
+					for (UINT32 i = 0; i < nrOfSentTemplates; i++)
+					{
+						sentTemplatesRefIds[i] = getTermsAndConditionsTemplateRefId(nl->item(i));
+					}
+				}
 			}
 
 			XERCES_CPP_NAMESPACE::DOMDocument **allTemplates = pglobalOptions->getAllTermsAndConditionsTemplates();
+			UINT8 *currentTemplateRefId = NULL;
+			bool duplicate = false;
 			for(UINT32 i = 0; i < nrOfTemplates; i++)
 			{
-				elemTemplates->appendChild(ownerDoc->importNode(
-						allTemplates[i]->getDocumentElement(), true));
-				CAMsg::printMsg(LOG_DEBUG,"appended a tc node!\n");
+				currentTemplateRefId =
+					getTermsAndConditionsTemplateRefId(allTemplates[i]->getDocumentElement());
+				duplicate = false;
+				if(currentTemplateRefId != NULL)
+				{
+					for(UINT32 j=0; j < nrOfSentTemplates; j++)
+					{
+						if(strncmp((char *)currentTemplateRefId, (char *)sentTemplatesRefIds[j], TEMPLATE_REFID_MAXLEN) == 0)
+						{
+							duplicate = true;
+							break;
+						}
+					}
+					if(!duplicate)
+					{
+						//TODO: avoid duplicates.
+						elemTemplates->appendChild(ownerDoc->importNode(
+								allTemplates[i]->getDocumentElement(), true));
+						CAMsg::printMsg(LOG_DEBUG,"appended a tc template node!\n");
+					}
+					else
+					{
+						CAMsg::printMsg(LOG_DEBUG,"template '%s' already sent.\n", currentTemplateRefId);
+					}
+					delete [] currentTemplateRefId;
+					currentTemplateRefId = NULL;
+				}
 			}
+
+			for(UINT32 i = 0; i < nrOfSentTemplates; i++)
+			{
+				delete [] sentTemplatesRefIds[i];
+				sentTemplatesRefIds[i] = NULL;
+			}
+			delete [] sentTemplatesRefIds;
+			sentTemplatesRefIds = NULL;
 		}
 
 		DOMNode* elemTnCs = ownerDoc->importNode(pglobalOptions->getTermsAndConditions(), true);

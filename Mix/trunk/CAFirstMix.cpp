@@ -726,6 +726,7 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 	{
 		DOMNodeList *tncTemplateList = getElementsByTagName(tncDefs, TNC_TEMPLATE_ROOT_ELEMENT);
 		m_nrOfTermsAndConditionsTemplates = tncTemplateList->getLength();
+		CAMsg::printMsg(LOG_ERR, "Storing %u TC Templates.\n", m_nrOfTermsAndConditionsTemplates);
 		if(m_nrOfTermsAndConditionsTemplates > 0)
 		{
 			m_tcTemplates = new DOMNode *[m_nrOfTermsAndConditionsTemplates];
@@ -755,10 +756,10 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 
 	m_nrOfTermsAndConditionsDefs = tncDefList->getLength();
 	m_tnCDefs = new TermsAndConditions *[m_nrOfTermsAndConditionsDefs];
+	memset(m_tnCDefs, 0, (sizeof(TermsAndConditions*)*m_nrOfTermsAndConditionsDefs) );
 
 	for (XMLSize_t i = 0; i < m_nrOfTermsAndConditionsDefs; i++)
 	{
-
 		currentTnCList = (DOMElement *) tncDefList->item(i);
 		DOMNodeList *tncDefEntryList = getElementsByTagName(currentTnCList, OPTIONS_NODE_TNCS_TRANSLATION);
 		getDOMElementAttribute(currentTnCList, OPTIONS_ATTRIBUTE_TNC_ID, currentTnC_id, &currentTnC_id_len);
@@ -783,7 +784,6 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 			}
 			else
 			{
-				m_tnCDefs[i] = NULL;
 				CAMsg::printMsg(LOG_CRIT,"Could not find template %s for T&C %s.\n", currentTnCEntry_templateRefid, currentTnC_id);
 				return E_UNKNOWN;
 			}
@@ -821,38 +821,20 @@ TermsAndConditions *CAFirstMix::getTermsAndConditions(const UINT8 *opSki)
 
 DOMNode *CAFirstMix::getTermsAndConditionsTemplate(UINT8 *templateRefID)
 {
-	UINT32 tmpTypeLen = TMP_BUFF_SIZE;
-	UINT8 tmpType[tmpTypeLen];
-
-	UINT32 tmpLocaleLen = TMP_LOCALE_SIZE;
-	UINT8 tmpLocale[tmpLocaleLen];
-
-	UINT32 tmpDateLen = TMP_DATE_SIZE;
-	UINT8 tmpDate[tmpDateLen];
-
-
-	char currentRefId[TMP_BUFF_SIZE];
+	UINT8 *currentRefId = NULL;
+	bool match = false;
 
 	for (UINT32 i = 0; i < m_nrOfTermsAndConditionsTemplates; i++)
 	{
-		getDOMElementAttribute(m_tcTemplates[i], OPTIONS_ATTRIBUTE_TNC_TEMPLATE_TYPE, tmpType, &tmpTypeLen);
-		getDOMElementAttribute(m_tcTemplates[i], OPTIONS_ATTRIBUTE_TNC_LOCALE, tmpLocale, &tmpLocaleLen);
-		getDOMElementAttribute(m_tcTemplates[i], OPTIONS_ATTRIBUTE_TNC_DATE, tmpDate, &tmpDateLen);
-
-		memset(currentRefId, 0, TMP_BUFF_SIZE);
-		snprintf(currentRefId, TMP_BUFF_SIZE, "%s_%s_%s", (char *) tmpType, (char *) tmpLocale, (char *) tmpDate);
-		//CAMsg::printMsg(LOG_DEBUG, "template refid: %s\n", currentRefId);
-		if(strncmp((char *)templateRefID, currentRefId, (tmpTypeLen+tmpLocaleLen+tmpDateLen+2) ) == 0)
+		currentRefId = getTermsAndConditionsTemplateRefId(m_tcTemplates[i]);
+		match = (currentRefId != NULL) &&
+				 (strncmp((char *)templateRefID, (char *)currentRefId, TEMPLATE_REFID_MAXLEN ) == 0);
+		delete [] currentRefId;
+		currentRefId = NULL;
+		if(match)
 		{
 			return m_tcTemplates[i];
 		}
-		memset(tmpDate, 0, TMP_DATE_SIZE);
-		memset(tmpLocale, 0, TMP_LOCALE_SIZE);
-		memset(tmpType, 0, TMP_BUFF_SIZE);
-
-		tmpLocaleLen = TMP_LOCALE_SIZE;
-		tmpDateLen = TMP_DATE_SIZE;
-		tmpTypeLen = TMP_BUFF_SIZE;
 	}
 	return NULL;
 }
@@ -1448,11 +1430,10 @@ termsAndConditionMixAnswer_t *CAFirstMix::handleTermsAndConditionsLogin(XERCES_C
 
 						const termsAndConditionsTranslation_t *requestedTranslation =
 								requestedTnC->getTranslation(locale);
-						//NOTE: No need to lock while working with the TC translation?
-						//because the translation are NOW only modfied during
-						//inter-mix-keyexchange and cleanup. Both do not run concurrent with this method if
-						//it is ensured that no connections are accepted during cleanup.
-
+						//NOTE: No need to lock while working with the TC translation
+						//because the translation containers are only modified during
+						//inter-mix-keyexchange and cleanup.
+						//Both must never run concurrently to this method
 						if(requestedTranslation != NULL)
 						{
 
