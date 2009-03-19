@@ -45,6 +45,7 @@ class CAAccountingControlChannel;
 #endif
 
 #define KICKOUT_FORCED true
+#define MAX_KICKOUT_RETRIES 4
 
 struct t_fmhashtableentry
 	{
@@ -87,7 +88,7 @@ struct t_fmhashtableentry
 #endif
 			// if false, the entry should be deleted the next time it is read from the queue
 			bool bRecoverTimeout;
-
+			SINT32 kickoutSendRetries;
 		private:
 			UINT32				cNumberOfChannels;
 			struct t_firstmixchannellist* pChannelList;

@@ -866,6 +866,13 @@ SINT32 CAFirstMixA::accountTrafficUpstream(fmHashTableEntry* pHashEntry)
 		closeConnection(pHashEntry);
 		ret = E_UNKNOWN;
 	}
+	//please remember that these values also may be returned even though they do not require
+	//any further processing
+	/*else if ( (ret == CAAccountingInstance::HANDLE_PACKET_CONNECTION_UNCHECKED) &&
+				(ret == CAAccountingInstance::HANDLE_PACKET_HOLD_CONNECTION) )
+	{
+
+	}*/
 #endif
 	return ret;
 }
@@ -895,6 +902,13 @@ SINT32 CAFirstMixA::accountTrafficDownstream(fmHashTableEntry* pfmHashEntry)
 		closeConnection(pfmHashEntry);
 		return ERR_INTERN_SOCKET_CLOSED;
 	}
+	//please remember that these values also may be returned even though they do not require
+	//any further processing
+	/*else if ( (ret == CAAccountingInstance::HANDLE_PACKET_CONNECTION_UNCHECKED) &&
+				(ret == CAAccountingInstance::HANDLE_PACKET_HOLD_CONNECTION) )
+	{
+
+	}*/
 #endif
 	return E_SUCCESS;
 }
@@ -970,16 +984,20 @@ void CAFirstMixA::checkUserConnections()
 	// check the timeout for all connections
 	fmHashTableEntry* timeoutHashEntry;
 	fmHashTableEntry* firstIteratorEntry = NULL;
+	bool currentEntryKickoutForced = false;
 	/* this check also includes forced kickouts which have not bRecoverTimeout set. */
 	while ( (timeoutHashEntry = m_pChannelList->popTimeoutEntry(true)) != NULL )
 	{
+		currentEntryKickoutForced = m_pChannelList->isKickoutForced(timeoutHashEntry);
 		if(firstIteratorEntry == timeoutHashEntry)
 		{
-			m_pChannelList->pushTimeoutEntry(timeoutHashEntry);
+			m_pChannelList->pushTimeoutEntry(timeoutHashEntry, currentEntryKickoutForced);
 			break;
 		}
-		if (timeoutHashEntry->bRecoverTimeout)
+
+		if (!currentEntryKickoutForced)
 		{
+			//CAMsg::printMsg(LOG_ERR, "%p\n, ", timeoutHashEntry);
 			if(m_pChannelList->isTimedOut(timeoutHashEntry) )
 			{
 				CAMsg::printMsg(LOG_DEBUG,"Client connection closed due to timeout.\n");
@@ -989,10 +1007,11 @@ void CAFirstMixA::checkUserConnections()
 		}
 		else
 		{
-			//A user to be kicked out: empty his data downstream data queue.
+			//A user to be kicked out: empty his downstream data queue.
 			timeoutHashEntry->pQueueSend->clean();
 
-			if(timeoutHashEntry->pControlMessageQueue->getSize() == 0)
+			if( (timeoutHashEntry->pControlMessageQueue->getSize() == 0) ||
+				(timeoutHashEntry->kickoutSendRetries <= 0) )
 			{
 				CAMsg::printMsg(LOG_ERR, "Kickout immediately owner %x!\n", timeoutHashEntry);
 				UINT32 authFlags = CAAccountingInstance::getAuthFlags(timeoutHashEntry);
@@ -1010,7 +1029,12 @@ void CAFirstMixA::checkUserConnections()
 			}
 			else
 			{
-				CAMsg::printMsg(LOG_ERR, "In Queue: %u\n", timeoutHashEntry->pControlMessageQueue->getSize());
+				//Note this counter initialized by calling CAFirstMixChannelList::add
+				//and accessed by this thread, both do never run concurrently.
+				//So we can avoid locking.
+				timeoutHashEntry->kickoutSendRetries--;
+				CAMsg::printMsg(LOG_ERR, "In Queue: %u, retries %d.\n",
+						timeoutHashEntry->pControlMessageQueue->getSize(), timeoutHashEntry->kickoutSendRetries);
 			}
 			// Let the client obtain all his remaining control message packets
 			//(which in most cases contain the error message with the kickout reason.
@@ -1021,7 +1045,7 @@ void CAFirstMixA::checkUserConnections()
 		{
 			firstIteratorEntry = timeoutHashEntry;
 		}
-		m_pChannelList->pushTimeoutEntry(timeoutHashEntry);
+		m_pChannelList->pushTimeoutEntry(timeoutHashEntry, currentEntryKickoutForced);
 	}
 #endif
 }
