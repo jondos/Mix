@@ -205,6 +205,7 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 		// insert in timeout list; entries are added to the foot of the list
 #ifdef PAYMENT
 		pHashTableEntry->bRecoverTimeout = true;
+		pHashTableEntry->kickoutSendRetries = MAX_KICKOUT_RETRIES;
 		/* Hot fix: push timeout entry explicitly to avoid
 		 * confusion, when timeout occurs during AI login
 		 */
@@ -434,7 +435,15 @@ inline bool CAFirstMixChannelList::isKickoutForced_internal(fmHashTableEntry* pH
 
 void CAFirstMixChannelList::setKickoutForced_internal(fmHashTableEntry* pHashTableEntry, bool kickoutForced)
 {
-	pHashTableEntry->bRecoverTimeout = !kickoutForced;
+	if(!pHashTableEntry->bRecoverTimeout && !kickoutForced )
+	{
+		CAMsg::printMsg(LOG_WARNING, "Try to switch back from forced kickout. A forced kickout cannot be undone!\n");
+	}
+	else
+	{
+		pHashTableEntry->bRecoverTimeout = !kickoutForced;
+	}
+
 }
 
 fmHashTableEntry* CAFirstMixChannelList::popTimeoutEntry_internal(bool a_bForce)
