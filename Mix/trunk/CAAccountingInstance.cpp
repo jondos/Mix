@@ -2883,7 +2883,9 @@ SINT32 CAAccountingInstance::settlementTransaction()
 					print64(tmp, confirmedBytes);
 					UINT8 tmp2[32];
 					print64(tmp2, diffBytes);
-					CAMsg::printMsg(LOG_INFO, "Settlement transaction: Received %s confirmed bytes and %s diff bytes!\n", tmp, tmp2);
+					UINT8 tmp3[32];
+					print64(tmp3, pCC->getTransferredBytes());
+					CAMsg::printMsg(LOG_INFO, "Settlement transaction: Received %s confirmed bytes and %s diff bytes while having %s transferred bytes!\n", tmp, tmp2, tmp3);
 				}
 				else
 				{
