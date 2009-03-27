@@ -2881,7 +2881,9 @@ SINT32 CAAccountingInstance::settlementTransaction()
 					}
 					UINT8 tmp[32];
 					print64(tmp, confirmedBytes);
-					CAMsg::printMsg(LOG_INFO, "Settlement transaction: Received %s confirmed bytes!\n", tmp);
+					UINT8 tmp2[32];
+					print64(tmp2, diffBytes);
+					CAMsg::printMsg(LOG_INFO, "Settlement transaction: Received %s confirmed bytes and %s diff bytes!\n", tmp, tmp2);
 				}
 				else
 				{
@@ -3074,7 +3076,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 							ms_pInstance->m_currentCascade, true);
 				if (prepaidBytes > 0)
 				{
-					if (entry->diffBytes >= (UINT32)prepaidBytes)
+					if (entry->diffBytes < 0 || entry->diffBytes >= (UINT64)prepaidBytes)
 					{
 						prepaidBytes = 0;
 					}
