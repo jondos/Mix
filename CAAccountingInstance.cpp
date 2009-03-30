@@ -401,9 +401,6 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 			return HANDLE_PACKET_CONNECTION_UNCHECKED;
 		}
 
-		/** @todo We need this trick so that the program does not freeze with active AI ThreadPool!!!! */
-		//pAccInfo->mutex->unlock();
-
 
 		SAVE_STACK("CAAccountingInstance::handleJapPacket", "before accounts hash");
 
@@ -1352,7 +1349,7 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 	}
 	pAccInfo->mutex->lock();
 	accountNumber = pAccInfo->accountNumber;
-	pAccInfo->mutex->unlock();
+	
 	ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
 	loginEntry = (AccountLoginHashEntry*)ms_pInstance->m_currentAccountsHashtable->getValue(&accountNumber);
 	if (loginEntry)
@@ -1385,6 +1382,14 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 		{
 			err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_ACCOUNT_EMPTY,
 										(UINT8 *) "AI login: access denied because your account is empty");
+			//pAccInfo->mutex->lock();
+		  pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
+			if (pAccInfo->confirmedBytes < pAccInfo->transferredBytes)
+			{
+				// this account is really empty; prevent an overflow in the prepaid bytes calculation
+				 pAccInfo->transferredBytes = pAccInfo->confirmedBytes;
+			}
+		  //pAccInfo->mutex->unlock();
 		}
 		else if(authFlags & AUTH_INVALID_ACCOUNT )
 		{
@@ -1431,6 +1436,7 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 	/* unlock the loginEntry object for other login threads */
 	//resetLoginOngoing(loginEntry, pHashEntry);
 	ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
+	pAccInfo->mutex->unlock();
 	return ret;
 }
 
