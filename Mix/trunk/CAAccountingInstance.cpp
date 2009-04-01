@@ -490,7 +490,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 						// this account is really empty; prevent an overflow in the prepaid bytes calculation
 						 pAccInfo->transferredBytes = pAccInfo->confirmedBytes;
 					}
-					
+
 					//CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: Account %llu is empty!\n", pAccInfo->accountNumber);
 					CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu empty with %d prepaid bytes, (transferred bytes: %llu, confirmed bytes: %llu)!\n",
 											pAccInfo->accountNumber, getPrepaidBytes(pAccInfo), pAccInfo->transferredBytes, pAccInfo->confirmedBytes);
@@ -545,7 +545,8 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 
 			if (getPrepaidBytes(pAccInfo) <= 0)
 			{
-				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account empty! Kicking out user...\n");
+				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Account %llu empty! Kicking out user...\n",
+						pAccInfo->accountNumber);
 				err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_ACCOUNT_EMPTY);
 			}
 			else
@@ -1144,11 +1145,14 @@ SINT32 CAAccountingInstance::processJapMessage(fmHashTableEntry * pHashEntry,con
 				else*/
 				if(hf_ret == CAXMLErrorMessage::ERR_OK)
 				{
-					CAMsg::printMsg( LOG_DEBUG, "Prepaid bytes are: %d\n",
-							getPrepaidBytes(pHashEntry->pAccountingInfo));
-					pHashEntry->pAccountingInfo->authFlags |=
-						 (getPrepaidBytes(pHashEntry->pAccountingInfo) > 0) ?
-								 AUTH_LOGIN_SKIP_SETTLEMENT : AUTH_NEW;
+					CAMsg::printMsg( LOG_DEBUG, "Prepaid bytes are: %d\n", getPrepaidBytes(pHashEntry->pAccountingInfo));
+
+					if( (getPrepaidBytes(pHashEntry->pAccountingInfo) > 0) &&
+						!(pHashEntry->pAccountingInfo->authFlags &
+							(AUTH_ACCOUNT_EMPTY | AUTH_BLOCKED | AUTH_INVALID_ACCOUNT)) )
+					{
+						pHashEntry->pAccountingInfo->authFlags |= AUTH_LOGIN_SKIP_SETTLEMENT;
+					}
 				}
 			}
 		else if ( strcmp( docElementName, "CC" ) == 0 )
@@ -1229,7 +1233,7 @@ void CAAccountingInstance::processJapMessageLoginHelper(fmHashTableEntry *pHashE
 				CAXMLErrorMessage *err = NULL;
 				XERCES_CPP_NAMESPACE::DOMDocument *errDoc = NULL;
 
-				if(pHashEntry->pAccountingInfo->authFlags & AUTH_BLOCKED )
+				/*if(pHashEntry->pAccountingInfo->authFlags & AUTH_BLOCKED )
 				{
 					err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_BLOCKED,
 												(UINT8 *) "AI login: access denied because your account is blocked");
@@ -1244,7 +1248,7 @@ void CAAccountingInstance::processJapMessageLoginHelper(fmHashTableEntry *pHashE
 					err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_NO_BALANCE,
 												(UINT8 *) "AI login: access denied because your account is not valid");
 				}
-				else if(pHashEntry->pAccountingInfo->authFlags & AUTH_FAKE )
+				else */ if(pHashEntry->pAccountingInfo->authFlags & AUTH_FAKE )
 				{
 					err = new CAXMLErrorMessage(handlerReturnValue);
 
@@ -1319,7 +1323,6 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 {
 	SINT32 ret = 0;
 	UINT64 accountNumber = 0;
-	UINT32 authFlags = 0;
 	AccountLoginHashEntry *loginEntry;
 	tAiAccountingInfo* pAccInfo = pHashEntry->pAccountingInfo;
 
@@ -1349,83 +1352,83 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 	}
 	pAccInfo->mutex->lock();
 	accountNumber = pAccInfo->accountNumber;
-	
+
+	//rest login flags
+	pAccInfo->authFlags &= (~AUTH_LOGIN_SKIP_SETTLEMENT & ~AUTH_LOGIN_NOT_FINISHED);
+
 	ms_pInstance->m_currentAccountsHashtable->getMutex()->lock();
 	loginEntry = (AccountLoginHashEntry*)ms_pInstance->m_currentAccountsHashtable->getValue(&accountNumber);
+
 	if (loginEntry)
 	{
-		authFlags = loginEntry->authFlags;
-		ret |= (loginEntry->authFlags & (AUTH_INVALID_ACCOUNT | AUTH_BLOCKED | AUTH_ACCOUNT_EMPTY));
-		ret |= (ret==0) ? 0 : AUTH_LOGIN_FAILED;
-
+		if(loginEntry->authRemoveFlags)
+		pAccInfo->authFlags &= ~(loginEntry->authRemoveFlags);
 	}
 	else
 	{
-		ret |= (AUTH_LOGIN_FAILED | AUTH_INVALID_ACCOUNT);
+		pAccInfo->authFlags |= AUTH_INVALID_ACCOUNT;
 	}
 	/*ret = pHashEntry->pAccountingInfo->authFlags &
 		(AUTH_LOGIN_NOT_FINISHED | AUTH_LOGIN_FAILED);*/
-	if(ret)
-	{
-		CAXMLErrorMessage *err = NULL;
-		XERCES_CPP_NAMESPACE::DOMDocument *errDoc = NULL;
-		/* Instead of using special login confirmation messages
-		 * we rather send XMLErrorMessages for backward compatibility reasons
-		 * because old JAPs (version <= 00.09.021) can handle them
-		 */
-		if(authFlags & AUTH_BLOCKED )
-		{
-			err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_BLOCKED,
-										(UINT8 *) "AI login: access denied because your account is blocked");
-		}
-		else if(authFlags & AUTH_ACCOUNT_EMPTY )
-		{
-			err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_ACCOUNT_EMPTY,
-										(UINT8 *) "AI login: access denied because your account is empty");
-			//pAccInfo->mutex->lock();
-		  pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
-			if (pAccInfo->confirmedBytes < pAccInfo->transferredBytes)
-			{
-				// this account is really empty; prevent an overflow in the prepaid bytes calculation
-				 pAccInfo->transferredBytes = pAccInfo->confirmedBytes;
-			}
-		  //pAccInfo->mutex->unlock();
-		}
-		else if(authFlags & AUTH_INVALID_ACCOUNT )
-		{
-			err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_NO_BALANCE,
-										(UINT8 *) "AI login: access denied because your account is not valid");
-		}
-		else
-		{
-			err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR,
-										(UINT8 *) "AI login: error occured while connecting, access denied");
-		}
 
-		if(err != NULL)
+
+	CAXMLErrorMessage *err = NULL;
+	XERCES_CPP_NAMESPACE::DOMDocument *errDoc = NULL;
+	/* Instead of using special login confirmation messages
+	 * we rather send XMLErrorMessages for backward compatibility reasons
+	 * because old JAPs (version <= 00.09.021) can handle them
+	 */
+	if(pAccInfo->authFlags & AUTH_BLOCKED )
+	{
+		err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_BLOCKED,
+									(UINT8 *) "AI login: access denied because your account is blocked");
+	}
+	else if(pAccInfo->authFlags & AUTH_ACCOUNT_EMPTY )
+	{
+		//err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_ACCOUNT_EMPTY,
+		//							(UINT8 *) "AI login: access denied because your account is empty");
+		//pAccInfo->mutex->lock();
+		pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
+		if (pAccInfo->confirmedBytes < pAccInfo->transferredBytes)
 		{
-			err->toXmlDocument(errDoc);
-			pHashEntry->pAccountingInfo->pControlChannel->sendXMLMessage(errDoc);
-			delete err;
-			err = NULL;
+			// this account is really empty; prevent an overflow in the prepaid bytes calculation
+			 pAccInfo->transferredBytes = pAccInfo->confirmedBytes;
 		}
+	  //pAccInfo->mutex->unlock();
+	}
+	else if(pAccInfo->authFlags & AUTH_INVALID_ACCOUNT )
+	{
+		err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_NO_BALANCE,
+									(UINT8 *) "AI login: access denied because your account is not valid");
+	}
+	/*else
+	{
+		err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR,
+									(UINT8 *) "AI login: error occured while connecting, access denied");
+	}*/
+
+	if(err != NULL)
+	{
+		err->toXmlDocument(errDoc);
+		pHashEntry->pAccountingInfo->pControlChannel->sendXMLMessage(errDoc);
+		delete err;
+		err = NULL;
 		if(errDoc != NULL)
 		{
 			errDoc->release();
 			errDoc = NULL;
 		}
-		/*sendAILoginConfirmation(pAccInfo,
-								CAXMLErrorMessage::ERR_BLOCKED,
-								(UINT8*) "AI access denied");*/
+		ret |= AUTH_LOGIN_FAILED;
 	}
 	else
 	{
-		//send login confirmation to user, but if the message could not be send, login will fail
-		/* These login confirmation messages are necessary for the new AI login protocol to indicate
-		 * that the process is finished after a settlement.
-		 * They won't bother old JAPs (version <= 00.09.021) because they will ignore
-		 * these confirmations.
-		 */
+
+	//send login confirmation to user, but if the message could not be send, login will fail
+	/* These login confirmation messages are necessary for the new AI login protocol to indicate
+	 * that the process is finished after a settlement.
+	 * They won't bother old JAPs (version <= 00.09.021) because they will ignore
+	 * these confirmations.
+	 */
 		if(sendAILoginConfirmation(pAccInfo,
 									CAXMLErrorMessage::ERR_OK,
 									(UINT8*) "AI login successful") != E_SUCCESS)
@@ -1433,6 +1436,7 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 			ret |= AUTH_LOGIN_FAILED;
 		}
 	}
+
 	/* unlock the loginEntry object for other login threads */
 	//resetLoginOngoing(loginEntry, pHashEntry);
 	ms_pInstance->m_currentAccountsHashtable->getMutex()->unlock();
@@ -2029,12 +2033,10 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	 * used and deleted before...
 	 * There should be something like an expiration date for the account status, e.g. 1 month
 	 */
-	char expireBuf[10];
-	memset(expireBuf, 0, 10);
-	SINT32 dbRet;
+	 SINT32 dbRet;
 	if(dbInterface != NULL);
 	{
-		dbRet = dbInterface->getAccountStatus(pAccInfo->accountNumber, status, expireBuf);
+		dbRet = dbInterface->getAccountStatus(pAccInfo->accountNumber, status);
 		CAAccountingDBInterface::releaseConnection(dbInterface);
 		dbInterface = NULL;
 	}
@@ -2047,75 +2049,32 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	}
 	else if (status > CAXMLErrorMessage::ERR_OK)
 	{
-		UINT32 authFlags = 0;
-		UINT8 tmp[32];
-		SINT32 dateComp = -1;
-
-		struct tm *expireDate = new struct tm;
-		time_t nowTime = time(NULL);
-		struct tm *now = localtime(&nowTime);
-		char nowBuf[10];
-
-		print64(tmp,pAccInfo->accountNumber);
-		if(expireBuf[0] != 0)
+		//UINT32 authFlags = 0;
+		//the auth falgs are set after this check, but they need to be verified during a forced settlement
+		//at the end of the login. (see finishLoginProcess())
+		CAMsg::printMsg(LOG_INFO, "CAAccountingInstance: Illegal status %u for account %llu found.\n",
+				status, pAccInfo->accountNumber);
+		if (status == CAXMLErrorMessage::ERR_BLOCKED)
 		{
-			strptime((const char*)expireBuf,"%m/%d/%y", expireDate);
-			dateComp= compDate(expireDate, now);
+			pAccInfo->authFlags |= AUTH_BLOCKED;
 		}
-		else
+		else if (status == CAXMLErrorMessage::ERR_KEY_NOT_FOUND)
 		{
-			CAMsg::printMsg(LOG_INFO, "CAAccountingInstance: Warning no expiration date was given for account %s with illegal status %u\n", tmp, status);
-			//@todo: delete this accountstatus. Right now we ignore this case.
+			pAccInfo->authFlags |= AUTH_INVALID_ACCOUNT;
 		}
-		/*
-		strftime(nowBuf, 9, "%m/%d/%y", now);
-		CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: account %s status %u expires on %s, today is %s\n", tmp, status, expireBuf, nowBuf);
-		*/
-
-		// Accountstatus is valid
-		if(dateComp >= 0)
+		else if (status == CAXMLErrorMessage::ERR_ACCOUNT_EMPTY)
 		{
-			CAMsg::printMsg(LOG_INFO, "CAAccountingInstance: Illegal status %u for account %s is still valid, user is not allowed to login\n", status, tmp);
-			if (status == CAXMLErrorMessage::ERR_BLOCKED)
-			{
-				authFlags |= AUTH_BLOCKED;
-				pAccInfo->authFlags |= AUTH_BLOCKED;
-			}
-			else if (status == CAXMLErrorMessage::ERR_KEY_NOT_FOUND)
-			{
-				authFlags |= AUTH_INVALID_ACCOUNT;
-			}
-			else if (status == CAXMLErrorMessage::ERR_ACCOUNT_EMPTY)
-			{
-				authFlags |= AUTH_ACCOUNT_EMPTY;
-				pAccInfo->authFlags |= AUTH_ACCOUNT_EMPTY;
-			}
-
-			delete expireDate;
-			expireDate = NULL;
-
-			CAMsg::printMsg(LOG_ERR, "CAAccountingInstance: The user with account %s should be kicked out due to error %u, expDate %s!\n", tmp, status, expireBuf);
-			if (authFlags)
-			{
-				loginEntry->authFlags |= authFlags;
-				if (loginEntry->confirmedBytes == 0)
-				{
-					loginEntry->confirmedBytes = pAccInfo->confirmedBytes;
-				}
-			}
-			m_currentAccountsHashtable->getMutex()->unlock();
-			pAccInfo->mutex->unlock();
-			delete pCC;
-			pCC = NULL;
-			return status;
+			pAccInfo->authFlags |= AUTH_ACCOUNT_EMPTY;
 		}
-		/*else
+
+		/*if (authFlags)
 		{
-			//@todo:  perhaps forcing settlement
+			pAccInfo->authFlags |= AUTH_BLOCKED;
+			if (loginEntry->confirmedBytes == 0)
+			{
+				loginEntry->confirmedBytes = pAccInfo->confirmedBytes;
+			}
 		}*/
-
-		delete expireDate;
-		expireDate = NULL;
 	}
 	m_currentAccountsHashtable->getMutex()->unlock();
 
@@ -2217,9 +2176,13 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 
 	pAccInfo->mutex->lock();
 
-
-	if (pAccInfo->authFlags & (AUTH_DELETE_ENTRY | AUTH_ACCOUNT_EMPTY))
+	if ( (pAccInfo->authFlags & AUTH_DELETE_ENTRY) ||
+		 (!(pAccInfo->authFlags & AUTH_LOGIN_NOT_FINISHED ) && (pAccInfo->authFlags & AUTH_ACCOUNT_EMPTY )) )
 	{
+		CAMsg::printMsg(LOG_ERR,
+					"CAAccountingInstance::handleCostConfirmation Ignoring CC, restricted flags set: %s %s\n",
+					((pAccInfo->authFlags & AUTH_DELETE_ENTRY) ? "AUTH_DELETE_ENTRY" : "") ,
+					((pAccInfo->authFlags & AUTH_ACCOUNT_EMPTY) ? "AUTH_ACCOUNT_EMPTY" : ""));
 		// ignore CCs for this account!
 		pAccInfo->mutex->unlock();
 		return CAXMLErrorMessage::ERR_NO_ERROR_GIVEN;
@@ -2243,8 +2206,6 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 		pAccInfo->mutex->unlock();
 		return CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR;
 	}
-
-
 
 	// for debugging only: test signature the oldschool way
 	// warning this removes the signature from doc!!!
@@ -2377,7 +2338,7 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 			errDoc = NULL;
 		}
 		//mark as account empty has the effect is that the user can empty his prepaid amount and then will be kicked out.
-		pAccInfo->authFlags |= AUTH_ACCOUNT_EMPTY;
+		pAccInfo->authFlags |= AUTH_FAKE;
 		delete pCC;
 		pCC = NULL;
 		pAccInfo->mutex->unlock();
@@ -2864,6 +2825,9 @@ SINT32 CAAccountingInstance::settlementTransaction()
 		UINT32 authRemoveFlags = 0;
 		UINT64 confirmedBytes = 0;
 		UINT64 diffBytes = 0;
+		UINT32 storedStatus = 0;
+
+		dbInterface->getAccountStatus(pCC->getAccountNumber(), storedStatus);
 
 		// check returncode
 		if(pErrMsg == NULL)  //no returncode -> connection error
@@ -2907,15 +2871,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 							"This may lead to too much prepaid bytes!\n");
 				}
 
-				//check if expDate is set don't store status otherwise
-				/*if(pErrMsg->getExpTimeString()!=NULL)
-				{
-					if(*(pErrMsg->getExpTimeString())!=0)
-					{
-						dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_ACCOUNT_EMPTY, pErrMsg->getExpTimeString());
-					}
-				}*/
-				dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_ACCOUNT_EMPTY, pErrMsg->getExpTimeString());
+				dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_ACCOUNT_EMPTY);
 				dbInterface->markAsSettled(pCC->getAccountNumber(), ms_pInstance->m_currentCascade,
 											pCC->getTransferredBytes());
 //#ifdef DEBUG
@@ -2967,16 +2923,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 				authFlags |= AUTH_BLOCKED;
 				bDeleteCC = true;
 
-				dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_BLOCKED, pErrMsg->getExpTimeString());
-				/* Don't forget to store the status when account is blocked
-				  but first check if expDate is set, otherwise don't store status */
-				/*if(pErrMsg->getExpTimeString()!=NULL)
-				{
-					if(*(pErrMsg->getExpTimeString())!=0)
-					{
-						dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_BLOCKED, pErrMsg->getExpTimeString());
-					}
-				}*/
+				dbInterface->storeAccountStatus(pCC->getAccountNumber(), CAXMLErrorMessage::ERR_BLOCKED);
 			}
 
 			else if (pErrMsg->getErrorCode() == CAXMLErrorMessage::ERR_DATABASE_ERROR)
@@ -3034,6 +2981,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 			nextEntry->confirmedBytes = confirmedBytes;
 			nextEntry->diffBytes = diffBytes;
 			nextEntry->nextEntry = entry;
+			nextEntry->storedStatus = storedStatus;
 			entry = nextEntry;
 		}
 
@@ -3104,6 +3052,37 @@ SINT32 CAAccountingInstance::settlementTransaction()
 						entry->accountNumber, prepaidBytes, ms_pInstance->m_currentCascade);
 				}
 			}
+
+			if( !(entry->authFlags & (AUTH_ACCOUNT_EMPTY | AUTH_BLOCKED | AUTH_INVALID_ACCOUNT)) &&
+				entry->storedStatus != 0)
+			{
+				dbInterface->clearAccountStatus(entry->accountNumber);
+				switch (entry->storedStatus)
+				{
+					case CAXMLErrorMessage::ERR_ACCOUNT_EMPTY:
+					{
+						CAMsg::printMsg(LOG_INFO, "Settlement transaction: clearing account empty status for %llu\n",
+								entry->accountNumber);
+						entry->authRemoveFlags |= AUTH_ACCOUNT_EMPTY;
+						break;
+					}
+					case CAXMLErrorMessage::ERR_BLOCKED:
+					{
+						CAMsg::printMsg(LOG_INFO, "Settlement transaction: clearing account blocked status for %llu\n",
+								entry->accountNumber);
+						entry->authRemoveFlags |= AUTH_BLOCKED;
+						break;
+					}
+					case CAXMLErrorMessage::ERR_KEY_NOT_FOUND:
+					{
+						CAMsg::printMsg(LOG_INFO, "Settlement transaction: clearing account invalid status for %llu\n",
+								entry->accountNumber);
+						entry->authRemoveFlags |= AUTH_INVALID_ACCOUNT;
+						break;
+					}
+				}
+			}
+
 			nextEntry = entry->nextEntry;
 			entry = nextEntry;
 		}
