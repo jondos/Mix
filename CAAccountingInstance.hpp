@@ -88,6 +88,7 @@ struct SettleEntry
 	UINT64 confirmedBytes;
 	UINT64 diffBytes;
 	SettleEntry* nextEntry;
+	SINT32 storedStatus;
 };
 
 bool testAndSetLoginOwner(struct AccountLoginHashEntry *loginEntry, struct t_fmhashtableentry *ownerRef);
