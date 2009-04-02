@@ -512,7 +512,7 @@ SINT32 CAAccountingInstance::handleJapPacket_internal(fmHashTableEntry *pHashEnt
 			else if (loginEntry->authFlags & AUTH_DATABASE)
 			{
 				loginEntry->authFlags &= ~AUTH_DATABASE;
-				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Upps - kicking out user with account %llu due to database error...\n", pAccInfo->accountNumber);
+				CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Kicking out user with account %llu due to database error...\n", pAccInfo->accountNumber);
 				err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_DATABASE_ERROR);
 			}
 			else if (loginEntry->authFlags & AUTH_UNKNOWN)
@@ -1363,6 +1363,7 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 	{
 		if(loginEntry->authRemoveFlags)
 		pAccInfo->authFlags &= ~(loginEntry->authRemoveFlags);
+		pAccInfo->authFlags |= (loginEntry->authFlags & CRITICAL_SETTLE_FLAGS);
 	}
 	else
 	{
@@ -1385,27 +1386,26 @@ SINT32 CAAccountingInstance::finishLoginProcess(fmHashTableEntry *pHashEntry)
 	}
 	else if(pAccInfo->authFlags & AUTH_ACCOUNT_EMPTY )
 	{
-		//err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_ACCOUNT_EMPTY,
-		//							(UINT8 *) "AI login: access denied because your account is empty");
-		//pAccInfo->mutex->lock();
 		pAccInfo->confirmedBytes = loginEntry->confirmedBytes;
 		if (pAccInfo->confirmedBytes < pAccInfo->transferredBytes)
 		{
 			// this account is really empty; prevent an overflow in the prepaid bytes calculation
 			 pAccInfo->transferredBytes = pAccInfo->confirmedBytes;
 		}
-	  //pAccInfo->mutex->unlock();
+		err = (getPrepaidBytes(pAccInfo) > 0) ? NULL :
+			new CAXMLErrorMessage(CAXMLErrorMessage::ERR_ACCOUNT_EMPTY,
+									(UINT8 *) "AI login: access denied because your account is empty");
 	}
 	else if(pAccInfo->authFlags & AUTH_INVALID_ACCOUNT )
 	{
 		err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_NO_BALANCE,
 									(UINT8 *) "AI login: access denied because your account is not valid");
 	}
-	/*else
+	else if(pAccInfo->authFlags & AUTH_UNKNOWN )
 	{
-		err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR,
+		err = new CAXMLErrorMessage(CAXMLErrorMessage::ERR_NO_ERROR_GIVEN,
 									(UINT8 *) "AI login: error occured while connecting, access denied");
-	}*/
+	}
 
 	if(err != NULL)
 	{
