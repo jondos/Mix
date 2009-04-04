@@ -1647,7 +1647,7 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 	{
 		prepaidAmount = prepaidIvalLowerBound;
 	}
-	CAMsg::printMsg( LOG_ERR, "handleAccountCertificate read %i prepaid bytes\n", prepaidAmount);
+	CAMsg::printMsg( LOG_INFO, "handleAccountCertificate read %i prepaid bytes\n", prepaidAmount);
 	setDOMElementValue( elemPrepaid, prepaidAmount);
 
 	// send XML struct to Jap & set auth flags
@@ -2535,7 +2535,7 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 
 		if (pAccInfo->accountNumber)
 		{
-			CAMsg::printMsg(LOG_ERR, "cleaning up entry %p of accountno. %llu (pAccInfo ref: %p)\n",
+			CAMsg::printMsg(LOG_INFO, "cleaning up entry %p of accountno. %llu (pAccInfo ref: %p)\n",
 							pHashEntry, pAccInfo->accountNumber, pAccInfo);
 			if (pAccInfo->authFlags & AUTH_ACCOUNT_OK)
 			{
