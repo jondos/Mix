@@ -41,7 +41,7 @@ class CAControlChannelDispatcher
 			* @param pSendQueue send queue in which the mix packets will be puted, if
 			*  a control channel sends a message
 			*/
-		CAControlChannelDispatcher(CAQueue* pSendQueue)
+		CAControlChannelDispatcher(CAQueue* pSendQueue,UINT8* keyRecv,UINT8* keySent)
 			{
 				m_pSendQueue=pSendQueue;
 				m_pQueueEntry=new tQueueEntry;
@@ -50,6 +50,26 @@ class CAControlChannelDispatcher
 				memset(m_arControlChannels,0,256*sizeof(CAAbstractControlChannel*));
 				m_pcsSendMsg=new CAMutex();
 				m_pcsRegisterChannel=new CAMutex();
+				m_pcsEnc=new CAMutex();
+				m_pcsDec=new CAMutex();
+				m_nEncMsgCounter=0;
+				m_pEncMsgIV=new UINT8[12];
+				memset(m_pEncMsgIV,0,12);
+				m_nDecMsgCounter=0;
+				m_pDecMsgIV=new UINT8[12];
+				memset(m_pDecMsgIV,0,12);
+				if(keySent!=NULL)
+				{
+					m_pGCMCtxEnc=new gcm_ctx_64k;
+					m_pGCMCtxDec=new gcm_ctx_64k;
+					gcm_init_64k(m_pGCMCtxEnc,keySent,128);
+					gcm_init_64k(m_pGCMCtxDec,keyRecv,128);
+				}
+				else
+				{
+					m_pGCMCtxEnc=NULL;
+					m_pGCMCtxDec=NULL;
+				}
 			}
 
 		~CAControlChannelDispatcher()
@@ -62,6 +82,14 @@ class CAControlChannelDispatcher
 				m_arControlChannels = NULL;
 				delete m_pQueueEntry;
 				m_pQueueEntry = NULL;
+				if(m_pGCMCtxEnc!=NULL)
+					delete m_pGCMCtxEnc;
+				if(m_pGCMCtxDec!=NULL)
+					delete m_pGCMCtxDec;
+				delete []m_pEncMsgIV;
+				delete m_pcsEnc;
+				delete []m_pDecMsgIV;
+				delete m_pcsDec;
 			}
 			
 		void deleteAllControlChannels(void);
@@ -71,8 +99,24 @@ class CAControlChannelDispatcher
     SINT32 removeControlChannel(UINT32 id);
 
     bool proccessMixPacket(const MIXPACKET* pPacket);
-		SINT32 sendMessages(UINT32 id,bool m_bIsEncrypted,const UINT8* msg,UINT32 msglen) const;
+		SINT32 sendMessages(UINT32 id,const UINT8* msg,UINT32 msglen);
   
+		/** Encrypts a control channel message. The output format is:
+			cipher text
+			auth tag - 16 bytes
+			*/
+		SINT32 encryptMessage(const UINT8* in,UINT32 inlen, UINT8* out,UINT32* outlen);
+		/** Decrypts a control channel message, which has to be of form:
+			cipher text
+			auth tag - 16 bytes
+			*/
+		SINT32 decryptMessage(const UINT8* in,UINT32 inlen, UINT8* out,UINT32* outlen);
+		///Temp workaorund function - to be removed soon...
+		bool isKeySet()
+			{
+				return m_pGCMCtxEnc!=NULL;
+			}
+
 	private:
 		CAQueue* m_pSendQueue;
 		MIXPACKET* m_pMixPacket;
@@ -80,5 +124,14 @@ class CAControlChannelDispatcher
 		tQueueEntry* m_pQueueEntry;
 		CAMutex* m_pcsSendMsg;
 		CAMutex* m_pcsRegisterChannel;
+		CAMutex* m_pcsEnc;
+		CAMutex* m_pcsDec;
+
+		gcm_ctx_64k* m_pGCMCtxEnc;
+		gcm_ctx_64k* m_pGCMCtxDec;
+		UINT32 m_nEncMsgCounter;
+		UINT8* m_pEncMsgIV;
+		UINT32 m_nDecMsgCounter;
+		UINT8* m_pDecMsgIV;
 };
 #endif

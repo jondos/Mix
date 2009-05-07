@@ -496,7 +496,7 @@ DOMNode *CAMix::appendTermsAndConditionsExtension(XERCES_CPP_NAMESPACE::DOMDocum
 			}
 			else
 			{
-				DOMNodeList *nl = getElementsByTagName(elemTemplates, "TermsAndConditionsFramework");
+				DOMNodeList *nl = getElementsByTagName(elemTemplates, "TermsAndConditionsTemplate");
 				nrOfSentTemplates = nl->getLength();
 				if(nrOfSentTemplates > 0)
 				{
@@ -603,7 +603,6 @@ DOMNode *CAMix::termsAndConditionsInfoNode(XERCES_CPP_NAMESPACE::DOMDocument *ow
 			getDOMElementAttribute(iterator, OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID, tmpBuff, &tmpLen);
 			setDOMElementAttribute(currentInfoNode, OPTIONS_ATTRIBUTE_TNC_TEMPLATE_REFID, tmpBuff);
 			tmpLen = TMP_BUFF_SIZE;
-
 
 			elemTnCInfos->appendChild(currentInfoNode);
 		}

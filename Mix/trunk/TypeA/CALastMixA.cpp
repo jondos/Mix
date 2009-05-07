@@ -284,6 +284,9 @@ SINT32 CALastMixA::loop()
 									{//channellist entry !=NULL
 										if(pMixPacket->flags==CHANNEL_CLOSE)
 											{
+												/** Do not realy close the connection - just inform the Queue that it is closed,
+												so that the remaining data will be sent to the server*/
+												/*
 												psocketgroupCacheRead->remove(*(pChannelListEntry->pSocket));
 												psocketgroupCacheWrite->remove(*(pChannelListEntry->pSocket));
 												pChannelListEntry->pSocket->close();
@@ -291,8 +294,15 @@ SINT32 CALastMixA::loop()
 												pChannelListEntry->pSocket = NULL;
 												delete pChannelListEntry->pCipher;
 												pChannelListEntry->pCipher = NULL;
-												delete pChannelListEntry->pQueueSend;
+												delete pChannelListEntry->pQueueSend;	
 												pChannelListEntry->pQueueSend = NULL;
+												*/
+												pChannelListEntry->pQueueSend->close();
+#ifdef HAVE_EPOLL
+												psocketgroupCacheWrite->add(*(pChannelListEntry->pSocket),pChannelListEntry);
+#else
+												psocketgroupCacheWrite->add(*(pChannelListEntry->pSocket));
+#endif
 												#if defined (LOG_PACKET_TIMES) ||defined (LOG_CHANNEL)
 													getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end);
 												#endif
@@ -304,21 +314,21 @@ SINT32 CALastMixA::loop()
 													pChannelListEntry->packetsDataInFromUser++;
 													MACRO_DO_LOG_CHANNEL_CLOSE_FROM_USER
 												#endif
-												m_pChannelList->removeChannel(pMixPacket->channel);
+												//m_pChannelList->removeChannel(pMixPacket->channel);
 											}
 										else if(pMixPacket->flags==CHANNEL_SUSPEND)
 											{
 												#ifdef _DEBUG
-													CAMsg::printMsg(LOG_DEBUG,"Suspending channel %u Socket: %u\n",pMixPacket->channel,(SOCKET)(*pChannelListEntry->pSocket));
+												CAMsg::printMsg(LOG_DEBUG,"Suspending channel %u Socket: %u\n",pMixPacket->channel,pChannelListEntry->pSocket->getSocket());
 												#endif
 												psocketgroupCacheRead->remove(*(pChannelListEntry->pSocket));
 											}
 										else if(pMixPacket->flags==CHANNEL_RESUME)
 											{
 												#ifdef _DEBUG
-													CAMsg::printMsg(LOG_DEBUG,"Resuming channel %u Socket: %u\n",pMixPacket->channel,(SOCKET)(*pChannelListEntry->pSocket));
+													CAMsg::printMsg(LOG_DEBUG,"Resuming channel %u Socket: %u\n",pMixPacket->channel,pChannelListEntry->pSocket->getSocket());
 												#endif
-
+	
 #ifdef HAVE_EPOLL
 												psocketgroupCacheRead->add(*(pChannelListEntry->pSocket),pChannelListEntry);
 #else
@@ -335,11 +345,11 @@ SINT32 CALastMixA::loop()
 												#ifdef NEW_FLOW_CONTROL
 												if(ret&NEW_FLOW_CONTROL_FLAG)
 													{
+														//CAMsg::printMsg(LOG_DEBUG,"got send me\n");
 														pChannelListEntry->sendmeCounter=max(0,pChannelListEntry->sendmeCounter-FLOW_CONTROL_SENDME_SOFT_LIMIT);
-														CAMsg::printMsg(LOG_DEBUG,"received sendme, new sendme counter: %u\n", pChannelListEntry->sendmeCounter);
-														ret&=(!NEW_FLOW_CONTROL_FLAG);
 													}
 												#endif
+												ret&=PAYLOAD_LEN_MASK;
 												if(ret>=0&&ret<=PAYLOAD_SIZE)
 													{
 														#ifdef LOG_CHANNEL
@@ -414,15 +424,31 @@ SINT32 CALastMixA::loop()
 										countRead--;
 #endif
 										SINT32 len=MIXPACKET_SIZE;
-										pChannelListEntry->pQueueSend->peek(tmpBuff,(UINT32*)&len);
+										SINT32 ret=pChannelListEntry->pQueueSend->peek(tmpBuff,(UINT32*)&len);
 										len=pChannelListEntry->pSocket->send(tmpBuff,len);
-										if(len>0)
+										if(len>=0)
 											{
 												add64((UINT64&)m_logUploadedBytes,len);
 												pChannelListEntry->pQueueSend->remove((UINT32*)&len);
 												if(pChannelListEntry->pQueueSend->isEmpty())
 													{
-														psocketgroupCacheWrite->remove(*(pChannelListEntry->pSocket));
+														if(pChannelListEntry->pQueueSend->isClosed()) //channel was closed by user // Queue: EMPTY + CLOSED
+															{
+																psocketgroupCacheRead->remove(*(pChannelListEntry->pSocket));
+																psocketgroupCacheWrite->remove(*(pChannelListEntry->pSocket));
+																pChannelListEntry->pSocket->close();
+																delete pChannelListEntry->pSocket;
+																pChannelListEntry->pSocket = NULL;
+																delete pChannelListEntry->pCipher;
+																pChannelListEntry->pCipher = NULL;
+																delete pChannelListEntry->pQueueSend;	
+																pChannelListEntry->pQueueSend = NULL;
+																m_pChannelList->removeChannel(pChannelListEntry->channelIn);														
+															}
+														else //Queue: EMPTY+!CLOSED
+															{//nothing more to write at the moment...
+																psocketgroupCacheWrite->remove(*(pChannelListEntry->pSocket));
+															}
 													}
 											}
 										else
@@ -454,7 +480,7 @@ SINT32 CALastMixA::loop()
 															getcurrentTimeMicros(pQueueEntry->timestamp_proccessing_end);
 															MACRO_DO_LOG_CHANNEL_CLOSE_FROM_MIX
 														#endif
-														m_pChannelList->removeChannel(pChannelListEntry->channelIn);
+														m_pChannelList->removeChannel(pChannelListEntry->channelIn);											 
 													}
 											}
 #ifdef HAVE_EPOLL
@@ -572,6 +598,7 @@ SINT32 CALastMixA::loop()
 														//else
 														//	pMixPacket->payload.len=htons((UINT16)ret);
 														//#else
+														//CAMsg::printMsg(LOG_DEBUG,"send packet with payload size: %u\n",ret);
 														pMixPacket->payload.len=htons((UINT16)ret);
 														//#endif
 														pChannelListEntry->pCipher->crypt2(pMixPacket->data,pMixPacket->data,DATA_SIZE);

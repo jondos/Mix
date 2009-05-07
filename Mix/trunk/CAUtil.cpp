@@ -823,7 +823,6 @@ SINT32 setDOMElementValue(DOMElement* pElem, SINT32 value)
 		return E_SUCCESS;
 	}
 
-//TODO: check the maximum string size of tmp
 SINT32 setDOMElementValue(DOMElement* pElem,double floatValue)
 	{
 		char *tmp = NULL;
@@ -906,6 +905,11 @@ SINT32 setDOMElementAttribute(DOMNode* pElem, const char* attrName, bool value)
 {
 	return setDOMElementAttribute(pElem, attrName,
 			((UINT8*) (value ? STR_VALUE_TRUE : STR_VALUE_FALSE)));
+}
+
+SINT32 setDOMElementValue(DOMElement* pElem, bool value)
+{
+	return setDOMElementValue(pElem,((UINT8*) (value ? STR_VALUE_TRUE : STR_VALUE_FALSE)));
 }
 
 SINT32 getDOMElementAttribute(const DOMNode * const elem,const char* attrName,SINT64& value)

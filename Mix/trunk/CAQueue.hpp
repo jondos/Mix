@@ -62,6 +62,7 @@ class CAQueue
 					m_nQueueSize=0;
 					m_pcsQueue=new CAMutex();
 					m_pconvarSize=new CAConditionVariable();
+					m_bClosed=false;
 #ifdef QUEUE_SIZE_LOG
 					m_nLogSize=0;
 #endif
@@ -70,6 +71,17 @@ class CAQueue
 				}
 			~CAQueue();
 			SINT32 add(const void* buff,UINT32 size);
+			
+			/** Closes the Queue (for writing). One can still read the remaing bytes out of the queue.
+			 */
+			SINT32 close()
+				{
+					m_pcsQueue->lock();
+					m_bClosed=true;
+					m_pcsQueue->unlock();
+					return E_SUCCESS;
+				}
+			
 			SINT32 get(UINT8* pbuff,UINT32* psize);
 			SINT32 getOrWait(UINT8* pbuff,UINT32* psize);
 			SINT32 getOrWait(UINT8* pbuff,UINT32* psize,UINT32 msTimeOut);
@@ -101,6 +113,15 @@ class CAQueue
 					return (m_Queue==NULL);
 				}
 
+			/** Returns true, if the Queue is closed
+				* @retval true, if Queue is closed
+				* @retval false, otherwise
+				*/
+			bool isClosed()
+				{
+					return m_bClosed;
+				}
+
 			/** Method to test the Queue
 				* @retval E_SUCCESS, if Queue implementation seams to be ok
 				*/
@@ -117,6 +138,7 @@ class CAQueue
 			QUEUE* m_Queue; 
 			QUEUE* m_lastElem;
 			volatile UINT32 m_nQueueSize;
+			volatile bool m_bClosed;
 			UINT32 m_nExpectedElementSize;
 			//QUEUE* m_pHeap;
 			CAMutex* m_pcsQueue;

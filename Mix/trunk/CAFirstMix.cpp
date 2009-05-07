@@ -185,18 +185,18 @@ SINT32 CAFirstMix::init()
 				return E_UNKNOWN;
 			}
 		m_pMuxOut=new CAMuxSocket();
-		if(((CASocket*)(*m_pMuxOut))->create(pAddrNext->getType())!=E_SUCCESS)
+		if(m_pMuxOut->getCASocket()->create(pAddrNext->getType())!=E_SUCCESS)
 			{
 				CAMsg::printMsg(LOG_CRIT,"Cannot create SOCKET for connection to next Mix!\n");
 				return E_UNKNOWN;
 			}
-		((CASocket*)(*m_pMuxOut))->setSendBuff(500*MIXPACKET_SIZE);
-		((CASocket*)(*m_pMuxOut))->setRecvBuff(500*MIXPACKET_SIZE);
-		//if(((CASocket*)(*m_pMuxOut))->setSendLowWat(MIXPACKET_SIZE)!=E_SUCCESS)
+		m_pMuxOut->getCASocket()->setSendBuff(500*MIXPACKET_SIZE);
+		m_pMuxOut->getCASocket()->setRecvBuff(500*MIXPACKET_SIZE);
+		//if(((*m_pMuxOut))->setSendLowWat(MIXPACKET_SIZE)!=E_SUCCESS)
 		//	CAMsg::printMsg(LOG_INFO,"SOCKET Option SENDLOWWAT not set!\n");
-		CAMsg::printMsg(LOG_INFO,"MUXOUT-SOCKET RecvBuffSize: %i\n",((CASocket*)(*m_pMuxOut))->getRecvBuff());
-		CAMsg::printMsg(LOG_INFO,"MUXOUT-SOCKET SendBuffSize: %i\n",((CASocket*)(*m_pMuxOut))->getSendBuff());
-		//CAMsg::printMsg(LOG_INFO,"MUXOUT-SOCKET SendLowWatSize: %i\n",((CASocket*)(*m_pMuxOut))->getSendLowWat());
+		CAMsg::printMsg(LOG_INFO,"MUXOUT-SOCKET RecvBuffSize: %i\n",m_pMuxOut->getCASocket()->getRecvBuff());
+		CAMsg::printMsg(LOG_INFO,"MUXOUT-SOCKET SendBuffSize: %i\n",m_pMuxOut->getCASocket()->getSendBuff());
+		//CAMsg::printMsg(LOG_INFO,"MUXOUT-SOCKET SendLowWatSize: %i\n",((*m_pMuxOut))->getSendLowWat());
 
 		/** Connect to the next mix */
 		if(connectToNextMix(pAddrNext) != E_SUCCESS)
@@ -210,12 +210,13 @@ SINT32 CAFirstMix::init()
 		pAddrNext = NULL;
 		MONITORING_FIRE_NET_EVENT(ev_net_nextConnected);
 		CAMsg::printMsg(LOG_INFO," connected!\n");
-		if(((CASocket*)(*m_pMuxOut))->setKeepAlive((UINT32)1800)!=E_SUCCESS)
+		if(m_pMuxOut->getCASocket()->setKeepAlive((UINT32)1800)!=E_SUCCESS)
 			{
 				CAMsg::printMsg(LOG_INFO,"Socket option TCP-KEEP-ALIVE returned an error - so not set!\n");
-				if(((CASocket*)(*m_pMuxOut))->setKeepAlive(true)!=E_SUCCESS)
+				if(m_pMuxOut->getCASocket()->setKeepAlive(true)!=E_SUCCESS)
 					CAMsg::printMsg(LOG_INFO,"Socket option KEEP-ALIVE returned an error - so also not set!\n");
 			}
+
     if(processKeyExchange()!=E_SUCCESS)
     {
     	MONITORING_FIRE_NET_EVENT(ev_net_nextConnectionClosed);
@@ -249,7 +250,7 @@ SINT32 CAFirstMix::init()
 		m_psocketgroupUsersWrite=new CASocketGroup(true);
 #endif
 
-		m_pMuxOutControlChannelDispatcher=new CAControlChannelDispatcher(m_pQueueSendToMix);
+		m_pMuxOutControlChannelDispatcher=new CAControlChannelDispatcher(m_pQueueSendToMix,NULL,NULL);
 #ifdef REPLAY_DETECTION
 		m_pReplayDB=new CADatabase();
 		m_pReplayDB->start();
@@ -368,8 +369,9 @@ SINT32 CAFirstMix::processKeyExchange()
     //get the Keys from the other mixes (and the Mix-Id's...!)
     CAMsg::printMsg(LOG_INFO,"Received Key Info...\n");
     CAMsg::printMsg(LOG_DEBUG,"%s\n",recvBuff);
-
+    CAMsg::printMsg(LOG_INFO,"before parsing...\n");
     XERCES_CPP_NAMESPACE::DOMDocument* doc=parseDOMDocument(recvBuff,len);
+    CAMsg::printMsg(LOG_INFO,"after parsing...%p\n",doc);
     delete []recvBuff;
     recvBuff = NULL;
     DOMElement* elemMixes=doc->getDocumentElement();
@@ -380,6 +382,7 @@ SINT32 CAFirstMix::processKeyExchange()
 			doc->release();
 			doc = NULL;
 		}
+		CAMsg::printMsg(LOG_INFO,"before returning...\n");
 		return E_UNKNOWN;
     }
 		SINT32 count=0;
@@ -403,11 +406,14 @@ SINT32 CAFirstMix::processKeyExchange()
         return E_UNKNOWN;
     pglobalOptions->setCascadeName(cascadeName);
 */
+    CAMsg::printMsg(LOG_INFO,"before append T&Cs...\n");
     if(pglobalOptions->getTermsAndConditions() != NULL)
     {
     	appendTermsAndConditionsExtension(doc, elemMixes);
     }
+    CAMsg::printMsg(LOG_INFO,"before append T&Cs...\n");
     SINT32 extRet = handleKeyInfoExtensions(elemMixes);
+    CAMsg::printMsg(LOG_INFO,"after handleKeyInfoExt...\n");
     if(extRet != E_SUCCESS)
     {
     	if(doc != NULL)
@@ -459,11 +465,15 @@ SINT32 CAFirstMix::processKeyExchange()
     DOMElement* elemOwnMix=NULL;
     getDOMChildByName(elemMixesKey, "Mix", elemOwnMix, false);
     elemOwnMix->appendChild(elemKey);
+    CAMsg::printMsg(LOG_INFO,"before T&Cs1...\n");
     if(pglobalOptions->getTermsAndConditions() != NULL)
     {
     	elemOwnMix->appendChild(termsAndConditionsInfoNode(docXmlKeyInfo));
     }
-    if (signXML(elemOwnMix) != E_SUCCESS)
+    CAMsg::printMsg(LOG_INFO,"after T&Cs1...\n");
+		elemOwnMix->appendChild(createDOMElement(docXmlKeyInfo,"SupportsEncrypedControlChannels"));
+	CAMsg::printMsg(LOG_INFO,"after SupportEncChannels...\n");
+	if (signXML(elemOwnMix) != E_SUCCESS)
 	{
 		CAMsg::printMsg(LOG_DEBUG,"Could not sign MixInfo sent to users...\n");
 	}
@@ -605,8 +615,8 @@ SINT32 CAFirstMix::processKeyExchange()
             m_pMuxOut->setReceiveKey(key+32,32);
             UINT16 size=htons((UINT16)outlen);
             CAMsg::printMsg(LOG_DEBUG,"Sending symmetric key to next Mix! Size: %i\n",outlen);
-            ((CASocket*)m_pMuxOut)->send((UINT8*)&size,2);
-            ((CASocket*)m_pMuxOut)->send(out,outlen);
+            m_pMuxOut->getCASocket()->send((UINT8*)&size,2);
+            m_pMuxOut->getCASocket()->send(out,outlen);
             m_pMuxOut->setCrypt(true);
             delete[] out;
             out = NULL;
@@ -614,7 +624,6 @@ SINT32 CAFirstMix::processKeyExchange()
         }
         child=child->getNextSibling();
     }
-
 		///initialises MixParameters struct
 	if(initMixParameters(elemMixes)!=E_SUCCESS)
 	{
@@ -726,7 +735,7 @@ SINT32 CAFirstMix::handleTermsAndConditionsExtension(DOMElement *extensionsRoot)
 	{
 		DOMNodeList *tncTemplateList = getElementsByTagName(tncDefs, TNC_TEMPLATE_ROOT_ELEMENT);
 		m_nrOfTermsAndConditionsTemplates = tncTemplateList->getLength();
-		CAMsg::printMsg(LOG_ERR, "Storing %u TC Templates.\n", m_nrOfTermsAndConditionsTemplates);
+		CAMsg::printMsg(LOG_INFO, "Storing %u TC Templates.\n", m_nrOfTermsAndConditionsTemplates);
 		if(m_nrOfTermsAndConditionsTemplates > 0)
 		{
 			m_tcTemplates = new DOMNode *[m_nrOfTermsAndConditionsTemplates];
@@ -1072,7 +1081,7 @@ typedef struct T_UserLoginData t_UserLoginData;
 SINT32 isAllowedToPassRestrictions(CASocket* pNewMuxSocket)
 {
 	UINT8* peerIP=new UINT8[4];
-	SINT32 master = ((CASocket*)pNewMuxSocket)->getPeerIP(peerIP);
+	SINT32 master = pNewMuxSocket->getPeerIP(peerIP);
 
 	if(master == E_SUCCESS)
 	{
@@ -1175,7 +1184,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							CAMsg::printMsg(LOG_DEBUG,"New direct Connection from Client!\n");
 						#endif
 						pNewMuxSocket=new CAMuxSocket;
-						ret=socketsIn[i].accept(*(CASocket*)pNewMuxSocket);
+						ret=socketsIn[i].accept(*(pNewMuxSocket->getCASocket()));
 						pFirstMix->incNewConnections();
 
 						if(ret!=E_SUCCESS)
@@ -1184,7 +1193,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							CAMsg::printMsg(LOG_ERR,"Accept Error %u - direct Connection from Client!\n",GET_NET_ERROR);
 						}
 						else if( (pglobalOptions->getMaxNrOfUsers() > 0 && pFirstMix->getNrOfUsers() >= pglobalOptions->getMaxNrOfUsers())
-								&& (isAllowedToPassRestrictions((CASocket*)pNewMuxSocket) != E_SUCCESS)
+								&& (isAllowedToPassRestrictions(pNewMuxSocket->getCASocket()) != E_SUCCESS)
 
 								)
 						{
@@ -1192,7 +1201,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							ret = E_UNKNOWN;
 						}
 						else if ((pFirstMix->m_newConnections > CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS)
-								&& (isAllowedToPassRestrictions((CASocket*)pNewMuxSocket) != E_SUCCESS)
+								&& (isAllowedToPassRestrictions(pNewMuxSocket->getCASocket()) != E_SUCCESS)
 								)
 
 						{
@@ -1205,7 +1214,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							ret = E_UNKNOWN;
 						}
 #ifndef PAYMENT
-						else if ((ret = ((CASocket*)pNewMuxSocket)->getPeerIP(peerIP)) != E_SUCCESS ||
+						else if ((ret = pNewMuxSocket->getCASocket()->getPeerIP(peerIP)) != E_SUCCESS ||
 								pIPList->insertIP(peerIP)<0)
 						{
 							if (ret != E_SUCCESS)
@@ -1231,6 +1240,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							if(pthreadsLogin->addRequest(fm_loopDoUserLogin,d)!=E_SUCCESS)
 							{
 								CAMsg::printMsg(LOG_ERR,"Could not add an login request to the login thread pool!\n");
+								ret=E_UNKNOWN;
 							}
 						}
 
@@ -1532,11 +1542,11 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		BEGIN_STACK("CAFirstMix::doUserLogin");
 		SINT32 ai_ret;
 		#ifdef _DEBUG
-			int ret=((CASocket*)pNewUser)->setKeepAlive(true);
+			int ret=pNewUser->getCASocket()->setKeepAlive(true);
 			if(ret!=E_SUCCESS)
 				CAMsg::printMsg(LOG_DEBUG,"Error setting KeepAlive!");
 		#else
-			((CASocket*)pNewUser)->setKeepAlive(true);
+			pNewUser->getCASocket()->setKeepAlive(true);
 		#endif
 
 		#ifdef DEBUG
@@ -1546,7 +1556,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		SAVE_STACK("CAFirstMix::doUserLogin", "after setting keep alive");
 
 		// send the mix-keys to JAP
-		if (((CASocket*)pNewUser)->sendFullyTimeOut(m_xmlKeyInfoBuff,m_xmlKeyInfoSize, 40000, 10000) != E_SUCCESS)
+		if (pNewUser->getCASocket()->sendFullyTimeOut(m_xmlKeyInfoBuff,m_xmlKeyInfoSize, 40000, 10000) != E_SUCCESS)
 		{
 #ifdef _DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"User login: Sending login data has been interrupted!\n");
@@ -1561,13 +1571,13 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		#endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "after sending login data");
 
-		//((CASocket*)pNewUser)->send(m_xmlKeyInfoBuff,m_xmlKeyInfoSize);
+		//(pNewUser)->send(m_xmlKeyInfoBuff,m_xmlKeyInfoSize);
 		// es kann nicht blockieren unter der Annahme das der TCP-Sendbuffer > m_xmlKeyInfoSize ist....
 
 		//wait for keys from user
 		UINT16 xml_len;
-		if(((CASocket*)pNewUser)->isClosed() ||
-		   ((CASocket*)pNewUser)->receiveFullyT((UINT8*)&xml_len,2,FIRST_MIX_RECEIVE_SYM_KEY_FROM_JAP_TIME_OUT)!=E_SUCCESS)
+		if(pNewUser->getCASocket()->isClosed() ||
+		   pNewUser->getCASocket()->receiveFullyT((UINT8*)&xml_len,2,FIRST_MIX_RECEIVE_SYM_KEY_FROM_JAP_TIME_OUT)!=E_SUCCESS)
 		{
 			#ifdef DEBUG
 				CAMsg::printMsg(LOG_DEBUG,"User login: timed out while waiting for first symmetric key from client!\n");
@@ -1584,8 +1594,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 
 		xml_len=ntohs(xml_len);
 		UINT8* xml_buff=new UINT8[xml_len+2]; //+2 for size...
-		if(((CASocket*)pNewUser)->isClosed() ||
-		   ((CASocket*)pNewUser)->receiveFullyT(xml_buff+2,xml_len,FIRST_MIX_RECEIVE_SYM_KEY_FROM_JAP_TIME_OUT)!=E_SUCCESS)
+		if(pNewUser->getCASocket()->isClosed() ||
+		   pNewUser->getCASocket()->receiveFullyT(xml_buff+2,xml_len,FIRST_MIX_RECEIVE_SYM_KEY_FROM_JAP_TIME_OUT)!=E_SUCCESS)
 		{
 #ifdef _DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"User login: timed out while waiting for second symmetric key from client!\n");
@@ -1659,6 +1669,22 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				m_pIPList->removeIP(peerIP);
 				return E_UNKNOWN;
 			}
+		//Getting control channel keys if available
+		///TODO: move to the if-staement above
+		DOMElement* elemControlChannelEnc=NULL;
+		getDOMChildByName(elemRoot,"ControlChannelEncryption",elemControlChannelEnc,false);
+		UINT8 controlchannelKey[255];
+		UINT32 controlchannelKeyLen=255;
+		UINT8* controlchannelRecvKey=NULL;
+		UINT8* controlchannelSentKey=NULL;
+		if(	getDOMElementValue(elemControlChannelEnc,controlchannelKey,&controlchannelKeyLen)==E_SUCCESS&&
+				CABase64::decode(controlchannelKey,controlchannelKeyLen,controlchannelKey,&controlchannelKeyLen)==E_SUCCESS&&
+				controlchannelKeyLen==32)
+			{
+				controlchannelRecvKey=controlchannelKey;
+				controlchannelSentKey=controlchannelKey+16;
+			}
+
 		//Sending Signature....
 		xml_buff[0]=(UINT8)(xml_len>>8);
 		xml_buff[1]=(UINT8)(xml_len&0xFF);
@@ -1747,8 +1773,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		xml_buff[0]=(UINT8)(u32>>8);
 		xml_buff[1]=(UINT8)(u32&0xFF);
 
-		if (((CASocket*)pNewUser)->isClosed() ||
-		    ((CASocket*)pNewUser)->sendFullyTimeOut(xml_buff,u32+2, 30000, 10000) != E_SUCCESS)
+		if (pNewUser->getCASocket()->isClosed() ||
+		    pNewUser->getCASocket()->sendFullyTimeOut(xml_buff,u32+2, 30000, 10000) != E_SUCCESS)
 		{
 			if (doc != NULL)
 			{
@@ -1776,8 +1802,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		while( !(tcProcedureFinished || loginFailed) )
 		{
 			UINT16 tcRequestDataLen = 0;
-			if (((CASocket*)pNewUser)->isClosed() ||
-				((CASocket*)pNewUser)->receiveFullyT((UINT8*)&tcRequestDataLen, 2, 10000) != E_SUCCESS)
+			if (pNewUser->getCASocket()->isClosed() ||
+				pNewUser->getCASocket()->receiveFullyT((UINT8*)&tcRequestDataLen, 2, 10000) != E_SUCCESS)
 			{
 				loginFailed = true;
 				CAMsg::printMsg(LOG_ERR,"User login: Receiving t&c protocol data size has been interrupted!\n");
@@ -1788,8 +1814,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			//CAMsg::printMsg(LOG_DEBUG,"User login: expecting %u bytes!\n", tcRequestDataLen);
 			UINT8 tcDataBuf[tcRequestDataLen+1];
 			tcDataBuf[tcRequestDataLen] = 0;
-			if (((CASocket*)pNewUser)->isClosed() ||
-				((CASocket*)pNewUser)->receiveFullyT(tcDataBuf, tcRequestDataLen, 10000) != E_SUCCESS)
+			if (pNewUser->getCASocket()->isClosed() ||
+				pNewUser->getCASocket()->receiveFullyT(tcDataBuf, tcRequestDataLen, 10000) != E_SUCCESS)
 			{
 				loginFailed = true;
 				CAMsg::printMsg(LOG_ERR,"User login: Receiving t&c protocol data has been interrupted!\n");
@@ -1823,14 +1849,14 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 
 					UINT32 netSize = htonl(size);
 
-					if (((CASocket*)pNewUser)->isClosed() ||
-						((CASocket*)pNewUser)->sendFullyTimeOut((UINT8 *) &netSize, 4, 30000, 10000) != E_SUCCESS)
+					if (pNewUser->getCASocket()->isClosed() ||
+						pNewUser->getCASocket()->sendFullyTimeOut((UINT8 *) &netSize, 4, 30000, 10000) != E_SUCCESS)
 					{
 						CAMsg::printMsg(LOG_DEBUG,"User login: sending t&c protocol data size has been interrupted!\n");
 						loginFailed = true;
 					}
-					else if (((CASocket*)pNewUser)->isClosed() ||
-						((CASocket*)pNewUser)->sendFullyTimeOut(answerBuff, size, 30000, 10000) != E_SUCCESS)
+					else if (pNewUser->getCASocket()->isClosed() ||
+						pNewUser->getCASocket()->sendFullyTimeOut(answerBuff, size, 30000, 10000) != E_SUCCESS)
 					{
 						CAMsg::printMsg(LOG_DEBUG,"User login: Sending t&c protocol data has been interrupted!\n");
 						loginFailed = true;
@@ -1868,7 +1894,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 #endif
 		SAVE_STACK("CAFirstMix::doUserLogin", "sent key exchange signature");
 
-		((CASocket*)pNewUser)->setNonBlocking(true);
+		pNewUser->getCASocket()->setNonBlocking(true);
 
 		SAVE_STACK("CAFirstMix::doUserLogin", "Creating CAQueue...");
 		CAQueue* tmpQueue=new CAQueue(sizeof(tQueueEntry));
@@ -1877,7 +1903,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 #ifdef LOG_DIALOG
 		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue,strDialog);
 #else
-		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue);
+		fmHashTableEntry* pHashEntry=m_pChannelList->add(pNewUser,peerIP,tmpQueue,controlchannelSentKey,controlchannelRecvKey);
 #endif
 		if( (pHashEntry == NULL) ||
 			(pHashEntry->pControlMessageQueue == NULL) )// adding user connection to mix->JAP channel list (stefan: sollte das nicht connection list sein? --> es handelt sich um eine Datenstruktu fr Connections/Channels ).
@@ -1888,6 +1914,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				doc = NULL;
 			}
 			CAMsg::printMsg(LOG_ERR,"User login: Could not add new socket to connection list!\n");
+			if(pHashEntry!=NULL)
+				m_pChannelList->remove(pNewUser);
 			m_pIPList->removeIP(peerIP);
 			delete tmpQueue;
 			tmpQueue = NULL;
@@ -1948,7 +1976,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				{
 					controlMessages->get((UINT8*)aiAnswerQueueEntry,&qlen);
 					pNewUser->prepareForSend(&(aiAnswerQueueEntry->packet));
-					ai_ret = ((CASocket*)pNewUser)->
+					ai_ret = pNewUser->getCASocket()->
 						sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), MIXPACKET_SIZE, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
 					if (ai_ret != E_SUCCESS)
 					{
@@ -2006,7 +2034,6 @@ loop_break:
 
 		if(!(aiLoginStatus & AUTH_LOGIN_FAILED))
 		{
-
 			aiLoginStatus = CAAccountingInstance::finishLoginProcess(pHashEntry);
 			if(pNewUser != NULL)
 			{
@@ -2017,10 +2044,10 @@ loop_break:
 
 					//not really elegant but works: if the client closed the socket during the settlement
 					//the first send will succeed but the second one will fail.
-					ai_ret = ((CASocket*)pNewUser)->
+					ai_ret = pNewUser->getCASocket()->
 							sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)), 499, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
 
-					ai_ret = ((CASocket*)pNewUser)->
+					ai_ret =  pNewUser->getCASocket()->
 							sendFullyTimeOut(((UINT8*)&(aiAnswerQueueEntry->packet)+499), 499, 3*(AI_LOGIN_SO_TIMEOUT), AI_LOGIN_SO_TIMEOUT);
 					if (ai_ret != E_SUCCESS)
 					{
@@ -2083,8 +2110,14 @@ loop_break:
 		m_psocketgroupUsersRead->add(*pNewUser,m_pChannelList->get(pNewUser)); // add user socket to the established ones that we read data from.
 		m_psocketgroupUsersWrite->add(*pNewUser,m_pChannelList->get(pNewUser));
 #else
-		m_psocketgroupUsersRead->add(*pNewUser); // add user socket to the established ones that we read data from.
-		m_psocketgroupUsersWrite->add(*pNewUser);
+		if(m_psocketgroupUsersRead->add(*pNewUser)!=E_SUCCESS)// add user socket to the established ones that we read data from.
+		{
+			CAMsg::printMsg(LOG_DEBUG,"User login: Adding to m_psocketgroupUsersRead failed!\n");
+		}
+		if(	m_psocketgroupUsersWrite->add(*pNewUser)!=E_SUCCESS)
+		{
+			CAMsg::printMsg(LOG_DEBUG,"User login: Adding to m_psocketgroupUsersWrite failed!\n");
+		}
 #endif
 
 #ifndef LOG_DIALOG
@@ -2146,10 +2179,10 @@ THREAD_RETURN loopReadFromUsers(void* param)
 								ret=pMuxSocket->receive(pMixPacket,0);
 								if(ret==SOCKET_ERROR)
 									{
-										((CASocket*)pMuxSocket)->getPeerIP(ip);
+										pMuxSocket->getPeerIP(ip);
 										pIPList->removeIP(ip);
-										psocketgroupUsersRead->remove(*(CASocket*)pMuxSocket);
-										psocketgroupUsersWrite->remove(*(CASocket*)pMuxSocket);
+										psocketgroupUsersRead->remove(pMuxSocket);
+										psocketgroupUsersWrite->remove(pMuxSocket);
 										pEntry=pChannelList->getFirstChannelForSocket(pMuxSocket);
 										while(pEntry!=NULL)
 											{

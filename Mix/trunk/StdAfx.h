@@ -33,7 +33,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #if !defined(AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_)
 #define AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_
 
-#define MIX_VERSION "00.08.60"
+#define MIX_VERSION "00.08.67"
 
 #include "doxygen.h"
 
@@ -63,11 +63,12 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 //#define SDTFA // specific logic needed by SDTFA, http://www.sdtfa.com
 
 //#define LASTMIX_CHECK_MEMORY // only for internal debugging purpose
-
 //#define PRINT_THREAD_STACK_TRACE //Usefull for debugging output of stack trace if mix dies...
+//#define ENABLE_GPERFTOOLS_CPU_PROFILER //Enables the usage of the Goggle GPerfTools CPU Profiler for profiling the operation of the Mix 
+//#define ENABLE_GPERFTOOLS_HEAP_CHECKER //Enables the usage of the Goggle GPerfTools heap chekcer for detecting memory leaks
 
 //#define DATA_RETENTION_LOG //define if you need to store logs according to German data retention
-
+//#define INTEL_IPP_CRYPTO //define if you want to use the crypto routines of the Intel Performance Primitives 
 #if !defined(PRINT_THREAD_STACK_TRACE) && defined (DEBUG)&& ! defined(ONLY_LOCAL_PROXY)
 	#define PRINT_THREAD_STACK_TRACE
 #endif
@@ -128,13 +129,14 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #endif
 //#define LOG_CRIME
 //#define PAYMENT //to enable payment support, now use configure --enable-payment..
-//#define NO_PARKING //to disable control flow
+//#define NO_PARKING //to disable old control flow
 //#define NO_LOOPACCEPTUSER //to disable user accept thread for First Mix
 
 //#define USE_POOL
 //#define NEW_MIX_TYPE // to enable the new 1:x mix protocol
 //#define WITH_CONTROL_CHANNELS_TEST //enable a Test control Channel
 //#define NEW_FLOW_CONTROL //enable for the new flow control mechanism
+//#define NEW_CHANNEL_ENCRYPTION //enable the new protcol version which uses ECDH for key transport and two keys for upstream/downstream channel cryption
 
 //#define REPLAY_DETECTION // enable to prevent replay of mix packets
 #define REPLAY_TIMESTAMP_PROPAGATION_INTERVALL 1 //How often (in minutes) should the current replay timestamps be propagate
@@ -213,19 +215,22 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define LM_PACKET_STATS_LOG_INTERVALL 1 //Intervall in Minutes for loggin packet stats for the last Mix
 
 
+#define MIX_CASCADE_PROTOCOL_VERSION_0_1_0 10  //with new channel encryption  
 //#define MIX_CASCADE_PROTOCOL_VERSION_0_9 9  //with new payment protocol
 #define MIX_CASCADE_PROTOCOL_VERSION_0_8 8  //with replay detection + control channels + first mix symmetric
 #define MIX_CASCADE_PROTOCOL_VERSION_0_7 7  //with replay detection + control channels (obsolete)
-#define MIX_CASCADE_PROTOCOL_VERSION_0_6 6  //with new flow control
+//#define MIX_CASCADE_PROTOCOL_VERSION_0_6 6  //with new flow control (not used, because flow control is a last Mix only issue)
 #define MIX_CASCADE_PROTOCOL_VERSION_0_5 5  //with control channels (obsolte - allway with control channels)
 #define MIX_CASCADE_PROTOCOL_VERSION_0_4 4  //symmetric communication to first mix -> new default protocol
 #define MIX_CASCADE_PROTOCOL_VERSION_0_3 3 //with reply detection [deprecated - not in use anymore!]
-#define MIX_CASCADE_PROTOCOL_VERSION_0_2 2 //old normal protocol
+#define MIX_CASCADE_PROTOCOL_VERSION_0_2 2 //old normal protocol [deprecated - not in use anymore!]
 
 #ifdef REPLAY_DETECTION
 	#define MIX_CASCADE_PROTOCOL_VERSION "0.81"
 //#elif defined(PAYMENT)
 	//#define MIX_CASCADE_PROTOCOL_VERSION "0.9"
+#elif defined (NEW_CHANNEL_ENCRYPTION)
+	#define MIX_CASCADE_PROTOCOL_VERSION "0.10"
 #else
 	#define MIX_CASCADE_PROTOCOL_VERSION "0.4" //"0.4tc"
 #endif
@@ -268,6 +273,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define MSG_DONTWAIT 0
 	#define O_NONBLOCK 0
 	#define O_BLOCK 0
+	#define SHUT_RDWR SD_BOTH 
 	#define HAVE_VSNPRINTF
 	#define HAVE_SNPRINTF
 	#if _MSC_VER <1500
@@ -593,6 +599,14 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define MY_XERCES_VERSION "unknown"
 #endif
 
+#ifdef ENABLE_GPERFTOOLS_CPU_PROFILER
+	#include <google/profiler.h>
+#endif
+
+#ifdef INTEL_IPP_CRYPTO
+	#include <ippcp.h>
+#endif
+
 #ifdef PAYMENT
 	#define PAYMENT_VERSION_INFO " (payment)"
 #else
@@ -605,11 +619,24 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define DATA_RETENTION_LOG_INFO
 #endif
 
-#define MIX_VERSION_INFO "Mix-Version: " MIX_VERSION PAYMENT_VERSION_INFO DATA_RETENTION_LOG_INFO "\nUsing: " OPENSSL_VERSION_TEXT "\nUsing Xerces-C: " MY_XERCES_VERSION "\n"
+#ifdef NEW_FLOW_CONTROL
+	#define NEW_FLOW_CONTROL_INFO " (with new flow control)"
+#else
+	#define NEW_FLOW_CONTROL_INFO
+#endif
+
+#ifdef NEW_CHANNEL_ENCRYPTION
+	#define NEW_CHANNEL_ENCRYPTION_INFO " (with enhanced channel encryption)"
+#else
+	#define NEW_CHANNEL_ENCRYPTION_INFO
+#endif
+
+#define MIX_VERSION_INFO "Mix-Version: " MIX_VERSION PAYMENT_VERSION_INFO DATA_RETENTION_LOG_INFO NEW_FLOW_CONTROL_INFO NEW_CHANNEL_ENCRYPTION_INFO "\nUsing: " OPENSSL_VERSION_TEXT "\nUsing Xerces-C: " MY_XERCES_VERSION "\n"
 
 #include "errorcodes.hpp"
 #include "typedefs.hpp"
 #include "controlchannelids.h"
+#include "gcm/gcm.h"
 
 #ifdef PAYMENT
 	#define MAX_ACCOUNTNUMBER 999999999999ULL

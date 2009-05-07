@@ -875,6 +875,8 @@ SINT32 CACmdLnOptions::setNewValues(CACmdLnOptions& newOptions)
 		//Copy ressources limitation
 		m_u32DelayChannelLatency=newOptions.getDelayChannelLatency();
 #endif
+		if(newOptions.getMaxNrOfUsers()>0)
+			m_maxNrOfUsers=newOptions.getMaxNrOfUsers();
 		return E_SUCCESS;
 }
 
@@ -3513,7 +3515,7 @@ SINT32 CACmdLnOptions::setTermsAndConditionsList(DOMElement *elemTnCs)
 	if( (getDOMElementAttribute(elemTnCsList, OPTIONS_ATTRIBUTE_TNC_DATE, date, &dateLen) != E_SUCCESS) ||
 		(strlen((char *)date) != ((TMP_DATE_SIZE) - 1) ) )
 	{
-		CAMsg::printMsg(LOG_CRIT,"Attribute '%s' is not proper set for the global definition of Terms And Conditions!\n",
+		CAMsg::printMsg(LOG_CRIT,"Attribute '%s' is not properly set for the global definition of Terms And Conditions!\n",
 				OPTIONS_ATTRIBUTE_TNC_DATE);
 		return E_UNKNOWN;
 	}

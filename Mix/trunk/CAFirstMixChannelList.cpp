@@ -113,7 +113,7 @@ CAFirstMixChannelList::~CAFirstMixChannelList()
 	* @retval NULL if an error occured
 	*/
 #ifndef LOG_DIALOG
-fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8 peerIP[4],CAQueue* pQueueSend)
+fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8 peerIP[4],CAQueue* pQueueSend,UINT8* controlChannelKeySent,UINT8* controlChannelKeyRecv)
 #else
 fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8 peerIP[4],CAQueue* pQueueSend,UINT8* strDialog)
 #endif
@@ -126,7 +126,7 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 			FINISH_STACK("CAFirstMixChannelList::add (null socket)");
 			return NULL;
 		}
-		SINT32 hashkey=pMuxSocket->getSocket();
+		SINT32 hashkey=pMuxSocket->getHashKey();
 		if(hashkey>MAX_HASH_KEY-1||hashkey<0)
 		{
 			FINISH_STACK("CAFirstMixChannelList::add (invalid hash key)");
@@ -148,7 +148,7 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 		pHashTableEntry->pMuxSocket=pMuxSocket;
 		pHashTableEntry->pQueueSend=pQueueSend;
 		pHashTableEntry->pControlMessageQueue = new CAQueue();
-		pHashTableEntry->pControlChannelDispatcher = new CAControlChannelDispatcher(pHashTableEntry->pControlMessageQueue);
+		pHashTableEntry->pControlChannelDispatcher = new CAControlChannelDispatcher(pHashTableEntry->pControlMessageQueue,controlChannelKeyRecv,controlChannelKeySent);
 		pHashTableEntry->uAlreadySendPacketSize=-1;
 		pHashTableEntry->cNumberOfChannels=0;
 #ifdef LOG_TRAFFIC_PER_USER
@@ -161,6 +161,8 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 		strcpy((char*)pHashTableEntry->strDialog,(char*)strDialog);
 #endif
 		// TODO Collisions? Is the id still used somewhere?
+		//Yes it is --> for logging to match login /logout
+		//collisions in a hard seens are an issue, but are very unlikely; and because it is only for logging it does not really matter...
 		getRandom(&(pHashTableEntry->id));
 
 #ifdef PAYMENT
@@ -170,7 +172,7 @@ fmHashTableEntry* CAFirstMixChannelList::add(CAMuxSocket* pMuxSocket,const UINT8
 		SAVE_STACK("CAFirstMixChannelList::add", "copying peer IP");
 		memcpy(pHashTableEntry->peerIP,peerIP,4);
 #ifdef DATA_RETENTION_LOG
-		pHashTableEntry->peerPort=((CASocket*)pMuxSocket)->getPeerPort();
+		pHashTableEntry->peerPort=pMuxSocket->getCASocket()->getPeerPort();
 #endif
 #ifdef DELAY_USERS
 		m_pMutexDelayChannel->lock();
@@ -235,7 +237,7 @@ SINT32 CAFirstMixChannelList::addChannel(CAMuxSocket* pMuxSocket,HCHANNEL channe
 	{
 		if(pMuxSocket==NULL||channelOut==NULL)
 			return E_UNKNOWN;
-		SINT32 hashkey=pMuxSocket->getSocket();
+		SINT32 hashkey=pMuxSocket->getHashKey();
 		if(hashkey>MAX_HASH_KEY-1||hashkey<0)
 			return E_UNKNOWN;
 		m_Mutex.lock();
@@ -313,7 +315,7 @@ fmHashTableEntry* CAFirstMixChannelList::get(CAMuxSocket* pMuxSocket)
 	{
 		if(pMuxSocket==NULL)
 			return NULL;
-		SINT32 hashkey=pMuxSocket->getSocket();
+		SINT32 hashkey=pMuxSocket->getHashKey();
 		if(hashkey>MAX_HASH_KEY-1||hashkey<0)
 			return NULL;
 		m_Mutex.lock();
@@ -332,7 +334,7 @@ fmChannelListEntry* CAFirstMixChannelList::get(CAMuxSocket* pMuxSocket,HCHANNEL 
 	{
 		if(pMuxSocket==NULL)
 			return NULL;
-		SINT32 hashkey=pMuxSocket->getSocket();
+		SINT32 hashkey=pMuxSocket->getHashKey();
 		if(hashkey>MAX_HASH_KEY-1||hashkey<0)
 			return NULL;
 		m_Mutex.lock();
@@ -639,7 +641,7 @@ SINT32 CAFirstMixChannelList::remove(CAMuxSocket* pMuxSocket)
 	{
 		if(pMuxSocket==NULL)
 			return E_UNKNOWN;
-		SINT32 hashkey=pMuxSocket->getSocket();
+		SINT32 hashkey=pMuxSocket->getHashKey();
 		if(hashkey>MAX_HASH_KEY-1||hashkey<0)
 			return E_UNKNOWN;
 		m_Mutex.lock();
@@ -979,7 +981,7 @@ SINT32 CAFirstMixChannelList::removeChannel(CAMuxSocket* pMuxSocket,HCHANNEL cha
 	{
 		if(pMuxSocket==NULL)
 			return E_UNKNOWN;
-		SINT32 hashkey=pMuxSocket->getSocket();
+		SINT32 hashkey=pMuxSocket->getHashKey();
 		if(hashkey>MAX_HASH_KEY-1||hashkey<0)
 			return E_UNKNOWN;
 		m_Mutex.lock();
@@ -1112,7 +1114,7 @@ fmChannelListEntry* CAFirstMixChannelList::getFirstChannelForSocket(CAMuxSocket*
 	{
 		if(pMuxSocket==NULL)
 			return NULL;
-		SINT32 hashkey=pMuxSocket->getSocket();
+		SINT32 hashkey=pMuxSocket->getHashKey();
 		if(hashkey>MAX_HASH_KEY-1||hashkey<0)
 			return NULL;
 		fmHashTableEntry* pHashTableEntry=m_HashTable[hashkey];
@@ -1136,10 +1138,10 @@ SINT32 CAFirstMixChannelList::test()
 	{
 		CAFirstMixChannelList* pList=new CAFirstMixChannelList();
 		CAMuxSocket *pMuxSocket=new CAMuxSocket();
-		((CASocket*)pMuxSocket)->create();
+		pMuxSocket->getCASocket()->create();
 		UINT8 peerIP[4];
 #ifndef LOG_DIALOG
-		pList->add(pMuxSocket,peerIP,NULL);
+		pList->add(pMuxSocket,peerIP,NULL,NULL,NULL);
 #else
 		pList->add(pMuxSocket,peerIP,NULL,(UINT8*)"1");
 #endif

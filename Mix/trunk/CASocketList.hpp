@@ -38,6 +38,8 @@ typedef struct connlist
 		CASocket* pSocket;
 		connlist* next;
 		HCHANNEL outChannel;
+		UINT32 currentSendMeCounter;
+		UINT32 upstreamBytes;
 	} CONNECTIONLIST,CONNECTION;
 		
 struct t_MEMBLOCK;
@@ -49,7 +51,7 @@ class CASocketList
 			CASocketList(bool bThreadSafe);
 			~CASocketList();
 			SINT32 add(CASocket* pSocket,CASymCipher* pCiphers);
-			SINT32	 get(HCHANNEL in,CONNECTION* out);
+			SINT32 get(HCHANNEL in,CONNECTION* out);
 			
 			CASocket* remove(HCHANNEL id);
 			SINT32 clear();
@@ -76,6 +78,7 @@ class CASocketList
 
 			UINT32 getSize(){return m_Size;}
 			SINT32 setThreadSafe(bool b);
+			SINT32 addSendMeCounter(HCHANNEL in,SINT32 value);
 		protected:
 			SINT32 increasePool();
 			CONNECTIONLIST* m_Connections;

@@ -42,7 +42,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define CLOSE_RECEIVE 0x02
 #define CLOSE_BOTH		0x03
 
-UINT32 CASocket::m_u32NormalSocketsOpen=0; //how many "normal" sockets are open
+volatile UINT32 CASocket::m_u32NormalSocketsOpen=0; //how many "normal" sockets are open
 UINT32 CASocket::m_u32MaxNormalSockets=0xFFFFFFFF; //how many "normal" sockets are allowed at max
 
 
@@ -76,6 +76,7 @@ SINT32 CASocket::create(int type, bool a_bShowTypicalError)
 			if(m_bIsReservedSocket||m_u32NormalSocketsOpen<m_u32MaxNormalSockets)
 			{
 				m_Socket=socket(type,SOCK_STREAM,0);
+				//CAMsg::printMsg(LOG_DEBUG,"Opened socket: %d\n", m_Socket);
 			}
 			else
 			{
@@ -87,6 +88,7 @@ SINT32 CASocket::create(int type, bool a_bShowTypicalError)
 			return E_UNKNOWN;
 		if(m_Socket==INVALID_SOCKET)
 			{
+				m_Socket=0;
 				int er=GET_NET_ERROR;
 				if (a_bShowTypicalError)
 				{
@@ -184,8 +186,8 @@ SINT32 CASocket::accept(CASocket &s)
 		s.m_csClose.lock();
 		m_u32NormalSocketsOpen++;
 		s.m_bSocketIsClosed=false;
-
 		s.m_csClose.unlock();
+		//CAMsg::printMsg(LOG_DEBUG,"Opened socket: %d\n", s.m_Socket);
 
 		return E_SUCCESS;
 	}
@@ -304,7 +306,7 @@ SINT32 CASocket::connect(const CASocketAddr & psa,UINT32 msTimeOut)
 
 SINT32 CASocket::close()
 	{
-		UINT32 ret;
+		SINT32 ret;
 
 		if(m_bSocketIsClosed)
 		{
@@ -321,12 +323,16 @@ SINT32 CASocket::close()
 
 		if (!m_bSocketIsClosed)
 		{
+			shutdown(m_Socket,SHUT_RDWR); //call shutdown here because some OSes seems to ned it to
+			//wakeup other threads which block in read() or write()
 			ret=::closesocket(m_Socket);
 			if(!m_bIsReservedSocket)
 			{
 				m_u32NormalSocketsOpen--;
 			}
 			//CAMsg::printMsg(LOG_DEBUG,"Open Sockets: %d\n", m_u32NormalSocketsOpen);
+			//CAMsg::printMsg(LOG_DEBUG,"Closed socket: %d\n", m_Socket);
+			m_Socket=0;
 			m_bSocketIsClosed=true;
 		}
 
@@ -358,7 +364,7 @@ SINT32 CASocket::send(const UINT8* buff,UINT32 len)
 				ret=::send(m_Socket,(char*)buff,len,MSG_NOSIGNAL);
 				#ifdef _DEBUG
 					if(ret==SOCKET_ERROR)
-						CAMsg::printMsg(LOG_DEBUG,"Fehler beim Socket-send: %i\n",GET_NET_ERROR);
+						CAMsg::printMsg(LOG_DEBUG,"Fehler beim Socket-send: %i (Socket: %i)\n",GET_NET_ERROR,m_Socket);
 				#endif
 			}
 		while(ret==SOCKET_ERROR&&(ef=GET_NET_ERROR)==EINTR);

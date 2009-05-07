@@ -60,7 +60,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define TNC_REQ_TRANSLATION "Translation"
 #define TNC_RESOURCES "Resources"
 #define TNC_RESOURCE_TEMPLATE "Template"
-#define TNC_TEMPLATE_ROOT_ELEMENT "TermsAndConditionsFramework" //TODO: naming error: framework != template
+#define TNC_TEMPLATE_ROOT_ELEMENT "TermsAndConditionsTemplate"
 #define TNC_RESOURCE_CUSTOMIZED_SECT "CustomizedSections"
 
 #define TNC_RESPONSE_INVALID_REQUEST "InvalidTermsAndConditionsRequest"

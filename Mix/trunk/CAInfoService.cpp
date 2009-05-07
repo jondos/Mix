@@ -69,8 +69,6 @@ THREAD_RETURN CAInfoService::InfoLoop(void *p)
 		UINT32 lastStatusUpdate;
 		UINT32 lastMixInfoUpdate;
 		UINT32 nextUpdate;
-		bool bPreventLoop = false;
-		UINT32 temp;
 #ifdef DYNAMIC_MIX
 		UINT32 loops = 4;
 		UINT32 interval = 0;
@@ -678,7 +676,7 @@ SINT32 CAInfoService::sendOperatorTnCData()
 */
 SINT32 CAInfoService::sendMixHelo(SINT32 requestCommand,const UINT8* param)
 {
-	UINT32 len, tncLen;
+	UINT32 len;
 	SINT32 ret;
 	UINT8* strMixHeloXML=getMixHeloXMLAsString(len);
 
@@ -1077,7 +1075,8 @@ SINT32 CAInfoService::sendHelo(UINT8* a_strXML, UINT32 a_len, THREAD_RETURN (*a_
 		delete threads[i];
 		threads[i] = NULL;
 	}
-
+	//Message looks senseless but please keep it because Rolf reported a helo thread deadlock.
+	//Perhaps there is a problem when the threads are joined.
 	CAMsg::printMsg(LOG_DEBUG,"InfoService: all helo threads joined. continue.\n");
 	delete[] messages;
 	messages = NULL;

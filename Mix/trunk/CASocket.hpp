@@ -30,11 +30,11 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CASocketAddr.hpp"
 #include "CAClientSocket.hpp"
 #include "CAMutex.hpp"
-
+#include "CAMsg.hpp"
 class CASocket:public CAClientSocket
 	{
 		public:
-		CASocket(bool bIsReserved=false);
+			CASocket(bool bIsReserved=false);
 			~CASocket(){close();}
 
 			virtual SINT32 create();						
@@ -67,7 +67,12 @@ class CASocket:public CAClientSocket
 				* is recreated using create()
 				* @return number of the associated socket
 			**/
-			operator SOCKET(){return m_Socket;}
+			SOCKET getSocket()
+				{
+					return m_Socket;
+				}
+
+
 			virtual SINT32 getLocalIP(UINT8 r_Ip[4]);
 			virtual SINT32 getLocalPort();
 			virtual SINT32 getPeerIP(UINT8 ip[4]);
@@ -116,7 +121,7 @@ class CASocket:public CAClientSocket
 			}
 */		
 ///end check	
-			bool m_bSocketIsClosed; //this is a flag, which shows, if the m_Socket is valid
+			volatile bool m_bSocketIsClosed; //this is a flag, which shows, if the m_Socket is valid
 													//we should not set m_Socket to -1 or so after close,
 													//because the Socket value ist needed sometimes even after close!!!
 													// (because it is used as a Key in lookups for instance as a HashValue etc.)
@@ -128,7 +133,7 @@ class CASocket:public CAClientSocket
 			CAMutex m_csClose;
 			///The following two variables are use to realise "reserved" sockets. The rational behind is to ensure
 			///that we could allway crate "reserved" socket why we may fail to create normal sockets because of to many open files related restrictions
-			static UINT32 m_u32NormalSocketsOpen; //how many "normal" sockets are open
+			volatile static UINT32 m_u32NormalSocketsOpen; //how many "normal" sockets are open
 			static UINT32 m_u32MaxNormalSockets; //how many "normal" sockets are allowed at max
 			bool m_bIsReservedSocket; ///Normal or reserved socket?
 	};

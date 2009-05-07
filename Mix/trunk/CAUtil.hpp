@@ -167,7 +167,6 @@ SINT32 setDOMElementValue(DOMElement* pElem, SINT32 value);
  * as 64bit unsigned integer.
  */
 
-
 /**
  * Sets the decimal text representation of a 64bit integer as node value
  * TODO: implement this for non-64bit platforms
@@ -197,6 +196,7 @@ SINT32 setDOMElementAttribute(DOMNode* pElem, const char* attrName, UINT64 value
 SINT32 setDOMElementAttribute(DOMNode* pElem, const char* attrName, SINT64 value);
 
 SINT32 setDOMElementValue(DOMElement* pElem,double floatValue);
+SINT32 setDOMElementValue(DOMElement* pElem, bool value);
 
 SINT32 getDOMElementAttribute(const DOMNode * const pElem,const char* attrName,SINT64& value);
 SINT32 getDOMElementAttribute(const DOMNode * const pElem,const char* attrName,UINT32& value);
