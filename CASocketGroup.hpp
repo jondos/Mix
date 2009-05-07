@@ -51,17 +51,20 @@ class CASocketGroup
 					m_csFD_SET.lock();
 					#ifndef HAVE_POLL
 						#ifndef _WIN32
-								if(m_max<((SOCKET)s)+1)
-							m_max=((SOCKET)s)+1;
+								if(m_max<(s.getSocket())+1)
+							m_max=(s.getSocket())+1;
 						#endif
 						#pragma warning( push )
 						#pragma warning( disable : 4127 ) //Disable: Bedingter Ausdruck ist konstant
-						FD_SET((SOCKET)s,&m_fdset);
+						FD_SET(s.getSocket(),&m_fdset);
 						#pragma warning( pop )
 					#else
-						m_pollfd[(SOCKET)s].fd=(SOCKET)s;
-						if(m_max<((SOCKET)s)+1)
-							m_max=((SOCKET)s)+1;
+						SINT sock=s.getSocket();
+						m_pollfd[sock].fd=sock;
+						m_pollfd[sock].revents=0;
+						if(m_max<(sock+1))
+							m_max=sock+1;
+						//CAMsg::printMsg(LOG_DEBUG,"CASocketGroup::add() - socket: %d\n",sock);
 					#endif
 					m_csFD_SET.unlock();
 					return E_SUCCESS;
@@ -80,9 +83,12 @@ class CASocketGroup
 						FD_SET(s.getSocket(),&m_fdset);
 						#pragma warning( pop )
 					#else
-					m_pollfd[s.getSocket()].fd=s.getSocket();
-					if(m_max<(s.getSocket())+1)
-						m_max=(s.getSocket())+1;
+						SINT sock=s.getSocket();
+						m_pollfd[sock].fd=sock;
+						m_pollfd[sock].revents=0;
+						if(m_max<(sock+1))
+							m_max=sock+1;
+						//CAMsg::printMsg(LOG_DEBUG,"CASocketGroup::add() - socket: %d\n",sock);
 					#endif
 					m_csFD_SET.unlock();
 					return E_SUCCESS;
@@ -96,27 +102,27 @@ class CASocketGroup
 			bool isSignaled(CASocket&s)
 				{
 					#ifndef HAVE_POLL
-						return FD_ISSET((SOCKET)s,&m_signaled_set)!=0;
+						return FD_ISSET(s.getSocket(),&m_signaled_set)!=0;
 					#else
-						return m_pollfd[(SOCKET)s].revents!=0;
+						return m_pollfd[s.getSocket()].revents!=0;
 					#endif
 				}
 
 			bool isSignaled(CASocket*ps)
 				{
 					#ifndef HAVE_POLL
-						return FD_ISSET((SOCKET)*ps,&m_signaled_set)!=0;
+						return FD_ISSET(ps->getSocket(),&m_signaled_set)!=0;
 					#else
-						return m_pollfd[(SOCKET)*ps].revents!=0;
+						return m_pollfd[ps->getSocket()].revents!=0;
 					#endif
 				}
 
 			bool isSignaled(CAMuxSocket&s)
 				{
 					#ifndef HAVE_POLL
-						return FD_ISSET((SOCKET)s,&m_signaled_set)!=0;
+						return FD_ISSET(s.getSocket(),&m_signaled_set)!=0;
 					#else
-						return m_pollfd[(SOCKET)s].revents!=0;
+						return m_pollfd[s.getSocket()].revents!=0;
 					#endif
 				}
 
@@ -129,8 +135,8 @@ class CASocketGroup
 					SINT32 m_max;
 				#endif
 			#else
-				struct pollfd* m_pollfd;
-				SINT32 m_max;
+				volatile struct pollfd* m_pollfd;
+				volatile SINT32 m_max;
 			#endif
 			CAMutex m_csFD_SET;
 	};

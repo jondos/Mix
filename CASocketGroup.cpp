@@ -44,7 +44,7 @@ CASocketGroup::CASocketGroup(bool bWrite)
 			#endif
 		#else
 			m_pollfd=new struct pollfd[MAX_POLLFD];
-			memset(m_pollfd,0,sizeof(struct pollfd)*MAX_POLLFD);
+			memset((void*)m_pollfd,0,sizeof(struct pollfd)*MAX_POLLFD);
 			m_max=0;
 		#endif
 		setPoolForWrite(bWrite);
@@ -83,10 +83,12 @@ SINT32 CASocketGroup::remove(CASocket&s)
 		#ifndef HAVE_POLL
 			#pragma warning( push )
 			#pragma warning( disable : 4127 ) //Disable: Bedingter Ausdruck ist konstant
-			FD_CLR((SOCKET)s,&m_fdset);
+			FD_CLR(s.getSocket(),&m_fdset);
 			#pragma warning (pop)
 		#else
-			m_pollfd[(SOCKET)s].fd=-1;			
+			SINT sock=s.getSocket();
+			m_pollfd[sock].fd=-1;			
+			//CAMsg::printMsg(LOG_DEBUG,"CASocketGroup::remove() - socket: %d\n",sock);
 		#endif
 		m_csFD_SET.unlock();
 		return E_SUCCESS;
@@ -98,10 +100,12 @@ SINT32 CASocketGroup::remove(CAMuxSocket&s)
 		#ifndef HAVE_POLL
 			#pragma warning( push )
 			#pragma warning( disable : 4127 ) //Disable: Bedingter Ausdruck ist konstant
-			FD_CLR((SOCKET)s,&m_fdset);
+			FD_CLR(s.getSocket(),&m_fdset);
 			#pragma warning (pop)
 		#else
-			m_pollfd[(SOCKET)s].fd=-1;
+			SINT sock=s.getSocket();
+			m_pollfd[sock].fd=-1;			
+			//CAMsg::printMsg(LOG_DEBUG,"CASocketGroup::remove() - socket: %d\n",sock);
 		#endif
 		m_csFD_SET.unlock();
 		return E_SUCCESS;
@@ -132,7 +136,10 @@ SINT32 CASocketGroup::select()
 				#endif			    
 			#endif
 		#else
-			return ::poll(m_pollfd,m_max,-1);
+				m_csFD_SET.lock();
+				SINT32 ret=::poll((struct pollfd*)m_pollfd,m_max,-1);
+				m_csFD_SET.unlock();
+				return ret;
 		#endif
 	}
 
@@ -166,7 +173,9 @@ SINT32 CASocketGroup::select(UINT32 time_ms)
 					ret=::select(m_max,m_set_read,m_set_write,NULL,&ti);
 			#endif
 		#else
-			ret=::poll(m_pollfd,m_max,time_ms);
+			m_csFD_SET.lock();
+			ret=::poll((struct pollfd*)m_pollfd,m_max,time_ms);
+			m_csFD_SET.unlock();
 		#endif
 		if(ret==0)
 			{

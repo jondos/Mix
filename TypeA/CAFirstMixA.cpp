@@ -106,8 +106,8 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 	#endif
 	m_pIPList->removeIP(pHashEntry->peerIP);
 
-	m_psocketgroupUsersRead->remove(*(CASocket*)pHashEntry->pMuxSocket);
-	m_psocketgroupUsersWrite->remove(*(CASocket*)pHashEntry->pMuxSocket);
+	m_psocketgroupUsersRead->remove(*(pHashEntry->pMuxSocket));
+	m_psocketgroupUsersWrite->remove(*(pHashEntry->pMuxSocket));
 	pEntry = m_pChannelList->getFirstChannelForSocket(pHashEntry->pMuxSocket);
 
 	while(pEntry!=NULL)
@@ -145,7 +145,7 @@ SINT32 CAFirstMixA::closeConnection(fmHashTableEntry* pHashEntry)
 	m_pChannelList->remove(pHashEntry->pMuxSocket);
 	delete pMuxSocket;
 	pMuxSocket = NULL;
-	pHashEntry->pMuxSocket = NULL; // not needed now, but maybe in the future...
+	//pHashEntry->pMuxSocket = NULL; // not needed now, but maybe in the future...
 
 	delete pQueueEntry;
 	pQueueEntry = NULL;
@@ -266,7 +266,7 @@ SINT32 CAFirstMixA::loop()
 										#ifdef DATA_RETENTION_LOG
 											pQueueEntry->dataRetentionLogEntry.t_in=htonl(time(NULL));
 										#endif
-										if(ret==SOCKET_ERROR/*||pHashEntry->accessUntil<time()*/)
+										if(ret<0&&ret!=E_AGAIN/*||pHashEntry->accessUntil<time()*/)
 										{
 											// remove dead connections
 											closeConnection(pHashEntry);
@@ -300,9 +300,9 @@ SINT32 CAFirstMixA::loop()
 														goto NEXT_USER;
 													}
 												}
-
+#ifdef PAYMENT
 												if(accountTrafficUpstream(pHashEntry) != E_SUCCESS) goto NEXT_USER;
-
+#endif
 												if(pMixPacket->flags==CHANNEL_DUMMY) // just a dummy to keep the connection alife in e.g. NAT gateways
 												{
 													CAMsg::printMsg(LOG_DEBUG,"received dummy traffic\n");
@@ -471,6 +471,10 @@ NEXT_USER:
 NEXT_USER:
 									pHashEntry=m_pChannelList->getNext();
 								#endif
+							}
+							if(countRead>0)
+							{
+								CAMsg::printMsg(LOG_DEBUG,"CAFirstMixA::loop() - read from user --> countRead >0 after processing all connections!\n");
 							}
 					}
 //Third step
@@ -783,7 +787,7 @@ bool CAFirstMixA::sendToUsers()
 			{
 				SINT32 len =  MIXPACKET_SIZE - pfmHashEntry->uAlreadySendPacketSize;
 				UINT8* packetToSendOffset = ((UINT8*)&(packetToSend->packet)) + pfmHashEntry->uAlreadySendPacketSize;
-				CASocket *clientSocket = (CASocket*)pfmHashEntry->pMuxSocket;
+				CASocket* clientSocket = pfmHashEntry->pMuxSocket->getCASocket();
 
 				SINT32 ret = clientSocket->send(packetToSendOffset, len);
 
@@ -809,8 +813,10 @@ bool CAFirstMixA::sendToUsers()
 								}
 						#endif
 						pfmHashEntry->uAlreadySendPacketSize=-1;
+#ifdef PAYMENT
 						/* count this packet for accounting */
 						accounting = accountTrafficDownstream(pfmHashEntry);
+#endif
 					}
 
 					if(accounting == E_SUCCESS)
@@ -821,6 +827,12 @@ bool CAFirstMixA::sendToUsers()
 							resumeAllUserChannels(pfmHashEntry);
 						}
 					}
+				}
+				else if(ret<0&&ret!=E_AGAIN)
+				{
+					SOCKET sock=clientSocket->getSocket();
+					CAMsg::printMsg(LOG_DEBUG,"CAFirstMixA::sendtoUser() - send error on socket: %d\n",sock);
+					//closeConnection(pfmHashEntry);
 				}
 				//TODO error handling
 			}
@@ -836,11 +848,11 @@ bool CAFirstMixA::sendToUsers()
 	return bAktiv;
 }
 
+#ifdef PAYMENT
 SINT32 CAFirstMixA::accountTrafficUpstream(fmHashTableEntry* pHashEntry)
 {
 	SINT32 ret = E_SUCCESS;
 
-#ifdef PAYMENT
 	SINT32 handleResult = CAAccountingInstance::handleJapPacket(pHashEntry, false, false);
 
 	if (CAAccountingInstance::HANDLE_PACKET_CONNECTION_OK == handleResult)
@@ -873,13 +885,13 @@ SINT32 CAFirstMixA::accountTrafficUpstream(fmHashTableEntry* pHashEntry)
 	{
 
 	}*/
-#endif
 	return ret;
 }
+#endif
 
+#ifdef PAYMENT
 SINT32 CAFirstMixA::accountTrafficDownstream(fmHashTableEntry* pfmHashEntry)
 {
-#ifdef PAYMENT
 	// count packet for payment
 	SINT32 ret = CAAccountingInstance::handleJapPacket(pfmHashEntry, !(pfmHashEntry->bCountPacket), true);
 	if (ret == CAAccountingInstance::HANDLE_PACKET_CONNECTION_OK )
@@ -909,9 +921,9 @@ SINT32 CAFirstMixA::accountTrafficDownstream(fmHashTableEntry* pfmHashEntry)
 	{
 
 	}*/
-#endif
 	return E_SUCCESS;
 }
+#endif
 
 void CAFirstMixA::resumeAllUserChannels(fmHashTableEntry *pfmHashEntry)
 {
@@ -978,9 +990,9 @@ void CAFirstMixA::finishPacket(fmHashTableEntry *pfmHashEntry)
 
 #endif //SSL_HACK
 
+#ifdef PAYMENT
 void CAFirstMixA::checkUserConnections()
 {
-#ifdef PAYMENT
 	// check the timeout for all connections
 	fmHashTableEntry* timeoutHashEntry;
 	fmHashTableEntry* firstIteratorEntry = NULL;
@@ -1047,5 +1059,5 @@ void CAFirstMixA::checkUserConnections()
 		}
 		m_pChannelList->pushTimeoutEntry(timeoutHashEntry, currentEntryKickoutForced);
 	}
-#endif
 }
+#endif

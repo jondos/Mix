@@ -1,6 +1,6 @@
 /*************************************************************************
  *
- * $Id: trio.hpp,v 1.4 2003-04-10 14:03:40 sk13 Exp $
+ * $Id: trio.hpp,v 1.5 2009-04-03 11:05:32 sk13 Exp $
  *
  * Copyright (C) 1998 Bjorn Reese and Daniel Stenberg.
  *
@@ -31,7 +31,7 @@
  * HAVE_CONFIG_H as a compiler option themselves.
  */
 #if defined(HAVE_CONFIG_H)
-# include <config.h>
+# include "../config.h"
 #endif
 
 #if !defined(WITHOUT_TRIO)
