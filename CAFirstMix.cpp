@@ -1213,7 +1213,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 #endif
 							ret = E_UNKNOWN;
 						}
-#ifndef PAYMENT
+//#ifndef PAYMENT
 						else if ((ret = pNewMuxSocket->getCASocket()->getPeerIP(peerIP)) != E_SUCCESS ||
 								pIPList->insertIP(peerIP)<0)
 						{
@@ -1227,7 +1227,7 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 								CAMsg::printMsg(LOG_DEBUG,"CAFirstMix Flooding protection: Could not insert IP address!\n");
 							}
 						}
-#endif
+//#endif
 						else
 						{
 							t_UserLoginData* d=new t_UserLoginData;

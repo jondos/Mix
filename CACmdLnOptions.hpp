@@ -174,6 +174,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define OPTIONS_NODE_CRIME_REGEXP_URL "RegExpURL"
 #define OPTIONS_NODE_CRIME_REGEXP_PAYLOAD "RegExpPayload"
+#define OPTIONS_NODE_CRIME_SURVEILLANCE_IP "SurveillanceIP"
 
 #define MIXINFO_NODE_PARENT "Mix"
 #define MIXINFO_NODE_MIX_NAME "Name"
@@ -212,6 +213,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define ASSERT_NETWORK_OPTIONS_PARENT(Parentname, Childname) \
 	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_NETWORK, Childname)
+
+#define ASSERT_CRIME_DETECTION_OPTIONS_PARENT(Parentname, Childname) \
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_CRIME_DETECTION, Childname)
 
 struct t_TargetInterface
 	{
@@ -506,6 +510,16 @@ class CACmdLnOptions
 				*len=m_nCrimeRegExpsPayload;
 				return m_arCrimeRegExpsPayload;
 			}
+
+			in_addr_t *getCrimeSurveillanceIPs()
+			{
+				return m_surveillanceIPs;
+			}
+
+			UINT32 getNrOfCrimeSurveillanceIPs()
+			{
+				return m_nrOfSurveillanceIPs;
+			}
 #endif
 
 #if defined(DELAY_CHANNELS)||defined(DELAY_USERS)
@@ -704,6 +718,8 @@ class CACmdLnOptions
 			UINT32 m_nCrimeRegExpsURL;
 			regex_t* m_arCrimeRegExpsPayload;
 			UINT32 m_nCrimeRegExpsPayload;
+			UINT32 m_nrOfSurveillanceIPs;
+			in_addr_t *m_surveillanceIPs;
 #endif
 
 #ifdef DATA_RETENTION_LOG
@@ -830,9 +846,10 @@ class CACmdLnOptions
 			SINT32 setTermsAndConditionsList(DOMElement *elemTnCs);
 
 			/* Crime Logging Options */
-#define CRIME_DETECTION_OPTIONS_NR 2
+#define CRIME_DETECTION_OPTIONS_NR 3
 			SINT32 setCrimeURLRegExp(DOMElement *elemCrimeDetection);
 			SINT32 setCrimePayloadRegExp(DOMElement *elemCrimeDetection);
+			SINT32 setCrimeSurveillanceIP(DOMElement *elemCrimeDetection);
 
 			SINT32 appendMixInfo_internal(DOMNode* a_node, bool with_subtree);
 			inline SINT32 addMixIdToMixInfo();

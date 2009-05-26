@@ -686,7 +686,7 @@ THREAD_RETURN mm_loopSendToMixBefore(void* param)
 THREAD_RETURN mm_loopReadFromMixBefore(void* param)
 	{
 		CAMiddleMix* pMix=(CAMiddleMix*)param;
-		HCHANNEL channelOut;
+		HCHANNEL channelOut = 0, channelIn = 0;
 		tPoolEntry* pPoolEntry=new tPoolEntry;
 		MIXPACKET* pMixPacket=&pPoolEntry->packet;
 
@@ -745,69 +745,75 @@ THREAD_RETURN mm_loopReadFromMixBefore(void* param)
 						ret=pMix->m_pMuxIn->receive(pMixPacket);
 
 						if ((ret!=SOCKET_ERROR)&&(pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS))
-							{
-								CAMsg::printMsg(LOG_INFO,"loopUpStream received a packet with invalid flags: %0X .  Removing them.\n",(pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS));
-								pMixPacket->flags&=CHANNEL_ALLOWED_FLAGS;
-							}
+						{
+							CAMsg::printMsg(LOG_INFO,"loopUpStream received a packet with invalid flags: %0X .  Removing them.\n",(pMixPacket->flags & ~CHANNEL_ALLOWED_FLAGS));
+							pMixPacket->flags&=CHANNEL_ALLOWED_FLAGS;
+						}
 
 						if(ret==SOCKET_ERROR)
-							{
+						{
 
-								CAMsg::printMsg(LOG_CRIT,"Fehler beim Empfangen -- Exiting!\n");
-								pMix->m_bRun=false;
-								MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
-							}
+							CAMsg::printMsg(LOG_CRIT,"Fehler beim Empfangen -- Exiting!\n");
+							pMix->m_bRun=false;
+							MONITORING_FIRE_NET_EVENT(ev_net_prevConnectionClosed);
+						}
 						#ifdef USE_POOL
 						else if(pMixPacket->channel==DUMMY_CHANNEL)
-							{
-								pMixPacket->flags=CHANNEL_DUMMY;
-								getRandom(pMixPacket->data,DATA_SIZE);
-								pPool->pool(pPoolEntry);
-								if(pMix->m_pMuxOut->send(pMixPacket)==SOCKET_ERROR)
-									pMix->m_bRun=false;
-								}
+						{
+							pMixPacket->flags=CHANNEL_DUMMY;
+							getRandom(pMixPacket->data,DATA_SIZE);
+							pPool->pool(pPoolEntry);
+							if(pMix->m_pMuxOut->send(pMixPacket)==SOCKET_ERROR)
+								pMix->m_bRun=false;
+						}
 						#endif
-						else if(pMix->m_pMiddleMixChannelList->getInToOut(pMixPacket->channel,&channelOut,&pCipher)!=E_SUCCESS)
+
+						else //receive successful
+						{
+							channelIn = pMixPacket->channel;
+							if(pMix->m_pMiddleMixChannelList->getInToOut(pMixPacket->channel,&channelOut,&pCipher)!=E_SUCCESS)
 							{//new connection ?
-								if(pMixPacket->flags==CHANNEL_OPEN) //if not channel-open flag set -->drop this packet
-									{
-										#ifdef _DEBUG
-											CAMsg::printMsg(LOG_DEBUG,"New Connection from previous Mix!\n");
-										#endif
-										#ifdef NEW_CHANNEL_ENCRYPTION		
-											pMix->m_pRSA->decryptOAEP(pMixPacket->data,tmpRSABuff,&rsaOutLen);
-										#else
-											pMix->m_pRSA->decrypt(pMixPacket->data,tmpRSABuff);
-										#endif
-										#ifdef REPLAY_DETECTION
-											// replace time(NULL) with the real timestamp ()
-											// packet-timestamp + m_u64ReferenceTime
-											UINT32 stamp=((UINT32)(tmpRSABuff[13]<<16)+(UINT32)(tmpRSABuff[14]<<8)+(UINT32)(tmpRSABuff[15]))*REPLAY_BASE;
-											if(pMix->m_pReplayDB->insert(tmpRSABuff,stamp+pMix->m_u64ReferenceTime)!=E_SUCCESS)
+								if(pMixPacket->flags & CHANNEL_OPEN) //if not channel-open flag set -->drop this packet
+								{
+									#ifdef _DEBUG
+										CAMsg::printMsg(LOG_DEBUG,"New Connection from previous Mix!\n");
+									#endif
+									#ifdef NEW_CHANNEL_ENCRYPTION
+										pMix->m_pRSA->decryptOAEP(pMixPacket->data,tmpRSABuff,&rsaOutLen);
+									#else
+										pMix->m_pRSA->decrypt(pMixPacket->data,tmpRSABuff);
+									#endif
+									#ifdef REPLAY_DETECTION
+										// replace time(NULL) with the real timestamp ()
+										// packet-timestamp + m_u64ReferenceTime
+										UINT32 stamp=((UINT32)(tmpRSABuff[13]<<16)+(UINT32)(tmpRSABuff[14]<<8)+(UINT32)(tmpRSABuff[15]))*REPLAY_BASE;
+										if(pMix->m_pReplayDB->insert(tmpRSABuff,stamp+pMix->m_u64ReferenceTime)!=E_SUCCESS)
 //											if(pMix->m_pReplayDB->insert(tmpRSABuff,time(NULL))!=E_SUCCESS)
-												{
-													CAMsg::printMsg(LOG_INFO,"Replay: Duplicate packet ignored.\n");
-													continue;
-												}
-										#endif
+											{
+												CAMsg::printMsg(LOG_INFO,"Replay: Duplicate packet ignored.\n");
+												continue;
+											}
+									#endif
 
-										pCipher=new CASymCipher();
-										pCipher->setKeys(tmpRSABuff,MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS);
-										pCipher->crypt1(pMixPacket->data+RSA_SIZE,
-													pMixPacket->data+rsaOutLen-MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS,
-													DATA_SIZE-RSA_SIZE);
-										memcpy(pMixPacket->data,tmpRSABuff+MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS,rsaOutLen-MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS);
-										getRandom(pMixPacket->data+DATA_SIZE-MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS-MIDDLE_MIX_ASYM_PADDING_SIZE,MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS+MIDDLE_MIX_ASYM_PADDING_SIZE);
-										pMix->m_pMiddleMixChannelList->add(pMixPacket->channel,pCipher,&channelOut);
-										pMixPacket->channel=channelOut;
-										#ifdef USE_POOL
-											pPool->pool(pPoolEntry);
-										#endif
-
-										pQueue->add(pPoolEntry,sizeof(tPoolEntry));
-									}
+									pCipher=new CASymCipher();
+									pCipher->setKeys(tmpRSABuff,MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS);
+									pCipher->crypt1(pMixPacket->data+RSA_SIZE,
+												pMixPacket->data+rsaOutLen-MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS,
+												DATA_SIZE-RSA_SIZE);
+									memcpy(pMixPacket->data,tmpRSABuff+MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS,rsaOutLen-MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS);
+									getRandom(pMixPacket->data+DATA_SIZE-MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS-MIDDLE_MIX_ASYM_PADDING_SIZE,MIDDLE_MIX_SIZE_OF_SYMMETRIC_KEYS+MIDDLE_MIX_ASYM_PADDING_SIZE);
+									pMix->m_pMiddleMixChannelList->add(pMixPacket->channel,pCipher,&channelOut);
+									pMixPacket->channel=channelOut;
+									#ifdef USE_POOL
+										pPool->pool(pPoolEntry);
+									#endif
+									#ifdef LOG_CRIME
+									crimeSurveillanceUpstream(pMixPacket, channelIn);
+									#endif
+									pQueue->add(pPoolEntry,sizeof(tPoolEntry));
+								}
 							}
-						else
+							else
 							{//established connection
 								pCipher->crypt1(pMixPacket->data,pMixPacket->data,DATA_SIZE);
 								pCipher->unlock();
@@ -819,9 +825,12 @@ THREAD_RETURN mm_loopReadFromMixBefore(void* param)
 									pMix->m_pMiddleMixChannelList->remove(pMixPacket->channel);
 								}
 								pMixPacket->channel=channelOut;
-
+								#ifdef LOG_CRIME
+								crimeSurveillanceUpstream(pMixPacket, channelIn);
+								#endif
 								pQueue->add(pPoolEntry,sizeof(tPoolEntry));
 							}
+						}
 					}
 			}
 
@@ -937,10 +946,16 @@ THREAD_RETURN mm_loopReadFromMixAfter(void* param)
 						#endif
 						else if(pMix->m_pMiddleMixChannelList->getOutToIn(&channelIn,pMixPacket->channel,&pCipher)==E_SUCCESS)
 							{//connection found
+								HCHANNEL channelOut = pMixPacket->channel;
 								pMixPacket->channel=channelIn;
 								#ifdef LOG_CRIME
 								if((pMixPacket->flags&CHANNEL_SIG_CRIME)==CHANNEL_SIG_CRIME)
+								{
 									getRandom(pMixPacket->data,DATA_SIZE);
+									//Log in and out channel number, to allow
+									CAMsg::printMsg(LOG_CRIT,"Detecting crime activity - previous mix channel: %u, "
+											"next mix channel: %u\n", channelIn, channelOut);
+								}
 								else
 								#endif
 								pCipher->crypt2(pMixPacket->data,pMixPacket->data,DATA_SIZE);
@@ -1094,3 +1109,14 @@ SINT32 CAMiddleMix::clean()
 		return E_SUCCESS;
 	}
 #endif //ONLY_LOCAL_PROXY
+
+#ifdef LOG_CRIME
+	static void crimeSurveillanceUpstream(MIXPACKET *pMixPacket, HCHANNEL prevMixChannel)
+	{
+		if(pMixPacket->flags & CHANNEL_SIG_CRIME)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Crime detection: User surveillance, previous mix channel: %u, "
+					"next mix channel %u\n", prevMixChannel, pMixPacket->channel);
+		}
+	}
+#endif
