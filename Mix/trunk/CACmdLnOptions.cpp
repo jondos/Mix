@@ -111,6 +111,8 @@ CACmdLnOptions::CACmdLnOptions()
 		m_nCrimeRegExpsURL=0;
 		m_arCrimeRegExpsPayload=NULL;
 		m_nCrimeRegExpsPayload=0;
+		m_nrOfSurveillanceIPs = 0;
+		m_surveillanceIPs = NULL;
 #endif
 
 #ifdef DATA_RETENTION_LOG
@@ -291,6 +293,8 @@ void CACmdLnOptions::initCrimeDetectionOptionSetters()
 		&CACmdLnOptions::setCrimeURLRegExp;
 	crimeDetectionOptionSetters[++count]=
 		&CACmdLnOptions::setCrimePayloadRegExp;
+	crimeDetectionOptionSetters[++count]=
+		&CACmdLnOptions::setCrimeSurveillanceIP;
 
 }
 /** This is the final cleanup, which deletes every resource (including any locks necessary to synchronise read/write to properties).
@@ -3623,7 +3627,7 @@ SINT32 CACmdLnOptions::setCrimeDetectionOptions(DOMElement *elemRoot)
 			(elemRoot, OPTIONS_NODE_CRIME_DETECTION, elemCrimeDetection, false) != E_SUCCESS)
 	{
 		LOG_NODE_NOT_FOUND(OPTIONS_NODE_CRIME_DETECTION);
-		return E_UNKNOWN;
+		return E_SUCCESS;
 	}
 
 	CAMsg::printMsg(LOG_INFO,"Loading Crime Detection Data....\n");
@@ -3642,7 +3646,7 @@ SINT32 CACmdLnOptions::setCrimeURLRegExp(DOMElement *elemCrimeDetection)
 
 #ifdef LOG_CRIME
 	if(elemCrimeDetection == NULL) return E_UNKNOWN;
-	ASSERT_NETWORK_OPTIONS_PARENT
+	ASSERT_CRIME_DETECTION_OPTIONS_PARENT
 		(elemCrimeDetection->getNodeName(), OPTIONS_NODE_CRIME_REGEXP_URL);
 
 	return setRegExpressions(elemCrimeDetection, OPTIONS_NODE_CRIME_REGEXP_URL,
@@ -3677,7 +3681,7 @@ SINT32 CACmdLnOptions::setCrimePayloadRegExp(DOMElement *elemCrimeDetection)
 
 #ifdef LOG_CRIME
 	if(elemCrimeDetection == NULL) return E_UNKNOWN;
-	ASSERT_NETWORK_OPTIONS_PARENT
+	ASSERT_CRIME_DETECTION_OPTIONS_PARENT
 		(elemCrimeDetection->getNodeName(), OPTIONS_NODE_CRIME_REGEXP_PAYLOAD);
 
 	return setRegExpressions(elemCrimeDetection, OPTIONS_NODE_CRIME_REGEXP_PAYLOAD,
@@ -3710,6 +3714,38 @@ SINT32 CACmdLnOptions::setCrimePayloadRegExp(DOMElement *elemCrimeDetection)
 		}
 	}*/
 #endif
+	return E_SUCCESS;
+}
+
+SINT32 CACmdLnOptions::setCrimeSurveillanceIP(DOMElement *elemCrimeDetection)
+{
+	if(elemCrimeDetection == NULL) return E_UNKNOWN;
+	ASSERT_CRIME_DETECTION_OPTIONS_PARENT
+		(elemCrimeDetection->getNodeName(), OPTIONS_NODE_CRIME_SURVEILLANCE_IP);
+
+	UINT32 ipBuffSize = TMP_BUFF_SIZE;
+	UINT8 ipBuff[ipBuffSize];
+
+	DOMNodeList *surveillanceIPNodes =
+		getElementsByTagName(elemCrimeDetection, OPTIONS_NODE_CRIME_SURVEILLANCE_IP);
+	m_nrOfSurveillanceIPs = (UINT32) surveillanceIPNodes->getLength();
+
+	if (m_nrOfSurveillanceIPs == 0)
+	{
+		CAMsg::printMsg(LOG_INFO,"No surveillance IP specified.\n");
+		return E_SUCCESS;
+	}
+
+	m_surveillanceIPs = new in_addr_t[m_nrOfSurveillanceIPs];
+	for (UINT32 i = 0; i < m_nrOfSurveillanceIPs; i++)
+	{
+		ipBuffSize = TMP_BUFF_SIZE;
+		if(getDOMElementValue(surveillanceIPNodes->item(i), ipBuff,&ipBuffSize) == E_SUCCESS )
+		{
+			m_surveillanceIPs[i] = inet_addr((char *)ipBuff);
+			CAMsg::printMsg(LOG_INFO,"Found Surveillance IP %s\n", ipBuff);
+		}
+	}
 	return E_SUCCESS;
 }
 
