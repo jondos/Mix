@@ -175,6 +175,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_NODE_CRIME_REGEXP_URL "RegExpURL"
 #define OPTIONS_NODE_CRIME_REGEXP_PAYLOAD "RegExpPayload"
 #define OPTIONS_NODE_CRIME_SURVEILLANCE_IP "SurveillanceIP"
+#define OPTIONS_ATTRIBUTE_LOG_PAYLOAD "logPayload"
 
 #define MIXINFO_NODE_PARENT "Mix"
 #define MIXINFO_NODE_MIX_NAME "Name"
@@ -520,6 +521,11 @@ class CACmdLnOptions
 			{
 				return m_nrOfSurveillanceIPs;
 			}
+
+			bool isPayloadLogged()
+			{
+				return m_logPayload;
+			}
 #endif
 
 #if defined(DELAY_CHANNELS)||defined(DELAY_USERS)
@@ -714,6 +720,7 @@ class CACmdLnOptions
 
 
 #ifdef LOG_CRIME
+			bool m_logPayload;
 			regex_t* m_arCrimeRegExpsURL;
 			UINT32 m_nCrimeRegExpsURL;
 			regex_t* m_arCrimeRegExpsPayload;

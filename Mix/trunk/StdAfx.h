@@ -541,12 +541,12 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 //The min() macro
 #ifndef min
-	#define min(a,b) ((a<b)?(a):(b))
+	#define min(a,b) (( (a) < (b) ) ? (a):(b) )
 #endif
 
 //The max() macro
 #ifndef max
-	#define max(a,b) ((a>b)?(a):(b))
+	#define max(a,b) (((a) > (b) ) ? (a):(b))
 #endif
 
 //For MySQL
