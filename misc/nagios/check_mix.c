@@ -44,8 +44,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * @author Simon Pecher, JonDos GmbH
  *
  * nagios_plugin for server monitoring
+ *
+ * This plugin performs connects to the monitoring reads the
+ * status information send by the mix and performs SAX based
+ * parsing of the status information.
  */
 
+
+/**
+ * Callback function which is invoked if one of the three possible status tags are read.
+ */
 static int setCurrentStatusType(state_parse_data_t *parseData, const char *name, int elemNameLength)
 {
 	int i = 0;

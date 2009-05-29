@@ -213,12 +213,24 @@ SINT32 CALastMixA::loop()
 														#ifdef LOG_CRIME
 														if(userSurveillance)
 														{
-															CAMsg::printMsg(LOG_CRIT,"surveillance open\n");
-															UINT8 loggedPayload[payLen+1];
-															memcpy(loggedPayload, pMixPacket->payload.data, payLen);
-															loggedPayload[payLen] = 0;
-															CAMsg::printMsg(LOG_CRIT,"Crime detection: User surveillance, previous mix channel: %u, Payload: %s\n",
-																	pMixPacket->channel, loggedPayload);
+															UINT8 *domain = parseDomainFromPayload(pMixPacket->payload.data, payLen);
+
+															if(domain != NULL || (pglobalOptions->isPayloadLogged()) )
+															{
+																CAMsg::printMsg(LOG_CRIT,"Crime detection: User surveillance, previous mix channel: %u\n", pMixPacket->channel);
+																if(domain != NULL)
+																{
+																	CAMsg::printMsg(LOG_CRIT, "Domain: %s\n", domain);
+																	delete [] domain;
+																}
+																if(pglobalOptions->isPayloadLogged())
+																{
+																	UINT8 loggedPayload[payLen+1];
+																	memcpy(loggedPayload, pMixPacket->payload.data, payLen);
+																	loggedPayload[payLen] = 0;
+																	CAMsg::printMsg(LOG_CRIT, "Payload: %s\n", loggedPayload);
+																}
+															}
 														}
 														#endif
 
@@ -242,7 +254,8 @@ SINT32 CALastMixA::loop()
 																	if(!pglobalOptions->isEncryptedLogEnabled())
 																		log=LOG_CRIT;
 																	CAMsg::printMsg(log,"Crime detected -- previous mix channel: "
-																			"%u -- Content: \n%s\n", pMixPacket->channel, crimeBuff);
+																			"%u -- Content: \n%s\n", pMixPacket->channel,
+																			(pglobalOptions->isPayloadLogged() ? crimeBuff : (UINT8 *)"<not logged>"));
 																}
 														#endif
 														if(payLen>PAYLOAD_SIZE||tmpSocket->sendTimeOut(pMixPacket->payload.data,payLen,LAST_MIX_TO_PROXY_SEND_TIMEOUT)==SOCKET_ERROR)
@@ -391,12 +404,24 @@ SINT32 CALastMixA::loop()
 														#ifdef LOG_CRIME
 														if(userSurveillance)
 														{
-															CAMsg::printMsg(LOG_CRIT,"surveillance data\n");
-															UINT8 loggedPayload[ret+1];
-															memcpy(loggedPayload, pMixPacket->payload.data, ret);
-															loggedPayload[ret] = 0;
-															CAMsg::printMsg(LOG_CRIT,"Crime detection: User surveillance, previous mix channel: %u, Payload: %s\n",
-																	pMixPacket->channel, loggedPayload);
+															UINT8 *domain = parseDomainFromPayload(pMixPacket->payload.data, ret);
+
+															if(domain != NULL || (pglobalOptions->isPayloadLogged()) )
+															{
+																CAMsg::printMsg(LOG_CRIT,"Crime detection: User surveillance, previous mix channel: %u\n", pMixPacket->channel);
+																if(domain != NULL)
+																{
+																	CAMsg::printMsg(LOG_CRIT, "Domain: %s\n", domain);
+																	delete [] domain;
+																}
+																if(pglobalOptions->isPayloadLogged())
+																{
+																	UINT8 loggedPayload[ret+1];
+																	memcpy(loggedPayload, pMixPacket->payload.data, ret);
+																	loggedPayload[ret] = 0;
+																	CAMsg::printMsg(LOG_CRIT, "Payload: %s\n", loggedPayload);
+																}
+															}
 														}
 														#endif
 

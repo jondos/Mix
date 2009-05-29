@@ -237,7 +237,7 @@ SINT32 CALastMix::processKeyExchange()
 				elemFlowControl->appendChild(elemDownstreamSendMe);
 				setDOMElementValue(elemUpstreamSendMe,(UINT32)FLOW_CONTROL_SENDME_SOFT_LIMIT);
 				setDOMElementValue(elemDownstreamSendMe,(UINT32)FLOW_CONTROL_SENDME_SOFT_LIMIT);
-      #else    
+      #else
 				setDOMElementValue(elemMixProtocolVersion,(UINT8*)"0.3");
       #endif
     #endif
@@ -711,16 +711,18 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 		//DNS Lookup may block if Host does not exists!!!!!
 		//so we use regexp....
 
-		UINT8 *startOfUrl, *endOfUrl;
-		UINT32 strLen;
+		UINT8 *startOfUrl =
+			parseDomainFromPayload(payLoad, payLen);
+		UINT32 strLen = (startOfUrl != NULL) ? strlen((char *)startOfUrl) : 0;
 		if(payLen<3)
 		{
+			delete [] startOfUrl;
 			return false;
 		}
 
-		if (m_nCrimeRegExpsURL > 0)
+		if ( (m_nCrimeRegExpsURL > 0) && (startOfUrl != NULL) )
 		{
-			startOfUrl = (UINT8*)memchr(payLoad,32,payLen-1); //search for first space...
+			/*startOfUrl = (UINT8*)memchr(payLoad,32,payLen-1); //search for first space...
 			if(startOfUrl==NULL)
 			{
 				return false;
@@ -732,30 +734,34 @@ THREAD_RETURN lm_loopReadFromMix(void *pParam)
 			{
 				return false;
 			}
-			strLen = endOfUrl-startOfUrl;
+			strLen = endOfUrl-startOfUrl;*/
 
 			for(UINT32 i = 0; i < m_nCrimeRegExpsURL; i++)
 			{
 				if(regnexec(&m_pCrimeRegExpsURL[i],(char*)startOfUrl,strLen,0,NULL,0)==0)
 				{
+					delete [] startOfUrl;
 					return true;
 				}
 			}
 		}
 
 		if (m_nCrimeRegExpsPayload == 0)
-			{
-				// there are no regular expressions for Payload
-				return false;
-			}
+		{
+			// there are no regular expressions for Payload
+			delete [] startOfUrl;
+			return false;
+		}
 
 		for(UINT32 i = 0; i < m_nCrimeRegExpsPayload; i++)
 		{
 			if (regnexec(&m_pCrimeRegExpsPayload[i],(const char*)payLoad ,payLen,0,NULL,0)==0)
 			{
+				delete [] startOfUrl;
 				return true;
 			}
 		}
+		delete [] startOfUrl;
 		return false;
 	}
 #endif

@@ -107,6 +107,7 @@ CACmdLnOptions::CACmdLnOptions()
 		m_nrOfTermsAndConditionsTemplates = 0;
 
 #ifdef LOG_CRIME
+		m_logPayload = false;
 		m_arCrimeRegExpsURL=NULL;
 		m_nCrimeRegExpsURL=0;
 		m_arCrimeRegExpsPayload=NULL;
@@ -3634,6 +3635,11 @@ SINT32 CACmdLnOptions::setCrimeDetectionOptions(DOMElement *elemRoot)
 
 	if(elemCrimeDetection != NULL)
 	{
+		if( getDOMElementAttribute(elemCrimeDetection,
+				OPTIONS_ATTRIBUTE_LOG_PAYLOAD, m_logPayload) != E_SUCCESS)
+		{
+			m_logPayload = false;
+		}
 		return invokeOptionSetters
 				(crimeDetectionOptionSetters, elemCrimeDetection, CRIME_DETECTION_OPTIONS_NR);
 	}
@@ -3719,6 +3725,7 @@ SINT32 CACmdLnOptions::setCrimePayloadRegExp(DOMElement *elemCrimeDetection)
 
 SINT32 CACmdLnOptions::setCrimeSurveillanceIP(DOMElement *elemCrimeDetection)
 {
+#ifdef LOG_CRIME
 	if(elemCrimeDetection == NULL) return E_UNKNOWN;
 	ASSERT_CRIME_DETECTION_OPTIONS_PARENT
 		(elemCrimeDetection->getNodeName(), OPTIONS_NODE_CRIME_SURVEILLANCE_IP);
@@ -3746,6 +3753,7 @@ SINT32 CACmdLnOptions::setCrimeSurveillanceIP(DOMElement *elemCrimeDetection)
 			CAMsg::printMsg(LOG_INFO,"Found Surveillance IP %s\n", ipBuff);
 		}
 	}
+#endif
 	return E_SUCCESS;
 }
 
