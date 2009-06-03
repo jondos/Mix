@@ -42,8 +42,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /**
  * @author Simon Pecher, JonDos GmbH
- *
- * nagios_plugin for server monitoring
+ * Nagios plugin for mix-server monitoring
  *
  * This plugin performs connects to the monitoring reads the
  * status information send by the mix and performs SAX based
@@ -52,7 +51,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
 /**
- * Callback function which is invoked if one of the three possible status tags are read.
+ * writes the the name of the current statusType to stdout
+ * the status type names are defined in monitoringDefs.h
  */
 static int setCurrentStatusType(state_parse_data_t *parseData, const char *name, int elemNameLength)
 {
@@ -76,6 +76,11 @@ static int setCurrentStatusType(state_parse_data_t *parseData, const char *name,
 	return PARSE_NO_MATCH;
 }
 
+/**
+ * sets the current state field of the parse_data struct to the current type of information which
+ * is contained by the current status element so the handleText method can identify the
+ * context of the information to be written to stdout.
+ */
 static int setCurrentStateField(state_parse_data_t *parseData, const char *name, int elemNameLength)
 {
 	if(strncmp(name, DOM_ELEMENT_STATE_NAME, elemNameLength) == CMP_EQUAL)
@@ -96,6 +101,9 @@ static int setCurrentStateField(state_parse_data_t *parseData, const char *name,
 	return PARSE_NO_MATCH;
 }
 
+/**
+ * invalidates the current selected status type if a corresponding end tag is read.
+ */
 static int unsetCurrentStateField(state_parse_data_t *parseData, const char *name, int elemNameLength)
 {
 	if( (strncmp(name, DOM_ELEMENT_STATE_NAME, elemNameLength) == CMP_EQUAL) )
@@ -156,6 +164,9 @@ static void XMLCALL handleText(void *userData, const XML_Char *s, int len)
 		{
 			case st_stateLevel:
 			{
+				//output the name of the level of the current state
+				//(e. g. OK, CRITICAL, etc.) and set the corresponding
+				//return type for nagios
 				for(i = stl_ok; i < NR_STATE_LEVELS; i++)
 				{
 					if(strncmp(text, STATUS_LEVEL_NAMES[i], len) == CMP_EQUAL)
@@ -215,6 +226,7 @@ int main(int argc, char *argv[])
   XML_SetElementHandler(parser, startElement, endElement);
   XML_SetCharacterDataHandler(parser, handleText);
 
+  //read cmdline options
   if(handleCmdLineOptions(argc, argv, &cmdLineOpts) != SUCCESS)
   {
 	  printUsage();
