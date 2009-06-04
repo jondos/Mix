@@ -75,6 +75,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_NODE_LOGGING "Logging"
 #define OPTIONS_NODE_LOGGING_FILE "File"
 #define OPTIONS_ATTRIBUTE_LOGGING_MAXFILESIZE "MaxFileSize"
+#define OPTIONS_ATTRIBUTE_LOGGING_MAXFILES "MaxFiles"
+#define LOGGING_MAXFILES_DEFAULT 10
 #define OPTIONS_NODE_SYSLOG "Syslog"
 #define OPTIONS_NODE_ENCRYPTED_LOG "EncryptedLog"
 #define OPTIONS_NODE_LOGGING_KEYINFO "KeyInfo"
@@ -469,6 +471,11 @@ class CACmdLnOptions
 					return m_maxLogFileSize;
 				}
 
+			UINT32 getMaxLogFiles()
+			{
+				return m_maxLogFiles;
+			}
+
 			SINT32 getUser(UINT8* user,UINT32 len);
 			SINT32 getPidFile(UINT8* pidfile,UINT32 len);
 
@@ -697,6 +704,7 @@ class CACmdLnOptions
 			UINT8*	m_strCascadeName;
 			char*		m_strLogDir;
 			SINT64	m_maxLogFileSize;
+			UINT32	m_maxLogFiles; //how many log files can be created before starting again with the first one
 			char*		m_strEncryptedLogDir;
 			bool		m_bCompressedLogs;
 			bool 		m_bSocksSupport;
