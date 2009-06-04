@@ -2153,6 +2153,7 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 	UINT8 tmpBuff[TMP_BUFF_SIZE];
 	UINT32 tmpLen = TMP_BUFF_SIZE;
 
+	SINT32 maxLogFilesTemp = 0;
 	if(elemGeneral == NULL) return E_UNKNOWN;
 	ASSERT_GENERAL_OPTIONS_PARENT
 		(elemGeneral->getNodeName(), OPTIONS_NODE_LOGGING);
@@ -2160,15 +2161,33 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 	getDOMChildByName(elemGeneral, OPTIONS_NODE_LOGGING, elemLogging, false);
 	if(elemLogging != NULL)
 	{
-		getDOMChildByName(elemLogging, OPTIONS_NODE_LOGGING_FILE, elem,false);
+		getDOMChildByName(elemLogging, OPTIONS_NODE_LOGGING_FILE, elem, false);
 		if(getDOMElementValue(elem, tmpBuff, &tmpLen) == E_SUCCESS)
+		{
+			strtrim(tmpBuff);
+			m_strLogDir = new char[strlen((char*)tmpBuff)+1];
+			strcpy(m_strLogDir, (char*)tmpBuff);
+			getDOMElementAttribute
+				(elem, OPTIONS_ATTRIBUTE_LOGGING_MAXFILESIZE, m_maxLogFileSize);
+			//Set maximum number of logging files
+			//CAMsg::printMsg(LOG_ERR,"!!!!!!!!\n");
+			if((getDOMElementAttribute
+					(elem, OPTIONS_ATTRIBUTE_LOGGING_MAXFILES, &maxLogFilesTemp) != E_SUCCESS) ||
+				(maxLogFilesTemp == 0) )
 			{
-				strtrim(tmpBuff);
-				m_strLogDir = new char[strlen((char*)tmpBuff)+1];
-				strcpy(m_strLogDir, (char*)tmpBuff);
-				getDOMElementAttribute
-					(elem, OPTIONS_ATTRIBUTE_LOGGING_MAXFILESIZE, m_maxLogFileSize);
+				m_maxLogFiles = LOGGING_MAXFILES_DEFAULT;
 			}
+			else
+			{
+				if(maxLogFilesTemp < 0)
+				{
+					//CAMsg::printMsg(LOG_ERR,"Negative number of log files specified.\n");
+					return E_UNKNOWN;
+				}
+				m_maxLogFiles = (UINT32) maxLogFilesTemp;
+				//CAMsg::printMsg(LOG_ERR,"Max log files are %u\n", m_maxLogFiles);
+			}
+		}
 		getDOMChildByName(elemLogging, OPTIONS_NODE_SYSLOG, elem, false);
 
 		tmpLen = TMP_BUFF_SIZE;
