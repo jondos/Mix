@@ -1602,8 +1602,10 @@ SINT32 readPasswd(UINT8* buff,UINT32 len)
 
 #define NR_OF_HTTP_VERBS 8
 #define MAX_VERB_PARSE_LENGTH 17 //the maximum length to parse for a http verb: 10 + 7 (10 maximum whitespaces + 7 which is the length of the longest http verb)
+#define CONNECT_INDEX 2 //index of the verb "CONNECT" in the array HTTP_VERBS
 regex_t *httpVerbRegExps = NULL;
 const char *HTTP_VERBS[] = {"GET", "POST", "CONNECT", "HEAD" , "PUT", "OPTIONS", "DELETE", "TRACE"};
+
 UINT32 *HTTP_VERBS_LENGTH = new UINT32[NR_OF_HTTP_VERBS];
 
 void initHttpVerbLengths()
@@ -1695,13 +1697,13 @@ UINT8 *parseDomainFromPayload(const UINT8 *payloadData, UINT32 payloadDataLength
 				memset(tempOut, 0, maxURLParseLength+1);
 				memcpy(tempOut, (httpVerb+HTTP_VERBS_LENGTH[i]), maxURLParseLength);
 
-				if(i != 2) // means the request method is not CONNECT
+				if(i != CONNECT_INDEX) // means the request method is not CONNECT
 				{
 					token = (UINT8 *) strsep((char **) &tempOut, "/");
 					//make sure there is something like a protocol prefix in front of the domain name
 					if( (token != NULL) && (strstr((char *)token, ":") != NULL) )
 					{
-						for(int j = 0; (j < 2) && (token != NULL); j++)
+						for(int j = 0; (j < 2) && (token != NULL); j++) //j < 2 means: after the second '/' token
 						{
 							token = (UINT8 *) strsep((char **) &tempOut, "/");
 						}
