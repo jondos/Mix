@@ -414,12 +414,12 @@ typedef struct event event_t;
  * to the initialized states in the function "initStates()"
  */
 #define STATE_DEF(state_array, status_type, state_type, description, transitions, stateLevel) \
-			state_array[status_type][state_type]->st_description = description; \
+			state_array[status_type][state_type]->st_description = (char *) description; \
 			state_array[status_type][state_type]->st_transitions = transitions; \
 			state_array[status_type][state_type]->st_stateLevel = stateLevel;
 /* Same for events description assignment */
 #define EVENT_DEF(event_array, status_type, event_type, description) \
-			event_array[status_type][event_type]->ev_description  = description;
+			event_array[status_type][event_type]->ev_description  = (char *) description;
 
 /**
  * a convenience function for easily defining state transitions
