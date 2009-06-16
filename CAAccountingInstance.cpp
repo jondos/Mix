@@ -957,7 +957,7 @@ SINT32 CAAccountingInstance::prepareCCRequest(CAMix* callingMix, UINT8* a_AiName
 			allSkis[i] =  (UINT8*) XMLString::transcode(skiNode->getFirstChild()->getNodeValue());
 
 	}
-	    //concatenate the hashes, and store for future reference to indentify the cascade
+	//concatenate the hashes, and store for future reference to identify the cascade
     m_currentCascade = new UINT8[256];
     memset(m_currentCascade, 0, (sizeof(UINT8)*256 ));
     for (UINT32 j = 0; j < nrOfMixes; j++)
