@@ -1714,9 +1714,9 @@ SINT32 CACmdLnOptions::readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* &
 
 /* this method is only for internal use in order to intialize the
  * mixinfo structure when the options are parsed. Don't get confused
- * with the method addMixInfo of class CAMix which also includes
- * setting a timestamp.
- * if NULL is specified as name the name of a-node is used
+ * with the method addMixInfo of class CAMix which appends an
+ * additional timestamp.
+ * if NULL is specified as name the name of a_node is used
  */
 SINT32 CACmdLnOptions::appendMixInfo_internal(DOMNode* a_node, bool with_subtree)
 {
@@ -2233,7 +2233,7 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 }
 
 /* append the mix description to the mix info DOM structure
- * this is a main option (child of <MixConfiguration>
+ * this is a main option (child of <MixConfiguration>)
  */
 SINT32  CACmdLnOptions::setMixDescription(DOMElement* elemRoot)
 {
