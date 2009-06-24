@@ -1686,7 +1686,7 @@ UINT8 *parseDomainFromPayload(const UINT8 *payloadData, UINT32 payloadDataLength
 		UINT8 *httpVerb = NULL;
 		for(int i=0; i < NR_OF_HTTP_VERBS; i++)
 		{
-#ifdef _HAVE_STRNSTR
+#ifdef HAVE_STRNSTR
 			httpVerb = (UINT8*) strnstr((const char*) payloadData, HTTP_VERBS[i], maxParseLength);
 #else
 			httpVerb = (UINT8*) memmem((const char*) payloadData, maxParseLength,
