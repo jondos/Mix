@@ -1686,7 +1686,12 @@ UINT8 *parseDomainFromPayload(const UINT8 *payloadData, UINT32 payloadDataLength
 		UINT8 *httpVerb = NULL;
 		for(int i=0; i < NR_OF_HTTP_VERBS; i++)
 		{
+#ifdef _HAVE_STRNSTR
+			httpVerb = (UINT8*) memmem((const char*) payloadData, maxParseLength,
+									HTTP_VERBS[i], strlen(HTTP_VERBS[i]));
+#else
 			httpVerb = (UINT8*) strnstr((const char*) payloadData, HTTP_VERBS[i], maxParseLength);
+#endif
 			if(httpVerb != NULL)
 			{
 				//Domain names have a maximum length of 255 bytes.
