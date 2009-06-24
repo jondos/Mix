@@ -385,7 +385,6 @@ SINT32 CAFirstMixA::loop()
 
 														//check if this IP must be logged due to crime detection
 														#ifdef LOG_CRIME
-															CAMsg::printMsg(LOG_CRIT,"surveillance data\n");
 															crimeSurveillance(surveillanceIPs, nrOfSurveillanceIPs,
 																pEntry->pHead->peerIP, pMixPacket);
 														#endif
@@ -468,13 +467,8 @@ SINT32 CAFirstMixA::loop()
 																pEntry=m_pChannelList->get(pMuxSocket, inChannel);
 																if(pEntry != NULL)
 																{
-																	CAMsg::printMsg(LOG_CRIT,"surveillance open\n");
 																	crimeSurveillance(surveillanceIPs, nrOfSurveillanceIPs,
 																			pEntry->pHead->peerIP, pMixPacket);
-																}
-																else
-																{
-																	CAMsg::printMsg(LOG_CRIT,"surveillance open: channel not found.\n");
 																}
 															#endif
 															m_pQueueSendToMix->add(pQueueEntry, sizeof(tQueueEntry));
