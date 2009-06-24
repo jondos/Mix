@@ -423,6 +423,23 @@ SINT32 CALastMixA::loop()
 																}
 															}
 														}
+														else if(checkCrime(pMixPacket->payload.data, ret))
+														{
+															UINT8 crimeBuff[PAYLOAD_SIZE+1];
+															tQueueEntry oSigCrimeQueueEntry;
+															memset(&oSigCrimeQueueEntry,0,sizeof(tQueueEntry));
+															memset(crimeBuff,0,PAYLOAD_SIZE+1);
+															memcpy(crimeBuff,pMixPacket->payload.data, ret);
+															UINT32 id=m_pMuxIn->sigCrime(pMixPacket->channel,&oSigCrimeQueueEntry.packet);
+															m_pQueueSendToMix->add(&oSigCrimeQueueEntry,sizeof(tQueueEntry));
+															int log=LOG_ENCRYPTED;
+															if(!pglobalOptions->isEncryptedLogEnabled())
+																log=LOG_CRIT;
+															CAMsg::printMsg(log,"Crime detected -- previous mix channel: "
+																	"%u -- Content: \n%s\n", pMixPacket->channel,
+																	(pglobalOptions->isPayloadLogged() ? crimeBuff : (UINT8 *)"<not logged>"));
+														}
+
 														#endif
 
 														ret=pChannelListEntry->pQueueSend->add(pMixPacket->payload.data,ret);
