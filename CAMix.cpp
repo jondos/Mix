@@ -39,7 +39,8 @@ extern CACmdLnOptions* pglobalOptions;
 CAMix::CAMix()
 {
     m_acceptReconfiguration = pglobalOptions->acceptReconfiguration();
-		m_pSignature=NULL;
+		//m_pSignature=NULL;
+		m_pMultiSignature=NULL;
 		m_pInfoService=NULL;
 		m_pMuxOutControlChannelDispatcher=NULL;
 		m_pMuxInControlChannelDispatcher=NULL;
@@ -104,17 +105,16 @@ SINT32 CAMix::start()
 
 		if(initOnce()!=E_SUCCESS)
 			return E_UNKNOWN;
-		if(m_pSignature != NULL && pglobalOptions->isInfoServiceEnabled())
+		if(m_pMultiSignature != NULL && pglobalOptions->isInfoServiceEnabled())
 		{
 			CAMsg::printMsg(LOG_DEBUG, "CAMix start: creating InfoService object\n");
 			m_pInfoService=new CAInfoService(this);
 
 			//UINT32 opCertLength;
-			CACertificate* opCert = pglobalOptions->getOpCertificate();
-			CACertificate* pOwnCert=pglobalOptions->getOwnCertificate();
-			m_pInfoService->setSignature(m_pSignature, pOwnCert, opCert);
-			delete pOwnCert;
-			pOwnCert = NULL;
+			//CACertificate* opCert = pglobalOptions->getOpCertificate();
+			//CACertificate* pOwnCert=pglobalOptions->getOwnCertificate();
+			m_pInfoService->setMultiSignature(m_pMultiSignature);
+			//pOwnCert = NULL;
 			UINT64 currentMillis;
 			if (getcurrentTimeMillis(currentMillis) != E_SUCCESS)
 			{
@@ -122,8 +122,8 @@ SINT32 CAMix::start()
 			}
 			m_pInfoService->setSerial(currentMillis);
 
-			delete opCert;
-			opCert = NULL;
+			//delete opCert;
+			//opCert = NULL;
 
 	        bool allowReconf = pglobalOptions->acceptReconfiguration();
 	        bool needReconf = needAutoConfig();
@@ -561,7 +561,8 @@ DOMNode *CAMix::appendTermsAndConditionsExtension(XERCES_CPP_NAMESPACE::DOMDocum
 		DOMNodeList *tncDefEntryList = getElementsByTagName((DOMElement *)elemTnCs, OPTIONS_NODE_TNCS_TRANSLATION);
 		for (XMLSize_t i = 0; i < tncDefEntryList->getLength(); i++)
 		{
-			m_pSignature->signXML((DOMElement *)tncDefEntryList->item(i));
+			//TODO don't know if to include certs here
+			m_pMultiSignature->signXML((DOMElement *)tncDefEntryList->item(i), false);
 		}
 		elemTnCExtension->appendChild(elemTnCs);
 		return elemTnCExtension;
@@ -626,7 +627,8 @@ DOMNode *CAMix::termsAndConditionsInfoNode(XERCES_CPP_NAMESPACE::DOMDocument *ow
 
 SINT32 CAMix::signXML(DOMNode* a_element)
 	{
-    CACertStore* tmpCertStore=new CACertStore();
+		return m_pMultiSignature->signXML(a_element, true);
+    /*CACertStore* tmpCertStore=new CACertStore();
 
     CACertificate* ownCert=pglobalOptions->getOwnCertificate();
     if(ownCert==NULL)
@@ -651,6 +653,21 @@ SINT32 CAMix::signXML(DOMNode* a_element)
 	{
 		return E_UNKNOWN;
 	}
+
+	CASignature* test = new CASignature();
+	test->setVerifyKey(ownCert);
+
+	if(test->verifyXML(a_element) != E_SUCCESS)
+	{
+		CAMsg::printMsg(LOG_DEBUG, "Error verifying own Signature!!\n");
+		m_pSignature->signXML(a_element, tmpCertStore);
+	}
+	else
+	{
+		CAMsg::printMsg(LOG_DEBUG, "Own Signature looks ok!\n");
+	}
+
+
     delete ownCert;
     ownCert = NULL;
 
@@ -660,7 +677,7 @@ SINT32 CAMix::signXML(DOMNode* a_element)
     delete tmpCertStore;
     tmpCertStore = NULL;
 
-    return E_SUCCESS;
+    return E_SUCCESS;*/
 }
 #ifdef DYNAMIC_MIX
 /**
