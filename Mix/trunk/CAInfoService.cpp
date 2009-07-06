@@ -361,7 +361,8 @@ CAInfoService::CAInfoService()
 {
     m_pMix=NULL;
 		m_bRun=false;
-		m_pSignature=NULL;
+		//m_pSignature=NULL;
+		m_pMultiSignature=NULL;
 		m_pcertstoreOwnCerts=NULL;
 		m_minuts=0;
 		m_lastMixedPackets=0;
@@ -377,7 +378,8 @@ CAInfoService::CAInfoService(CAMix* pMix)
 	{
     m_pMix=NULL;
 		m_bRun=false;
-		m_pSignature=NULL;
+		//m_pSignature=NULL;
+		m_pMultiSignature=NULL;
 		m_pcertstoreOwnCerts=NULL;
 		m_minuts=0;
 		m_lastMixedPackets=0;
@@ -403,7 +405,7 @@ CAInfoService::~CAInfoService()
 /** Sets the signature used to sign the messages send to Infoservice.
 	* If pOwnCert!=NULL this Certifcate is included in the Signature
 	*/
-SINT32 CAInfoService::setSignature(CASignature* pSig, CACertificate* pOwnCert,
+/*SINT32 CAInfoService::setSignature(CASignature* pSig, CACertificate* pOwnCert,
 								CACertificate* a_opCert)
 	{
 		m_pSignature=pSig;
@@ -420,7 +422,13 @@ SINT32 CAInfoService::setSignature(CASignature* pSig, CACertificate* pOwnCert,
 			m_pcertstoreOwnCerts->add(pOwnCert);
 		}
 		return E_SUCCESS;
-	}
+	}*/
+
+SINT32 CAInfoService::setMultiSignature(CAMultiSignature* pMultiSig)
+{
+	m_pMultiSignature = pMultiSig;
+	return E_SUCCESS;
+}
 
 SINT32 CAInfoService::getLevel(SINT32* puser,SINT32* prisk,SINT32* ptraffic)
 {
@@ -438,8 +446,10 @@ SINT32 CAInfoService::getMixedPackets(UINT64& ppackets)
 
 SINT32 CAInfoService::start()
 	{
-		if(m_pSignature==NULL)
+		if(m_pMultiSignature==NULL)
+		{
 			return E_UNKNOWN;
+		}
 		m_bRun=true;
 		set64(m_lastMixedPackets,(UINT32)0);
 		m_minuts=1;
@@ -549,12 +559,14 @@ UINT8* CAInfoService::getStatusXMLAsString(bool bIncludeCerts,UINT32& len)
 		else
 			tmpStrCurrentMillis[0]=0;
 		sprintf((char*)tmpBuff,XML_MIX_CASCADE_STATUS,tmpStrCurrentMillis,tmpRisk,strMixId,buffMixedPackets,tmpUser,tmpTraffic);
-		CACertStore* ptmpCertStore=m_pcertstoreOwnCerts;
+
+		/*CACertStore* ptmpCertStore=m_pcertstoreOwnCerts;
 		if(!bIncludeCerts)
 		{
 			ptmpCertStore=NULL;
 		}
-		if(m_pSignature->signXML(tmpBuff,strlen((char*)tmpBuff),buff,&buffLen,ptmpCertStore)!=E_SUCCESS)
+		if(m_pSignature->signXML(tmpBuff,strlen((char*)tmpBuff),buff,&buffLen,ptmpCertStore)!=E_SUCCESS)*/
+		if(m_pMultiSignature->signXML(tmpBuff, strlen((char*)tmpBuff), buff, &buffLen, bIncludeCerts) != E_SUCCESS)
 		{
 			delete[] buff;
 			buff = NULL;
@@ -861,7 +873,7 @@ UINT8* CAInfoService::xmlDocToStringWithSignature(DOMNode *a_node, UINT32& a_len
 	{
 		return NULL;
 	}
-	if(m_pSignature->signXML(a_node, pIncludeCerts) != E_SUCCESS)
+	if(m_pMultiSignature->signXML(a_node, pIncludeCerts) != E_SUCCESS)
 	{
 		return NULL;
 	}
@@ -1153,7 +1165,7 @@ UINT8* CAInfoService::getCascadeHeloXMLAsString(UINT32& a_len)
 			setDOMElementAttribute(elemRoot, ATTRIBUTE_SERIAL, tmpStrCurrentMillis);
 		}
 
-		if(m_pSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
+		if(m_pMultiSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
 		{
 			goto ERR;
 		}

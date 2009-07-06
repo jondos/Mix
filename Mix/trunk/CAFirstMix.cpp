@@ -72,8 +72,10 @@ SINT32 CAFirstMix::initOnce()
 		if(ret!=E_SUCCESS)
 			return ret;
 		CAMsg::printMsg(LOG_DEBUG,"Starting FirstMix InitOnce\n");
-		m_pSignature=pglobalOptions->getSignKey();
-		if(m_pSignature==NULL)
+		/*m_pSignature=pglobalOptions->getSignKey();
+		if(m_pSignature==NULL)*/
+		m_pMultiSignature = pglobalOptions->getMultiSigner();
+		if(m_pMultiSignature == NULL)
 			return E_UNKNOWN;
 		//Try to find out how many (real) ListenerInterfaces are specified
 		UINT32 tmpSocketsIn=pglobalOptions->getListenerInterfaceCount();
@@ -533,13 +535,14 @@ SINT32 CAFirstMix::processKeyExchange()
         {
             //check Signature....
             CAMsg::printMsg(LOG_DEBUG,"Try to verify next mix signature...\n");
-            CASignature oSig;
+            //CASignature oSig;
             CACertificate* nextCert=pglobalOptions->getNextMixTestCertificate();
-            oSig.setVerifyKey(nextCert);
-            SINT32 ret=oSig.verifyXML(child,NULL);
+            /*oSig.setVerifyKey(nextCert);
+            SINT32 ret=oSig.verifyXML(child,NULL);*/
+            SINT32 result = CAMultiSignature::verifyXML(child, nextCert);
             delete nextCert;
             nextCert = NULL;
-            if(ret!=E_SUCCESS)
+            if(result != E_SUCCESS)
             {
                 CAMsg::printMsg(LOG_DEBUG,"failed!\n");
                 if (doc != NULL)
@@ -615,8 +618,9 @@ SINT32 CAFirstMix::processKeyExchange()
 			m_u32KeepAliveRecvInterval=max(u32KeepAliveRecvInterval,tmpSendInterval);
 			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval,m_u32KeepAliveRecvInterval);
 
-            m_pSignature->signXML(elemRoot);
-            DOM_Output::dumpToMem(docSymKey,out,&outlen);
+            //m_pSignature->signXML(elemRoot);
+            m_pMultiSignature->signXML(elemRoot, false);
+			DOM_Output::dumpToMem(docSymKey,out,&outlen);
             if (docSymKey != NULL)
             {
 				docSymKey->release();
@@ -1701,7 +1705,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		xml_buff[1]=(UINT8)(xml_len&0xFF);
 		UINT8* sig=new UINT8[255];
 		UINT32 siglen=255;
-		m_pSignature->sign(xml_buff,xml_len+2,sig,&siglen);
+		//TODO change me to fully support MultiSig
+		//m_pSignature->sign(xml_buff,xml_len+2,sig,&siglen);
+		m_pMultiSignature->sign(xml_buff,xml_len+2,sig,&siglen);
 		XERCES_CPP_NAMESPACE::DOMDocument* docSig=createDOMDocument();
 
 		DOMElement *elemSig=NULL;

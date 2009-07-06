@@ -99,7 +99,7 @@ CAAccountingInstance::CAAccountingInstance(CAMix* callingMix)
 		pglobalOptions->getAiID(m_AiName, 256);
 		if (pglobalOptions->getBI() != NULL)
 		{
-			m_pJpiVerifyingInstance = pglobalOptions->getBI()->getVerifier();
+			//m_pJpiVerifyingInstance = pglobalOptions->getBI()->getVerifier();
 			m_pPiInterface->setPIServerConfiguration(pglobalOptions->getBI());
 		}
 		m_iHardLimitBytes = pglobalOptions->getPaymentHardLimit();
@@ -1595,8 +1595,9 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 		return CAXMLErrorMessage::ERR_INTERNAL_SERVER_ERROR;
 	}
 
-	if ((!m_pJpiVerifyingInstance) ||
-		(m_pJpiVerifyingInstance->verifyXML( root, (CACertStore *)NULL ) != E_SUCCESS ))
+	//if ((!m_pJpiVerifyingInstance) ||
+		//(m_pJpiVerifyingInstance->verifyXML( root, (CACertStore *)NULL ) != E_SUCCESS ))
+	if(CAMultiSignature::verifyXML(root, pglobalOptions->getBI()->getCertificate()))
 	{
 		// signature invalid. mark this user as bad guy
 		CAMsg::printMsg( LOG_INFO, "CAAccountingInstance::handleAccountCertificate(): Bad Jpi signature\n" );

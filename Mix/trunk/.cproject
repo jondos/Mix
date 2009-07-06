@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <?fileVersion 4.0.0?>
 
 <cproject>
@@ -20,8 +20,8 @@
 <extension id="org.eclipse.cdt.core.PE" point="org.eclipse.cdt.core.BinaryParser"/>
 <extension id="org.eclipse.cdt.core.Cygwin_PE" point="org.eclipse.cdt.core.BinaryParser">
 <attribute key="addr2line" value="addr2line"/>
-<attribute key="c++filt" value="c++filt"/>
 <attribute key="cygpath" value="cygpath"/>
+<attribute key="c++filt" value="c++filt"/>
 <attribute key="nm" value="nm"/>
 </extension>
 <extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
