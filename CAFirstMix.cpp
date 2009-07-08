@@ -1685,7 +1685,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				return E_UNKNOWN;
 			}
 		//Getting control channel keys if available
-		///TODO: move to the if-staement above
+		///TODO: move to the if-statement above
 		DOMElement* elemControlChannelEnc=NULL;
 		getDOMChildByName(elemRoot,"ControlChannelEncryption",elemControlChannelEnc,false);
 		UINT8 controlchannelKey[255];
@@ -1842,7 +1842,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 			XERCES_CPP_NAMESPACE::DOMDocument *tcData = parseDOMDocument(tcDataBuf, tcRequestDataLen);
 			if( (tcData == NULL) || (tcData->getDocumentElement() == NULL) )
 			{
-				CAMsg::printMsg(LOG_ERR,"Could not parse tc data!\n");
+				CAMsg::printMsg(LOG_ERR,"Could not parse t&c data!\n");
 				loginFailed = true;
 				break;
 			}
@@ -1999,7 +1999,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 					{
 						if(ai_ret == E_TIMEDOUT )
 						{
-							CAMsg::printMsg(LOG_NOTICE,"timeout occured during AI login.");
+							CAMsg::printMsg(LOG_NOTICE,"timeout occurred during AI login.");
 						}
 						aiLoginStatus = AUTH_LOGIN_FAILED;
 						goto loop_break;
@@ -2009,15 +2009,6 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				{
 					break;
 				}
-			}
-			else
-			{
-				/*
-				 * User sends data channel mix packets instead of ai control channel packets
-				 * and thus violates our ai login protocol. May be an attacker or an old JAP which is
-				 * not aware that ai login has to be finished before sending data channel packets.
-				 * @todo: kick user out or buffer his packets?
-				 */
 			}
 			aiLoginStatus = CAAccountingInstance::loginProcessStatus(pHashEntry);
 		}

@@ -1145,7 +1145,7 @@ SINT32 CAAccountingInstance::processJapMessage(fmHashTableEntry * pHashEntry,con
 					unlockLogin(pHashEntry);
 				}
 				else*/
-				if(hf_ret == CAXMLErrorMessage::ERR_OK)
+				if(hf_ret == (SINT32) CAXMLErrorMessage::ERR_OK)
 				{
 					CAMsg::printMsg( LOG_DEBUG, "Prepaid bytes are: %d\n", getPrepaidBytes(pHashEntry->pAccountingInfo));
 
@@ -1698,8 +1698,8 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	UINT8 decodeBuffer[ 512 ];
 	UINT32 decodeBufferLen = 512;
 	UINT32 usedLen;
-	DOMElement* elemPanic=NULL;
-	DSA_SIG * pDsaSig=NULL;
+	/* DOMElement* elemPanic=NULL;
+	DSA_SIG * pDsaSig=NULL; */
 	SINT32 prepaidAmount = 0;
 	AccountLoginHashEntry* loginEntry;
 	CAXMLCostConfirmation* pCC = NULL;
@@ -2701,13 +2701,15 @@ SINT32 CAAccountingInstance::cleanupTableEntry( fmHashTableEntry *pHashEntry )
 
 SINT32 CAAccountingInstance::newSettlementTransaction()
 {
-	SINT32 biConnectionStatus = 0, ret = E_SUCCESS;
-	CAXMLErrorMessage **pErrMsgs = NULL;
+
+	CAXMLErrorMessage **pErrMsgs = NULL, *settleException = NULL;
 	CAXMLCostConfirmation **allUnsettledCCs = NULL;
-	UINT32 nrOfCCs = 0, i = 0;
-	SettleEntry *entry = NULL, *nextEntry = NULL, *first = NULL;
-	UINT64 myWaitNr = 0;
+	SettleEntry *entry = NULL, *nextEntry = NULL;
 	CAAccountingDBInterface *dbInterface = NULL;
+
+	UINT32 nrOfCCs = 0, i = 0;
+	SINT32 biConnectionStatus = 0, ret = E_SUCCESS;
+	UINT64 myWaitNr = 0;
 
 	dbInterface = CAAccountingDBInterface::getConnection();
 	if(dbInterface == NULL)
@@ -2750,20 +2752,39 @@ SINT32 CAAccountingInstance::newSettlementTransaction()
 		{
 			MONITORING_FIRE_PAY_EVENT(ev_pay_biConnectionFailure);
 		}
-		CAMsg::printMsg(LOG_DEBUG, "Settlement transaction: could not connect to BI. Try later...\n");
 		ms_pInstance->m_pPiInterface->terminateBIConnection(); // make sure the socket is closed
 		ms_pInstance->m_pSettlementMutex->unlock();
+
+		CAMsg::printMsg(LOG_WARNING, "Settlement transaction: could not connect to BI. Try later...\n");
 		ret = E_SUCCESS;
 		goto cleanup;
 	}
 	else
 	{
-		pErrMsgs = ms_pInstance->m_pPiInterface->settleAll(allUnsettledCCs, nrOfCCs);
+		pErrMsgs = ms_pInstance->m_pPiInterface->settleAll(allUnsettledCCs, nrOfCCs, &settleException);
+		ms_pInstance->m_pPiInterface->terminateBIConnection();
+	}
+
+	//workaround because usage of exceptions is not allowed!
+	if(settleException != NULL)
+	{
+		ms_pInstance->m_pSettlementMutex->unlock();
+		CAMsg::printMsg(LOG_ERR, "Settlement transaction: BI reported settlement not successful: "
+						"code: %i, %s \n", settleException->getErrorCode(),
+							(settleException->getDescription() != NULL ?
+								settleException->getDescription() : (UINT8*) "<no description given>") );
+		ret = E_UNKNOWN;
+		goto cleanup;
 	}
 
 	if(pErrMsgs == NULL)
 	{
-		//TODO: this would be an internal server error.
+		//this must never happen because in any case where NULL is returned for pErrMsgs
+		//'settleException' must not be NULL.
+		ms_pInstance->m_pSettlementMutex->unlock();
+		CAMsg::printMsg(LOG_CRIT, "Settlement transaction: ErrorMessages are null.\n");
+		ret = E_UNKNOWN;
+		goto cleanup;
 	}
 	else
 	{
@@ -2837,6 +2858,7 @@ SINT32 CAAccountingInstance::newSettlementTransaction()
 	ms_pInstance->m_pSettlementMutex->unlock();
 
 cleanup:
+
 	if(dbInterface != NULL)
 	{
 		CAAccountingDBInterface::releaseConnection(dbInterface);
@@ -2870,6 +2892,9 @@ cleanup:
 		delete entry;
 		entry = nextEntry;
 	}
+
+	delete settleException;
+	settleException = NULL;
 
 	return ret;
 }
@@ -3144,7 +3169,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 	CAXMLCostConfirmation * pCC = NULL;
 	//CAQueue q;
 	CAXMLCostConfirmation **allUnsettledCCs = NULL;
-	UINT32 size, /*qSize, */ nrOfCCs, i;
+	UINT32 /*size, qSize, */ nrOfCCs, i;
 	SettleEntry *entry = NULL, *nextEntry = NULL;
 
 	CAAccountingDBInterface *dbInterface = NULL;
