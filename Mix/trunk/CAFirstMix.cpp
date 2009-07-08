@@ -2027,7 +2027,7 @@ loop_break:
 //#ifdef DEBUG
 				CAMsg::printMsg(LOG_DEBUG,"AI login messages successfully exchanged: now starting settlement for user account balancing check\n");
 //#endif
-				if(CAAccountingInstance::settlementTransaction() != E_SUCCESS)
+				if(CAAccountingInstance::newSettlementTransaction() != E_SUCCESS)
 				{
 					aiLoginStatus |= AUTH_LOGIN_FAILED;
 				}

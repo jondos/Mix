@@ -104,7 +104,7 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 			m_pAccountingSettleThread->m_pCondition->lock();
 			m_pAccountingSettleThread->m_pCondition->wait(sleepInterval * 1000);
 			m_pAccountingSettleThread->m_pCondition->unlock();
-			settlement_status = CAAccountingInstance::settlementTransaction();
+			settlement_status = CAAccountingInstance::newSettlementTransaction();
 			if(settlement_status != E_SUCCESS)
 			{
 				CAMsg::printMsg(LOG_ERR, "AccountingSettleThread: Settlement transaction failed\n");
