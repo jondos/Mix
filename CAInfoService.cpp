@@ -1165,7 +1165,7 @@ UINT8* CAInfoService::getCascadeHeloXMLAsString(UINT32& a_len)
 			setDOMElementAttribute(elemRoot, ATTRIBUTE_SERIAL, tmpStrCurrentMillis);
 		}
 
-		if(m_pMultiSignature->signXML(docMixInfo,m_pcertstoreOwnCerts)!=E_SUCCESS)
+		if(m_pMultiSignature->signXML(docMixInfo, true /*m_pcertstoreOwnCerts*/ )!=E_SUCCESS)
 		{
 			goto ERR;
 		}
