@@ -33,7 +33,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #if !defined(AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_)
 #define AFX_STDAFX_H__9A5B051F_FF3A_11D3_9F5E_000001037024__INCLUDED_
 
-#define MIX_VERSION "00.08.71"
+#define MIX_VERSION "00.08.86"
 
 #include "doxygen.h"
 
@@ -45,7 +45,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #endif
 
 //#define LOG_TRAFFIC_PER_USER //Log detail for traffic per user
-//#define LOG_CHANNEL //Log detail for traffic per cahnnel
+//#define LOG_CHANNEL //Log detail for traffic per channel
 //#define LOG_PACKET_TIMES //computes statistics about the processing time each packet needs
 //#define LOG_DIALOG
 //#define COMPRESSED_LOGS
@@ -145,6 +145,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 																							       //before we believe that the connection is broken (in ms)
 #define KEEP_ALIVE_TRAFFIC_SEND_WAIT_TIME 60000 //How long to wait before we sent a dummy a Keep-Alive-Traffic
 
+//#define ECC
 //#define SSL_HACK //???
 
 #if defined(PAYMENT) && ! defined(SSL_HACK)
@@ -155,7 +156,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define NO_PARKING // disable old control flow
 #endif
 
-//#define REPLAY_DATABASE_PERFORMANCE_TEST //to performe a performance test of the replay db
+//#define REPLAY_DATABASE_PERFORMANCE_TEST //to perform a performance test of the replay db
 //Some constants
 #define MAX_POLLFD 8192 //How many sockets to support at max
 
@@ -184,6 +185,8 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define PAYMENT_ACCOUNT_CERT_TIMEOUT 180 //Timeout for receiving the Payment certificate in seconds
 #define CLEANUP_THREAD_SLEEP_INTERVAL 60 //sleep interval for payment blocked ip list
 #define BALANCE_REQUEST_TIMEOUT 60 //Timeout for Balance requests
+
+#define MAX_SIGNATURE_ELEMENTS 10  // maximum of interpreted XML signature elements
 
 #define FLOW_CONTROL_SENDME_HARD_LIMIT 95 //last mix stops sending after this unack packets
 #define FLOW_CONTROL_SENDME_SOFT_LIMIT 80 //last mix sends request for 'SENDME' after this unack packets
@@ -235,6 +238,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#define MIX_CASCADE_PROTOCOL_VERSION "0.4" //"0.4tc"
 #endif
 
+
 #define PAYMENT_VERSION "2.0"
 
 #if defined (_WIN32) &&!defined(__CYGWIN__)
@@ -242,6 +246,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	//For Borland C++    #if defined(__BCPLUSPLUS__)
 	#define _CRT_SECURE_NO_DEPRECATE
 	#define _CRT_SECURE_NO_WARNINGS
+	#define WIN32_LEAN_AND_MEAN
 	#if _MSC_VER > 1000
 		#pragma once
 	#endif // _MSC_VER > 1000
@@ -480,6 +485,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include <signal.h>
 #include <errno.h>
 #include "trio/trio.hpp"
+#include "trio/triostr.hpp"
 #include "popt/system.h"
 #include "popt/popt.h"
 #include <openssl/rsa.h>
@@ -588,6 +594,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include <cppunit/ui/text/TestRunner.h>
 	#include <cppunit/extensions/HelperMacros.h>
 	#include <cppunit/TestFixture.h>
+	#include <cppunit/TestResult.h>
+	#include <cppunit/TestResultCollector.h>
+	#include <cppunit/BriefTestProgressListener.h>
 #endif
 
 //Mix Version Info as multiline String
@@ -637,7 +646,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "typedefs.hpp"
 #include "controlchannelids.h"
 #include "gcm/gcm.h"
-
 #ifdef PAYMENT
 	#define MAX_ACCOUNTNUMBER 999999999999ULL
 	#define MIN_ACCOUNTNUMBER 100000000000ULL

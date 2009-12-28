@@ -28,6 +28,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "../StdAfx.h"
 #ifndef ONLY_LOCAL_PROXY
 #include "CAFirstMixA.hpp"
+#include "../CALibProxytest.hpp"
 #include "../CAThread.hpp"
 #include "../CASingleSocketGroup.hpp"
 #include "../CAInfoService.hpp"
@@ -38,8 +39,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #ifdef HAVE_EPOLL
 	#include "../CASocketGroupEpoll.hpp"
 #endif
-extern CACmdLnOptions* pglobalOptions;
-extern CAConditionVariable *loginCV;
 
 void CAFirstMixA::shutDown()
 {
@@ -76,7 +75,6 @@ void CAFirstMixA::shutDown()
 		}
 		CAMsg::printMsg(LOG_DEBUG,"Closed %i client connections.\n", connectionsClosed);
 	}
-	delete loginCV;
 #endif
 	m_bRestart = true;
 	m_bIsShuttingDown = false;
@@ -165,9 +163,9 @@ SINT32 CAFirstMixA::loop()
 	{
 #ifndef NEW_MIX_TYPE
 #ifdef DELAY_USERS
-		m_pChannelList->setDelayParameters(	pglobalOptions->getDelayChannelUnlimitTraffic(),
-																			pglobalOptions->getDelayChannelBucketGrow(),
-																			pglobalOptions->getDelayChannelBucketGrowIntervall());
+		m_pChannelList->setDelayParameters(	CALibProxytest::getOptions()->getDelayChannelUnlimitTraffic(),
+																			CALibProxytest::getOptions()->getDelayChannelBucketGrow(),
+																			CALibProxytest::getOptions()->getDelayChannelBucketGrowIntervall());
 #endif
 
 	//	CASingleSocketGroup osocketgroupMixOut;
@@ -203,12 +201,13 @@ SINT32 CAFirstMixA::loop()
 #endif
 
 #ifdef LOG_CRIME
-		in_addr_t *surveillanceIPs = pglobalOptions->getCrimeSurveillanceIPs();
-		UINT32 nrOfSurveillanceIPs = pglobalOptions->getNrOfCrimeSurveillanceIPs();
+		CASocketAddrINet* surveillanceIPs = CALibProxytest::getOptions()->getCrimeSurveillanceIPs();
+		UINT32 nrOfSurveillanceIPs = CALibProxytest::getOptions()->getNrOfCrimeSurveillanceIPs();
 #endif
 //		CAThread threadReadFromUsers;
 //		threadReadFromUsers.setMainLoop(loopReadFromUsers);
 //		threadReadFromUsers.start(this);
+
 		while(!m_bRestart) /* the main mix loop as long as there are things that are not handled by threads. */
 			{
 
@@ -217,9 +216,9 @@ SINT32 CAFirstMixA::loop()
 //LOOP_START:
 #ifdef PAYMENT
 				// while checking if there are connections to close: synch with login threads
-				loginCV->lock();
+				m_pmutexLogin->lock();
 				checkUserConnections();
-				loginCV->unlock();
+				m_pmutexLogin->unlock();
 #endif
 //First Step
 //Checking for new connections
@@ -372,7 +371,6 @@ SINT32 CAFirstMixA::loop()
 													CASymCipher* pCipher=NULL;
 													fmChannelListEntry* pEntry;
 													pEntry=m_pChannelList->get(pMuxSocket,pMixPacket->channel);
-
 													if(pEntry!=NULL&&pMixPacket->flags==CHANNEL_DATA)
 													{
 														pMixPacket->channel=pEntry->channelOut;
@@ -401,7 +399,6 @@ SINT32 CAFirstMixA::loop()
 													else if(pEntry==NULL&&pMixPacket->flags==CHANNEL_OPEN)  // open a new mix channel
 													{ // stefan: muesste das nicht vor die behandlung von CHANNEL_DATA? oder gilt OPEN => !DATA ?
 														//es gilt: open -> data
-
 														pHashEntry->pSymCipher->crypt1(pMixPacket->data,rsaBuff,FIRST_MIX_SIZE_OF_SYMMETRIC_KEYS);
 														#ifdef REPLAY_DETECTION
 														// replace time(NULL) with the real timestamp ()
@@ -418,7 +415,6 @@ SINT32 CAFirstMixA::loop()
 															rsaBuff[i]=0xFF;
 														pCipher->setIV2(rsaBuff);
 														pCipher->crypt1(pMixPacket->data+FIRST_MIX_SIZE_OF_SYMMETRIC_KEYS,pMixPacket->data,DATA_SIZE-FIRST_MIX_SIZE_OF_SYMMETRIC_KEYS);
-
 														getRandom(pMixPacket->data+DATA_SIZE-FIRST_MIX_SIZE_OF_SYMMETRIC_KEYS,FIRST_MIX_SIZE_OF_SYMMETRIC_KEYS);
 														#if defined (LOG_CHANNEL) ||defined(DATA_RETENTION_LOG)
 															HCHANNEL tmpC=pMixPacket->channel;
@@ -606,9 +602,9 @@ NEXT_USER:
 										#ifdef LOG_CRIME
 											if((pMixPacket->flags&CHANNEL_SIG_CRIME)==CHANNEL_SIG_CRIME)
 												{
-													UINT32 id=(pMixPacket->flags>>8)&0x000000FF;
+													//UINT32 id=(pMixPacket->flags>>8)&0x000000FF;
 													int log=LOG_ENCRYPTED;
-													if(!pglobalOptions->isEncryptedLogEnabled())
+													if(!CALibProxytest::getOptions()->isEncryptedLogEnabled())
 														log=LOG_CRIT;
 													CAMsg::printMsg(log,"Detecting crime activity - next mix channel: %u -- "
 															"In-IP is: %u.%u.%u.%u \n", pMixPacket->channel,
@@ -752,6 +748,7 @@ bool CAFirstMixA::sendToUsers()
 	CAQueue *processedQueue = NULL; /* one the above queues that should be used for processing*/
 	UINT32 extractSize = 0;
 	bool bAktiv = false;
+	UINT32 iSocketErrors = 0;
 
 /* Cyclic polling: gets all open sockets that will not block when invoking send()
  * but will only send at most one packet. After that control is returned to loop()
@@ -859,8 +856,12 @@ bool CAFirstMixA::sendToUsers()
 				}
 				else if(ret<0&&ret!=E_AGAIN)
 				{
-					SOCKET sock=clientSocket->getSocket();
-					CAMsg::printMsg(LOG_DEBUG,"CAFirstMixA::sendtoUser() - send error on socket: %d\n",sock);
+					iSocketErrors++;
+					if (iSocketErrors == 1) // show debug message only at the first error; otherwise, the log may get huge
+					{
+						SOCKET sock=clientSocket->getSocket();
+						CAMsg::printMsg(LOG_DEBUG,"CAFirstMixA::sendtoUser() - send error %d on socket: %d\n", ret, sock);
+					}
 					//closeConnection(pfmHashEntry);
 				}
 				//TODO error handling
@@ -874,6 +875,11 @@ bool CAFirstMixA::sendToUsers()
 		pfmHashEntry=m_pChannelList->getNext();
 	}
 #endif
+	if (iSocketErrors > 1)
+	{
+		CAMsg::printMsg(LOG_ERR, "CAFirstMixA::sendtoUser() - %d send errors on a socket occured!\n", iSocketErrors);
+	}
+	
 	return bAktiv;
 }
 
@@ -1092,20 +1098,15 @@ void CAFirstMixA::checkUserConnections()
 #endif
 
 #ifdef LOG_CRIME
-void CAFirstMixA::crimeSurveillance(in_addr_t *surveillanceIPs, UINT32 nrOfSurveillanceIPs,
-		UINT8 *peerIP, MIXPACKET *pMixPacket)
+void CAFirstMixA::crimeSurveillance(CASocketAddrINet* surveillanceIPs, UINT32 nrOfSurveillanceIPs,UINT8 *peerIP, MIXPACKET *pMixPacket)
 {
-	in_addr_t clientIP = 0;
-	if( (nrOfSurveillanceIPs > 0) &&
-		(surveillanceIPs != NULL) )
+	if( (nrOfSurveillanceIPs > 0) && (surveillanceIPs != NULL) )
 	{
-		memcpy(&clientIP, peerIP, 4);
 		for(UINT32 i = 0; i < nrOfSurveillanceIPs; i++)
 		{
-			if(clientIP == surveillanceIPs[i])
+			if(surveillanceIPs[i].equalsIP(peerIP))
 			{
-				CAMsg::printMsg(LOG_CRIT,"Crime detection: User surveillance, IP %u.%u.%u.%u with next mix channel %u\n",
-					peerIP[0], peerIP[1], peerIP[2], peerIP[3],pMixPacket->channel);
+				CAMsg::printMsg(LOG_CRIT,"Crime detection: User surveillance, IP %u.%u.%u.%u with next mix channel %u\n",peerIP[0], peerIP[1], peerIP[2], peerIP[3],pMixPacket->channel);
 				pMixPacket->flags |= CHANNEL_SIG_CRIME;
 			}
 		}

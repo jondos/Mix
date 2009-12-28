@@ -118,7 +118,7 @@ public:
 	/**
 	 * Returns a reference to the Singleton instance
 	 */
-	static SINT32 init(CAMix* callingMix)
+	static SINT32 init(CAFirstMix* callingMix)
 		{
 				ms_pInstance = new CAAccountingInstance(callingMix);
 				MONITORING_FIRE_PAY_EVENT(ev_pay_aiInited);
@@ -189,6 +189,8 @@ public:
 	static void __commitSettlementToDatabase(SettleEntry *entryList, CAAccountingDBInterface *dbInterface);
 	static void __commitSettlementToLoginTable(SettleEntry *entryList);
 	static SINT32 newSettlementTransaction();
+	static SINT32 __newSettlementTransaction(UINT32 *nrOfSettledCCs);
+
 
 	static const SINT32 HANDLE_PACKET_CONNECTION_OK; // this packet has been checked and is OK
 	static const SINT32 HANDLE_PACKET_CONNECTION_UNCHECKED; // the packet might be OK (is it not checked)
@@ -199,7 +201,7 @@ public:
 
 private:
 
-	CAAccountingInstance(CAMix* callingMix); //Singleton!
+	CAAccountingInstance(CAFirstMix* callingMix); //Singleton!
 	~CAAccountingInstance();
 
 	struct t_aiqueueitem

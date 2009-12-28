@@ -51,7 +51,13 @@ typedef UINT32 HCHANNEL;
 	#define	CHANNEL_SIG_CRIME_ID_MASK 0x0000FF00
 	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME|CHANNEL_TIMESTAMPS_UP|CHANNEL_TIMESTAMPS_DOWN|CHANNEL_SIG_CRIME|CHANNEL_SIG_CRIME_ID_MASK)
 #else
+	#define	CHANNEL_SIG_CRIME 0x0
+	#define	CHANNEL_SIG_CRIME_ID_MASK 0x0
+#ifdef NEW_FLOW_CONTROL
+	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_TIMESTAMPS_UP|CHANNEL_TIMESTAMPS_DOWN)
+#else
 	#define CHANNEL_ALLOWED_FLAGS		(CHANNEL_OPEN|CHANNEL_CLOSE|CHANNEL_SUSPEND|CHANNEL_RESUME|CHANNEL_TIMESTAMPS_UP|CHANNEL_TIMESTAMPS_DOWN)
+#endif
 #endif
 
 #define NEW_FLOW_CONTROL_FLAG 0x8000
@@ -176,7 +182,6 @@ typedef struct t_queue_entry tQueueEntry;
 typedef tQueueEntry tPoolEntry;
 
 ///the Replaytimestamp type
-/*
 struct t_replay_timestamp
 	{
 		UINT interval; //the current interval number
@@ -184,7 +189,7 @@ struct t_replay_timestamp
 	};
 
 typedef struct t_replay_timestamp tReplayTimestamp;
-*/
+
 struct t_mix_parameters
 	{
 		//stores the mix id of the mix
@@ -194,6 +199,7 @@ struct t_mix_parameters
 		UINT16 m_u32ReplayBase;
 	};
 typedef struct t_mix_parameters tMixParameters;
+
 
 /**
  * These flags are used to represent the state
@@ -263,7 +269,6 @@ typedef struct t_mix_parameters tMixParameters;
 class CASignature;
 class CAAccountingControlChannel;
 class CAMutex;
-
 struct t_fmhashtableentry;
 /**
  * Structure that holds all per-user payment information
