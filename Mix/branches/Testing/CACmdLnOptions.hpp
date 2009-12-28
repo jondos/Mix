@@ -4,16 +4,16 @@ All rights reserved.
 Redistribution and use in source and binary forms, with or without modification,
 are permitted provided that the following conditions are met:
 
-- Redistributions of source code must retain the above copyright notice,
-this list of conditions and the following disclaimer.
+	- Redistributions of source code must retain the above copyright notice,
+	  this list of conditions and the following disclaimer.
 
-- Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation and/or
-other materials provided with the distribution.
+	- Redistributions in binary form must reproduce the above copyright notice,
+	  this list of conditions and the following disclaimer in the documentation and/or
+		other materials provided with the distribution.
 
-- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors
-may be used to endorse or promote products derived from this software without specific
-prior written permission.
+	- Neither the name of the University of Technology Dresden, Germany nor the names of its contributors
+	  may be used to endorse or promote products derived from this software without specific
+		prior written permission.
 
 
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS'' AND ANY EXPRESS
@@ -30,7 +30,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define __CACMDLNOPTIONS__
 #include "CASocketAddrINet.hpp"
 #ifdef HAVE_UNIX_DOMAIN_PROTOCOL
-#include "CASocketAddrUnix.hpp"
+	#include "CASocketAddrUnix.hpp"
 #endif
 #include "CASignature.hpp"
 #include "CAMultiSignature.hpp"
@@ -41,7 +41,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAXMLBI.hpp"
 #include "CAXMLPriceCert.hpp"
 //#ifdef LOG_CRIME
-#include "tre/regex.h"
+	#include "tre/regex.h"
 //#endif
 
 #define REGEXP_BUFF_SIZE 4096
@@ -94,15 +94,12 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 
 #define OPTIONS_NODE_OWN_CERTIFICATE "OwnCertificate"
 #define OPTIONS_NODE_OWN_OPERATOR_CERTIFICATE "OperatorOwnCertificate"
+#define OPTIONS_NODE_ELEMENT_X509CERT "X509Certificate"
 #define OPTIONS_NODE_NEXT_MIX_CERTIFICATE "NextMixCertificate"
 #define OPTIONS_NODE_NEXT_OPERATOR_CERTIFICATE "NextOperatorCertificate"
 #define OPTIONS_NODE_PREV_MIX_CERTIFICATE "PrevMixCertificate"
 #define OPTIONS_NODE_PREV_OPERATOR_CERTIFICATE "PrevOperatorCertificate"
-#define OPTIONS_NODE_TRUSTED_ROOT_CERTIFICATES "TrustedRootCertificates"
-#define OPTIONS_NODE_MIX_CERTIFICATE_VERIFICATION "MixCertificateVerification"
 #define OPTIONS_NODE_X509DATA "X509Data"
-#define OPTIONS_NODE_X509_CERTIFICATE "X509Certificate"
-#define OPTIONS_NODE_X509_PKCS12 "X509PKCS12"
 #define OPTIONS_NODE_SIGNATURE "Signature"
 
 
@@ -191,45 +188,45 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define MIXINFO_ATTRIBUTE_MIX_ID "id"
 
 #define LOG_NODE_NOT_FOUND(Nodename) \
-CAMsg::printMsg(LOG_CRIT,"No \"%s\" node found in configuration file!\n", (Nodename))
+	CAMsg::printMsg(LOG_CRIT,"No \"%s\" node found in configuration file!\n", (Nodename))
 
 #define LOG_NODE_EMPTY_OR_INVALID(Nodename) \
-CAMsg::printMsg(LOG_CRIT,"Node \"%s\" is empty or has invalid content!\n", (Nodename))
+	CAMsg::printMsg(LOG_CRIT,"Node \"%s\" is empty or has invalid content!\n", (Nodename))
 
 #define LOG_NODE_WRONG_PARENT(Parentname, Childname) \
-CAMsg::printMsg(LOG_CRIT,"\"%s\" is the wrong parent for Node \"%s\"\n", (Parentname), (Childname))
+	CAMsg::printMsg(LOG_CRIT,"\"%s\" is the wrong parent for Node \"%s\"\n", (Parentname), (Childname))
 
 
 #define ASSERT_PARENT_NODE_NAME(Parentname, NameToMatch, Childname) 	\
-if(!equals((Parentname), (NameToMatch) )) 			\
-{											 		\
-char *parentName = XMLString::transcode(Parentname); \
-LOG_NODE_WRONG_PARENT(parentName, Childname);	\
-XMLString::release(&parentName);				\
-return E_UNKNOWN;								\
-}
+	if(!equals((Parentname), (NameToMatch) )) 			\
+	{											 		\
+		char *parentName = XMLString::transcode(Parentname); \
+		LOG_NODE_WRONG_PARENT(parentName, Childname);	\
+		XMLString::release(&parentName);				\
+		return E_UNKNOWN;								\
+	}
 
 #define ASSERT_GENERAL_OPTIONS_PARENT(Parentname, Childname) \
-ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_GENERAL, Childname)
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_GENERAL, Childname)
 
 #define ASSERT_CERTIFICATES_OPTIONS_PARENT(Parentname, Childname) \
-ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_CERTIFICATE_LIST, Childname)
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_CERTIFICATE_LIST, Childname)
 
 #define ASSERT_ACCOUNTING_OPTIONS_PARENT(Parentname, Childname) \
-ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_ACCOUNTING, Childname)
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_ACCOUNTING, Childname)
 
 #define ASSERT_NETWORK_OPTIONS_PARENT(Parentname, Childname) \
-ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_NETWORK, Childname)
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_NETWORK, Childname)
 
 #define ASSERT_CRIME_DETECTION_OPTIONS_PARENT(Parentname, Childname) \
-ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_CRIME_DETECTION, Childname)
+	ASSERT_PARENT_NODE_NAME(Parentname, OPTIONS_NODE_CRIME_DETECTION, Childname)
 
 struct t_TargetInterface
-{
-    UINT32 target_type;
-    NetworkType net_type;
-    CASocketAddr* addr;
-};
+	{
+		UINT32 target_type;
+		NetworkType net_type;
+		CASocketAddr* addr;
+	};
 
 typedef struct t_TargetInterface TargetInterface;
 
@@ -783,111 +780,111 @@ class CACmdLnOptions
 			optionSetter_pt *accountingOptionSetters;
 			optionSetter_pt *networkOptionSetters;
 			optionSetter_pt *termsAndConditionsOptionSetters;
-        #endif
-        
-        #if defined (DELAY_CHANNELS_LATENCY)
-        UINT32 m_u32DelayChannelLatency;
-        #endif
-        
-        #ifdef PAYMENT
-        // added by Bastian Voigt:
-        // getter functions for the payment config options
-    private:
-        CAXMLBI * m_pBI;
-        UINT8 * m_strDatabaseHost;
-        UINT8 * m_strDatabaseName;
-        UINT8 * m_strDatabaseUser;
-        UINT8 * m_strDatabasePassword;
-        UINT8* m_strAiID;
-        UINT16 m_iDatabasePort;
-        UINT32 m_iPaymentHardLimit;
-        UINT32 m_iPaymentSoftLimit;
-        UINT32 m_iPrepaidInterval;
-        UINT32 m_iPaymentSettleInterval;
-        
-        
-        #endif
-        optionSetter_pt *mainOptionSetters;
-        optionSetter_pt *generalOptionSetters;
-        optionSetter_pt *certificateOptionSetters;
-        optionSetter_pt *accountingOptionSetters;
-        optionSetter_pt *networkOptionSetters;
-        optionSetter_pt *termsAndConditionsOptionSetters;
-        optionSetter_pt *crimeDetectionOptionSetters;
-        
-        #ifdef SERVER_MONITORING
-    private:
-        char *m_strMonitoringListenerHost;
-        UINT16 m_iMonitoringListenerPort;
-        #endif
-        
-    private:
-        SINT32 setNewValues(CACmdLnOptions& newOptions);
-        #ifndef ONLY_LOCAL_PROXY
-        SINT32 readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* & docConfig,const UINT8* const configFileName);
-        SINT32 readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* & docConfig,const UINT8* const buf, UINT32 len);
-        SINT32 processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* docConfig);
-        SINT32 clearVisibleAddresses();
-        SINT32 addVisibleAddresses(DOMNode* nodeProxy);
-        #ifdef COUNTRY_STATS
-        char* m_dbCountryStatsHost;
-        char* m_dbCountryStatsUser;
-        char* m_dbCountryStatsPasswd;
-        #endif //COUNTRY_STATS
-        #endif //ONLY_LOCAL_PROXY
-        SINT32 clearTargetInterfaces();
-        SINT32 clearListenerInterfaces();
-        
-        
-        
-        /* NR of all Option types, i.e. General, Certificates, Networking, etc. (excluding *mainOptionSetters)
-        * these options are all direct children of <MixConfiguration>*/
-        #define MAIN_OPTION_SETTERS_NR 8
-        SINT32 setGeneralOptions(DOMElement* elemRoot);
-        SINT32 setMixDescription(DOMElement* elemRoot); /* mix decription for the mix info */
-        SINT32 setCertificateOptions(DOMElement* elemRoot);
-        SINT32 setAccountingOptions(DOMElement *elemRoot);
-        SINT32 setNetworkOptions(DOMElement *elemRoot);
-        SINT32 setRessourceOptions(DOMElement *elemRoot);
-        SINT32 setTermsAndConditions(DOMElement *elemRoot);
-        SINT32 setCrimeDetectionOptions(DOMElement *elemRoot);
-        
-        /* General Options */
-        #define GENERAL_OPTIONS_NR 11
-        SINT32 setMixType(DOMElement* elemGeneral);
-        SINT32 setMixName(DOMElement* elemGeneral);
-        SINT32 setMixID(DOMElement* elemGeneral);
-        SINT32 setDynamicMix(DOMElement* elemGeneral);
-        SINT32 setMinCascadeLength(DOMElement* elemGeneral);
-        SINT32 setCascadeNameFromOptions(DOMElement* elemGeneral);
-        SINT32 setUserID(DOMElement* elemGeneral);
-        SINT32 setNrOfFileDescriptors(DOMElement* elemGeneral);
-        SINT32 setDaemonMode(DOMElement* elemGeneral);
-        SINT32 setMaxUsers(DOMElement* elemGeneral);
-        SINT32 setLoggingOptions(DOMElement* elemGeneral);
-        
-        /* Certificate Options */
-        #define CERTIFICATE_OPTIONS_NR 6
-        SINT32 setOwnCertificate(DOMElement *elemCertificates);
-        SINT32 setOwnOperatorCertificate(DOMElement *elemCertificates);
-        SINT32 setMixCertificateVerification(DOMElement *elemCertificates);
-        SINT32 setNextMixCertificate(DOMElement *elemCertificates);
-        SINT32 setPrevMixCertificate(DOMElement *elemCertificates);
-        SINT32 setTrustedRootCertificates(DOMElement *elemCertificates);
-        
-        /* Payment Options */
-        #define ACCOUNTING_OPTIONS_NR 7
-        SINT32 setPriceCertificate(DOMElement *elemAccounting);
-        SINT32 setPaymentInstance(DOMElement *elemAccounting);
-        SINT32 setAccountingSoftLimit(DOMElement *elemAccounting);
-        SINT32 setAccountingHardLimit(DOMElement *elemAccounting);
-        SINT32 setPrepaidInterval(DOMElement *elemAccounting);
-        SINT32 setSettleInterval(DOMElement *elemAccounting);
-        SINT32 setAccountingDatabase(DOMElement *elemAccounting);
-        
-        /* Network Options */
-        #define NETWORK_OPTIONS_NR 6
-        SINT32 setInfoServices(DOMElement *elemNetwork);
+			optionSetter_pt *crimeDetectionOptionSetters;
+
+#ifdef SERVER_MONITORING
+		private:
+			char *m_strMonitoringListenerHost;
+			UINT16 m_iMonitoringListenerPort;
+#endif
+
+		private:
+			SINT32 setNewValues(CACmdLnOptions& newOptions);
+#ifndef ONLY_LOCAL_PROXY
+			SINT32 readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* & docConfig,const UINT8* const configFileName);
+			SINT32 readXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* & docConfig,const UINT8* const buf, UINT32 len);
+			SINT32 processXmlConfiguration(XERCES_CPP_NAMESPACE::DOMDocument* docConfig);
+			SINT32 clearVisibleAddresses();
+			SINT32 addVisibleAddresses(DOMNode* nodeProxy);
+#ifdef COUNTRY_STATS
+			char* m_dbCountryStatsHost;
+			char* m_dbCountryStatsUser;
+			char* m_dbCountryStatsPasswd;
+#endif //COUNTRY_STATS
+#endif //ONLY_LOCAL_PROXY
+			SINT32 clearTargetInterfaces();
+			SINT32 clearListenerInterfaces();
+
+
+
+/* NR of all Option types, i.e. General, Certificates, Networking, etc. (excluding *mainOptionSetters)
+ * these options are all direct children of <MixConfiguration>*/
+#define MAIN_OPTION_SETTERS_NR 8
+			SINT32 setGeneralOptions(DOMElement* elemRoot);
+			SINT32 setMixDescription(DOMElement* elemRoot); /* mix decription for the mix info */
+			SINT32 setCertificateOptions(DOMElement* elemRoot);
+			SINT32 setAccountingOptions(DOMElement *elemRoot);
+			SINT32 setNetworkOptions(DOMElement *elemRoot);
+			SINT32 setRessourceOptions(DOMElement *elemRoot);
+			SINT32 setTermsAndConditions(DOMElement *elemRoot);
+			SINT32 setCrimeDetectionOptions(DOMElement *elemRoot);
+
+			/* General Options */
+#define GENERAL_OPTIONS_NR 11
+			SINT32 setMixType(DOMElement* elemGeneral);
+			SINT32 setMixName(DOMElement* elemGeneral);
+			SINT32 setMixID(DOMElement* elemGeneral);
+			SINT32 setDynamicMix(DOMElement* elemGeneral);
+			SINT32 setMinCascadeLength(DOMElement* elemGeneral);
+			SINT32 setCascadeNameFromOptions(DOMElement* elemGeneral);
+			SINT32 setUserID(DOMElement* elemGeneral);
+			SINT32 setNrOfFileDescriptors(DOMElement* elemGeneral);
+			SINT32 setDaemonMode(DOMElement* elemGeneral);
+			SINT32 setMaxUsers(DOMElement* elemGeneral);
+			SINT32 setLoggingOptions(DOMElement* elemGeneral);
+
+			/* Certificate Options */
+#define CERTIFICATE_OPTIONS_NR 4
+			SINT32 setOwnCertificate(DOMElement *elemCertificates);
+			SINT32 setOwnOperatorCertificate(DOMElement *elemCertificates);
+			SINT32 setNextMixCertificate(DOMElement *elemCertificates);
+			SINT32 setPrevMixCertificate(DOMElement *elemCertificates);
+
+			/* Payment Options */
+#define ACCOUNTING_OPTIONS_NR 7
+			SINT32 setPriceCertificate(DOMElement *elemAccounting);
+			SINT32 setPaymentInstance(DOMElement *elemAccounting);
+			SINT32 setAccountingSoftLimit(DOMElement *elemAccounting);
+			SINT32 setAccountingHardLimit(DOMElement *elemAccounting);
+			SINT32 setPrepaidInterval(DOMElement *elemAccounting);
+			SINT32 setSettleInterval(DOMElement *elemAccounting);
+			SINT32 setAccountingDatabase(DOMElement *elemAccounting);
+
+			/* Network Options */
+#define NETWORK_OPTIONS_NR 6
+			SINT32 setInfoServices(DOMElement *elemNetwork);
+			SINT32 setListenerInterfaces(DOMElement *elemNetwork);
+			SINT32 setTargetInterfaces(DOMElement *elemNetwork);
+			SINT32 setServerMonitoring(DOMElement *elemNetwork);
+			SINT32 setKeepAliveTraffic(DOMElement *elemNetwork);
+			SINT32 setPerformanceTestEnabled(DOMElement *elemNetwork);
+
+			/* Terms & Conditions options */
+#define TERMS_AND_CONDITIONS_OPTIONS_NR 2
+			SINT32 setTermsAndConditionsTemplates(DOMElement *elemTnCs);
+			SINT32 setTermsAndConditionsList(DOMElement *elemTnCs);
+
+			/* Crime Logging Options */
+#define CRIME_DETECTION_OPTIONS_NR 3
+			SINT32 setCrimeURLRegExp(DOMElement *elemCrimeDetection);
+			SINT32 setCrimePayloadRegExp(DOMElement *elemCrimeDetection);
+			SINT32 setCrimeSurveillanceIP(DOMElement *elemCrimeDetection);
+
+			SINT32 appendMixInfo_internal(DOMNode* a_node, bool with_subtree);
+			inline SINT32 addMixIdToMixInfo();
+
+			SINT32 invokeOptionSetters
+					(optionSetter_pt *optionsSetters, DOMElement* target, SINT32 optionsSettersLength);
+
+			void initMainOptionSetters();
+			void initGeneralOptionSetters();
+			void initMixDescriptionSetters();
+			void initCertificateOptionSetters();
+			void initAccountingOptionSetters();
+			void initNetworkOptionSetters();
+			void initTermsAndConditionsOptionSetters();
+			void initCrimeDetectionOptionSetters();
+	};
 
 SINT32 setRegExpressions(DOMElement *rootElement, const char* const childElementName,
 		regex_t **regExContainer, UINT32* regExNr);
