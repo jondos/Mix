@@ -1,6 +1,6 @@
 /*************************************************************************
  *
- * $Id: trio.cpp,v 1.11 2007-09-26 12:52:12 sk13 Exp $
+ * $Id: trio.cpp 6062 2009-06-25 23:42:05Z sk13 $
  *
  * Copyright (C) 1998 Bjorn Reese and Daniel Stenberg.
  *
@@ -47,7 +47,7 @@
 #include "triodef.h"
 #include "trio.hpp"
 #include "triop.h"
-#include "triostr.h"
+#include "triostr.hpp"
 #include "trionan.h"
 
 /*
@@ -670,7 +670,7 @@ typedef struct _trio_userdef_t {
  * Internal variables
  */
 
-static TRIO_CONST char rcsid[] = "@(#)$Id: trio.cpp,v 1.11 2007-09-26 12:52:12 sk13 Exp $";
+static TRIO_CONST char rcsid[] = "@(#)$Id: trio.cpp 6062 2009-06-25 23:42:05Z sk13 $";
 
 /*
  * Need this to workaround a parser bug in HP C/iX compiler that fails

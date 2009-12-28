@@ -54,12 +54,10 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 	#include "CAAccountingInstance.hpp"
 	#include "CAAccountingDBInterface.hpp"
 #endif
-extern CACmdLnOptions* pglobalOptions;
 #include "CAReplayControlChannel.hpp"
 #include "CAStatusManager.hpp"
-
+#include "CALibProxytest.hpp"
 const UINT32 CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS = NUM_LOGIN_WORKER_TRHEADS * 2;
-CAMutex *loginCV = new CAConditionVariable();
 
 bool CAFirstMix::isShuttingDown()
 {
@@ -72,18 +70,18 @@ SINT32 CAFirstMix::initOnce()
 		if(ret!=E_SUCCESS)
 			return ret;
 		CAMsg::printMsg(LOG_DEBUG,"Starting FirstMix InitOnce\n");
-		/*m_pSignature=pglobalOptions->getSignKey();
+		/*m_pSignature=CALibProxytest::getOptions()->getSignKey();
 		if(m_pSignature==NULL)*/
-		m_pMultiSignature = pglobalOptions->getMultiSigner();
+		m_pMultiSignature = CALibProxytest::getOptions()->getMultiSigner();
 		if(m_pMultiSignature == NULL)
 			return E_UNKNOWN;
 		//Try to find out how many (real) ListenerInterfaces are specified
-		UINT32 tmpSocketsIn=pglobalOptions->getListenerInterfaceCount();
+		UINT32 tmpSocketsIn=CALibProxytest::getOptions()->getListenerInterfaceCount();
 		m_nSocketsIn=0;
 		for(UINT32 i=1;i<=tmpSocketsIn;i++)
 			{
 				CAListenerInterface* pListener=NULL;
-				pListener=pglobalOptions->getListenerInterface(i);
+				pListener=CALibProxytest::getOptions()->getListenerInterface(i);
 				if(pListener==NULL)
 					continue;
 				if(!pListener->isVirtual())
@@ -121,10 +119,10 @@ SINT32 CAFirstMix::init()
 		//initiate ownerDocument for tc templates
 		m_templatesOwner = createDOMDocument();
 		UINT32 i,aktSocket=0;
-		for(i=1;i<=pglobalOptions->getListenerInterfaceCount();i++)
+		for(i=1;i<=CALibProxytest::getOptions()->getListenerInterfaceCount();i++)
 			{
 				CAListenerInterface* pListener=NULL;
-				pListener=pglobalOptions->getListenerInterface(i);
+				pListener=CALibProxytest::getOptions()->getListenerInterface(i);
 				if(pListener==NULL)
 					{
             CAMsg::printMsg(LOG_CRIT,"Error: Listener interface invalid.\n");
@@ -169,10 +167,10 @@ SINT32 CAFirstMix::init()
 
 
 		CASocketAddr* pAddrNext=NULL;
-		for(i=0;i<pglobalOptions->getTargetInterfaceCount();i++)
+		for(i=0;i<CALibProxytest::getOptions()->getTargetInterfaceCount();i++)
 			{
 				TargetInterface oNextMix;
-				pglobalOptions->getTargetInterface(oNextMix,i+1);
+				CALibProxytest::getOptions()->getTargetInterface(oNextMix,i+1);
 				if(oNextMix.target_type==TARGET_MIX)
 					{
 						pAddrNext=oNextMix.addr;
@@ -230,7 +228,7 @@ SINT32 CAFirstMix::init()
 		char* db_host;
 		char* db_user;
 		char* db_passwd;
-		pglobalOptions->getCountryStatsDBConnectionLoginData(&db_host,&db_user,&db_passwd);
+		CALibProxytest::getOptions()->getCountryStatsDBConnectionLoginData(&db_host,&db_user,&db_passwd);
 		SINT32 retcountrydb=initCountryStats(db_host,db_user,db_passwd);
 		delete[] db_host;
 		db_host = NULL;
@@ -405,9 +403,9 @@ SINT32 CAFirstMix::processKeyExchange()
     cascadeName = elemMixes.getAttribute("cascadeName").transcode();
     if(cascadeName == NULL)
         return E_UNKNOWN;
-    pglobalOptions->setCascadeName(cascadeName);
+    CALibProxytest::getOptions()->setCascadeName(cascadeName);
 */
-    if(pglobalOptions->getTermsAndConditions() != NULL)
+    if(CALibProxytest::getOptions()->getTermsAndConditions() != NULL)
     {
     	appendTermsAndConditionsExtension(doc, elemMixes);
     }
@@ -465,7 +463,7 @@ SINT32 CAFirstMix::processKeyExchange()
     getDOMChildByName(elemMixesKey, "Mix", elemOwnMix, false);
     elemOwnMix->appendChild(elemKey);
     CAMsg::printMsg(LOG_INFO,"before T&Cs1...\n");
-    if(pglobalOptions->getTermsAndConditions() != NULL)
+    if(CALibProxytest::getOptions()->getTermsAndConditions() != NULL)
     {
     	elemOwnMix->appendChild(termsAndConditionsInfoNode(docXmlKeyInfo));
     }
@@ -485,8 +483,8 @@ SINT32 CAFirstMix::processKeyExchange()
 #ifdef PAYMENT
 	setDOMElementAttribute(elemPayment,"required",(UINT8*)"true");
 	setDOMElementAttribute(elemPayment,"version",(UINT8*)PAYMENT_VERSION);
-	setDOMElementAttribute(elemPayment,"prepaidInterval", pglobalOptions->getPrepaidInterval());
-	setDOMElementAttribute(elemPayment,"piid", pglobalOptions->getBI()->getID());
+	setDOMElementAttribute(elemPayment,"prepaidInterval", CALibProxytest::getOptions()->getPrepaidInterval());
+	setDOMElementAttribute(elemPayment,"piid", CALibProxytest::getOptions()->getBI()->getID());
 
 #else
 	setDOMElementAttribute(elemPayment,"required",(UINT8*)"false");
@@ -533,10 +531,25 @@ SINT32 CAFirstMix::processKeyExchange()
     {
     	if(equals(child->getNodeName(),"Mix"))
         {
+    		//verify certificate from next mix if enabled
+    		if(CALibProxytest::getOptions()->verifyMixCertificates())
+    		{
+    			CACertificate* nextMixCert = CALibProxytest::getOptions()->getTrustedCertificateStore()->verifyMixCert(child);
+    			if(nextMixCert != NULL)
+    			{
+    				CAMsg::printMsg(LOG_DEBUG, "Next mix certificate was verified by a trusted root CA.\n");
+    				CALibProxytest::getOptions()->setNextMixTestCertificate(nextMixCert);
+    			}
+    			else
+    			{
+    				CAMsg::printMsg(LOG_ERR, "Could not verify certificate received from next mix!\n");
+    				return E_UNKNOWN;
+    			}
+    		}
             //check Signature....
             CAMsg::printMsg(LOG_DEBUG,"Try to verify next mix signature...\n");
             //CASignature oSig;
-            CACertificate* nextCert=pglobalOptions->getNextMixTestCertificate();
+            CACertificate* nextCert=CALibProxytest::getOptions()->getNextMixTestCertificate();
             /*oSig.setVerifyKey(nextCert);
             SINT32 ret=oSig.verifyXML(child,NULL);*/
             SINT32 result = CAMultiSignature::verifyXML(child, nextCert);
@@ -544,7 +557,7 @@ SINT32 CAFirstMix::processKeyExchange()
             nextCert = NULL;
             if(result != E_SUCCESS)
             {
-                CAMsg::printMsg(LOG_DEBUG,"failed!\n");
+                //CAMsg::printMsg(LOG_DEBUG,"failed!\n");
                 if (doc != NULL)
                 {
                 	doc->release();
@@ -552,7 +565,7 @@ SINT32 CAFirstMix::processKeyExchange()
                 }
                 return E_UNKNOWN;
             }
-            CAMsg::printMsg(LOG_DEBUG,"success!\n");
+            //CAMsg::printMsg(LOG_DEBUG,"success!\n");
             DOMNode* rsaKey=child->getFirstChild();
             CAASymCipher oRSA;
             oRSA.setPublicKeyAsDOMNode(rsaKey);
@@ -585,9 +598,7 @@ SINT32 CAFirstMix::processKeyExchange()
                 setDOMElementValue(elemNonceHash,arNonce);
                 elemRoot->appendChild(elemNonceHash);
             }
-            UINT32 outlen=5000;
-            UINT8* out=new UINT8[outlen];
-						///Getting the KeepAlive Traffice...
+            //Getting the KeepAlive Traffice...
 			DOMElement* elemKeepAlive=NULL;
 			DOMElement* elemKeepAliveSendInterval=NULL;
 			DOMElement* elemKeepAliveRecvInterval=NULL;
@@ -599,8 +610,8 @@ SINT32 CAFirstMix::processKeyExchange()
 			getDOMElementValue(elemKeepAliveRecvInterval,tmpRecvInterval,0xFFFFFFFF); //if no recv interval was given --> set it to "infinite"
 			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Getting offer -- SendInterval %u -- ReceiveInterval %u\n",tmpSendInterval,tmpRecvInterval);
 			// Add Info about KeepAlive traffic
-			UINT32 u32KeepAliveSendInterval=pglobalOptions->getKeepAliveSendInterval();
-			UINT32 u32KeepAliveRecvInterval=pglobalOptions->getKeepAliveRecvInterval();
+			UINT32 u32KeepAliveSendInterval=CALibProxytest::getOptions()->getKeepAliveSendInterval();
+			UINT32 u32KeepAliveRecvInterval=CALibProxytest::getOptions()->getKeepAliveRecvInterval();
 			elemKeepAlive=createDOMElement(docSymKey,"KeepAlive");
 			elemKeepAliveSendInterval=createDOMElement(docSymKey,"SendInterval");
 			elemKeepAliveRecvInterval=createDOMElement(docSymKey,"ReceiveInterval");
@@ -619,8 +630,9 @@ SINT32 CAFirstMix::processKeyExchange()
 			CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval,m_u32KeepAliveRecvInterval);
 
             //m_pSignature->signXML(elemRoot);
-            m_pMultiSignature->signXML(elemRoot, false);
-			DOM_Output::dumpToMem(docSymKey,out,&outlen);
+            m_pMultiSignature->signXML(elemRoot, true);
+            UINT32 outlen=0;
+            UINT8* out=DOM_Output::dumpToMem(docSymKey,&outlen);
             if (docSymKey != NULL)
             {
 				docSymKey->release();
@@ -1103,7 +1115,7 @@ SINT32 isAllowedToPassRestrictions(CASocket* pNewMuxSocket)
 		UINT32 size=0;
 		UINT8 remoteIP[4];
 
-		CAListenerInterface** intf = pglobalOptions->getInfoServices(size);
+		CAListenerInterface** intf = CALibProxytest::getOptions()->getInfoServices(size);
 
 		master = E_UNKNOWN;
 
@@ -1207,12 +1219,13 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 							// may return E_SOCKETCLOSED or E_SOCKET_LIMIT
 							CAMsg::printMsg(LOG_ERR,"Accept Error %u - direct Connection from Client!\n",GET_NET_ERROR);
 						}
-						else if( (pglobalOptions->getMaxNrOfUsers() > 0 && pFirstMix->getNrOfUsers() >= pglobalOptions->getMaxNrOfUsers())
+						else if( (CALibProxytest::getOptions()->getMaxNrOfUsers() > 0 &&
+								pFirstMix->getNrOfUsers() >= CALibProxytest::getOptions()->getMaxNrOfUsers())
 								&& (isAllowedToPassRestrictions(pNewMuxSocket->getCASocket()) != E_SUCCESS)
 
 								)
 						{
-							CAMsg::printMsg(LOG_DEBUG,"CAFirstMix User control: Too many users (Maximum:%d)! Rejecting user...\n", pFirstMix->getNrOfUsers(), pglobalOptions->getMaxNrOfUsers());
+							CAMsg::printMsg(LOG_DEBUG,"CAFirstMix User control: Too many users (Maximum:%d)! Rejecting user...\n", pFirstMix->getNrOfUsers(),CALibProxytest::getOptions()->getMaxNrOfUsers());
 							ret = E_UNKNOWN;
 						}
 						else if ((pFirstMix->m_newConnections > CAFirstMix::MAX_CONCURRENT_NEW_CONNECTIONS)
@@ -1555,7 +1568,6 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 	{
 		INIT_STACK;
 		BEGIN_STACK("CAFirstMix::doUserLogin");
-		SINT32 ai_ret;
 		#ifdef _DEBUG
 			int ret=pNewUser->getCASocket()->setKeepAlive(true);
 			if(ret!=E_SUCCESS)
@@ -1749,7 +1761,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 
 				DOMElement* elemMix=createDOMElement(docSig,"Mix");
 				UINT8 buff[255];
-				pglobalOptions->getMixId(buff,255);
+				CALibProxytest::getOptions()->getMixId(buff,255);
 				setDOMElementAttribute(elemMix,"id",buff);
 				DOMElement* elemReplayOffset=createDOMElement(docSig,"ReplayOffset");
 				setDOMElementValue(elemReplayOffset,(UINT32) (time(NULL)-m_u64ReferenceTime));
@@ -1967,6 +1979,7 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 #ifdef DEBUG
 		CAMsg::printMsg(LOG_DEBUG,"Starting AI login procedure for owner %x \n", pHashEntry);
 #endif
+		SINT32 ai_ret;
 		MIXPACKET *paymentLoginPacket = new MIXPACKET;
 		tQueueEntry *aiAnswerQueueEntry=new tQueueEntry;
 		CAQueue *controlMessages = pHashEntry->pControlMessageQueue;
@@ -2453,7 +2466,7 @@ SINT32 CAFirstMix::clean()
 		m_nUser=0;
 
 		CAMsg::printMsg	(LOG_CRIT,"before tc cleanup\n");
-		for (int i = 0; i < m_nrOfTermsAndConditionsDefs; i++)
+		for (UINT32 i = 0; i < m_nrOfTermsAndConditionsDefs; i++)
 		{
 			delete m_tnCDefs[i];
 			m_tnCDefs[i] = NULL;
@@ -2491,9 +2504,9 @@ SINT32 CAFirstMix::reconfigure()
 #ifdef DELAY_USERS
 		CAMsg::printMsg(LOG_DEBUG,"Set new ressources limitation parameters\n");
 		if(m_pChannelList!=NULL)
-			m_pChannelList->setDelayParameters(	pglobalOptions->getDelayChannelUnlimitTraffic(),
-																					pglobalOptions->getDelayChannelBucketGrow(),
-																					pglobalOptions->getDelayChannelBucketGrowIntervall());
+			m_pChannelList->setDelayParameters(	CALibProxytest::getOptions()->getDelayChannelUnlimitTraffic(),
+																					CALibProxytest::getOptions()->getDelayChannelBucketGrow(),
+																					CALibProxytest::getOptions()->getDelayChannelBucketGrowIntervall());
 #endif
 		return E_SUCCESS;
 	}
@@ -2507,7 +2520,7 @@ SINT32 CAFirstMix::initMixParameters(DOMElement*  elemMixes)
 		m_arMixParameters=new tMixParameters[m_u32MixCount];
 		memset(m_arMixParameters,0,sizeof(tMixParameters)*m_u32MixCount);
 		UINT8 buff[255];
-		pglobalOptions->getMixId(buff,255);
+		CALibProxytest::getOptions()->getMixId(buff,255);
 		UINT32 len=strlen((char*)buff)+1;
 		UINT32 aktMix=0;
 		for(UINT32 i=0;i<nl->getLength();i++)
@@ -2596,7 +2609,7 @@ SINT32 CAFirstMix::initCountryStats(char* db_host,char* db_user,char* db_passwd)
 		CAMsg::printMsg(LOG_DEBUG,"Connected to CountryStats DB!\n");
 		char query[1024];
 		UINT8 buff[255];
-		pglobalOptions->getCascadeName(buff,255);
+		CALibProxytest::getOptions()->getCascadeName(buff,255);
 		mysqlEscapeTableName(buff);
 		sprintf(query,"CREATE TABLE IF NOT EXISTS `stats_%s` (date timestamp,id int,count int,packets_in int,packets_out int)",buff);
 		SINT32 ret=mysql_query(m_mysqlCon,query);
@@ -2713,7 +2726,7 @@ THREAD_RETURN iplist_loopDoLogCountries(void* param)
 		UINT32 s=0;
 		UINT8 buff[255];
 		memset(buff,0,255);
-		pglobalOptions->getCascadeName(buff,255);
+		CALibProxytest::getOptions()->getCascadeName(buff,255);
 		mysqlEscapeTableName(buff);
 		while(pFirstMix->m_bRunLogCountries)
 			{

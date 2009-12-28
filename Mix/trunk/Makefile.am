@@ -40,6 +40,7 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CALastMix.cpp \
 		    CALastMixChannelList.cpp\
 		    CAListenerInterface.cpp\
+		    CALibProxytest.cpp\
 		    CALocalProxy.cpp \
 		    CALogPacketStats.cpp\
 		    CAMiddleMix.cpp \
@@ -113,6 +114,7 @@ libproxytest_a_SOURCES = CAAbstractControlChannel.cpp\
 		    CALastMix.hpp \
 		    CALastMixChannelList.hpp\
 		    CAListenerInterface.hpp\
+		    CALibProxytest.hpp\
 		    CALocalProxy.hpp \
 		    CALockAble.hpp\
 		    CALogPacketStats.hpp\

@@ -30,16 +30,17 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define __CAFIRSTMIXA__
 #ifndef ONLY_LOCAL_PROXY
 #include "../CAFirstMix.hpp"
+#include "../CASocketAddrINet.hpp"
 
 class CAFirstMixA:public CAFirstMix
 {
 		public:
-
-		virtual void shutDown();
+			virtual void shutDown();
 
 		protected:
 			SINT32 loop();
 			SINT32 closeConnection(fmHashTableEntry* pHashEntry);
+		
 		private:
 			bool sendToUsers();
 			void resumeAllUserChannels(fmHashTableEntry* pfmHashEntry);
@@ -53,13 +54,11 @@ class CAFirstMixA:public CAFirstMix
 			SINT32 accountTrafficDownstream(fmHashTableEntry* pfmHashEntry);
 #endif
 	#ifdef LOG_CRIME
-			void crimeSurveillance(in_addr_t *surveillanceIPs, UINT32 nrOfSureveillanceIPs,
+			void crimeSurveillance(CASocketAddrINet *surveillanceIPs, UINT32 nrOfSureveillanceIPs,
 					UINT8 *peerIP, MIXPACKET *pMixPacket);
 	#endif
 
 };
-
-
 
 #endif
 #endif //ONLY_LOCAL_PROXY

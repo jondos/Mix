@@ -122,6 +122,7 @@ void releaseDOMParser();
 SINT32 getDOMChildByName(const DOMNode* pNode,const XMLCh* const name,DOMNode* & child,bool deep=false);
 SINT32 getDOMChildByName(const DOMNode* pNode,const char * const name,DOMNode* & child,bool deep=false);
 SINT32 getDOMChildByName(const DOMNode* pNode,const char * const name,DOMElement* & child,bool deep=false);
+SINT32 getSignatureElements(DOMNode* parent, DOMNode** signatureNodes, UINT32* length);
 
 /**
  * Returns the content of the text node(s) under elem
@@ -431,12 +432,6 @@ inline void print64(UINT8* buff,UINT64 num)
 
 UINT8* readFile(UINT8* name,UINT32* size);
 
-#ifdef LOG_CRIME
-
-void initHttpVerbLengths();
-UINT8 *parseDomainFromPayload(const UINT8 *payloadData, UINT32 payloadDataLength);
-
-#endif
 /**
  * Parses a timestamp in JDBC timestamp escape format (as it comes from the BI)
  * and outputs the value in milliseconds since the epoch.

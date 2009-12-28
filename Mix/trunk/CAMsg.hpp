@@ -82,6 +82,8 @@ class CAMsg
 				}
 
 			static SINT32 printMsg(UINT32 typ,const char* format,...);
+			//static SINT32 printBytes(UINT32 typ,const char* msg,const UINT8* bytes,UINT32 bytesLen);
+
 #ifndef ONLY_LOCAL_PROXY
 			static SINT32 openEncryptedLog();
 			static SINT32 closeEncryptedLog();

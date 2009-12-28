@@ -43,19 +43,18 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAPool.hpp"
 #include "xml/DOM_Output.hpp"
 #include "CAStatusManager.hpp"
-
-extern CACmdLnOptions* pglobalOptions;
+#include "CALibProxytest.hpp"
 
 SINT32 CAMiddleMix::initOnce()
 	{
 		CAMsg::printMsg(LOG_DEBUG,"Starting MiddleMix InitOnce\n");
-		//m_pSignature=pglobalOptions->getSignKey();
-		m_pMultiSignature=pglobalOptions->getMultiSigner();
+		//m_pSignature=CALibProxytest::getOptions()->getSignKey();
+		m_pMultiSignature=CALibProxytest::getOptions()->getMultiSigner();
 		if(m_pMultiSignature==NULL)
 			{
 				return E_UNKNOWN;
 			}
-		if(pglobalOptions->getListenerInterfaceCount()<1)
+		if(CALibProxytest::getOptions()->getListenerInterfaceCount()<1)
 			{
 				CAMsg::printMsg(LOG_CRIT,"No ListenerInterfaces specified!\n");
 				return E_UNKNOWN;
@@ -128,9 +127,24 @@ SINT32 CAMiddleMix::processKeyExchange()
 			{
 				if(equals(child->getNodeName(),"Mix"))
 					{
+						//verify certificate from next mix if enabled
+						if(CALibProxytest::getOptions()->verifyMixCertificates())
+						{
+							CACertificate* nextMixCert = CALibProxytest::getOptions()->getTrustedCertificateStore()->verifyMixCert(child);
+							if(nextMixCert != NULL)
+							{
+								CAMsg::printMsg(LOG_DEBUG, "Next mix certificate was verified by a trusted root CA.\n");
+								CALibProxytest::getOptions()->setNextMixTestCertificate(nextMixCert);
+							}
+							else
+							{
+								CAMsg::printMsg(LOG_ERR, "Could not verify certificate received from next mix!\n");
+								return E_UNKNOWN;
+							}
+						}
 						//check Signature....
 						//CASignature oSig;
-						CACertificate* nextCert=pglobalOptions->getNextMixTestCertificate();
+						CACertificate* nextCert=CALibProxytest::getOptions()->getNextMixTestCertificate();
 						//oSig.setVerifyKey(nextCert);
 						ret = CAMultiSignature::verifyXML(child, nextCert);
 						//ret=oSig.verifyXML(child,NULL);
@@ -189,8 +203,8 @@ SINT32 CAMiddleMix::processKeyExchange()
 						getDOMElementValue(elemKeepAliveRecvInterval,tmpRecvInterval,0xFFFFFFFF); //if no recv interval was given --> set it to "infinite"
 						CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Getting offer -- SendInterval %u -- ReceiveInterval %u\n",tmpSendInterval,tmpRecvInterval);
 						// Add Info about KeepAlive traffic
-						UINT32 u32KeepAliveSendInterval=pglobalOptions->getKeepAliveSendInterval();
-						UINT32 u32KeepAliveRecvInterval=pglobalOptions->getKeepAliveRecvInterval();
+						UINT32 u32KeepAliveSendInterval=CALibProxytest::getOptions()->getKeepAliveSendInterval();
+						UINT32 u32KeepAliveRecvInterval=CALibProxytest::getOptions()->getKeepAliveRecvInterval();
 						elemKeepAlive=createDOMElement(docSymKey,"KeepAlive");
 						elemKeepAliveSendInterval=createDOMElement(docSymKey,"SendInterval");
 						elemKeepAliveRecvInterval=createDOMElement(docSymKey,"ReceiveInterval");
@@ -207,7 +221,7 @@ SINT32 CAMiddleMix::processKeyExchange()
 						CAMsg::printMsg(LOG_DEBUG,"KeepAlive-Traffic: Calculated -- SendInterval %u -- Receive Interval %u\n",m_u32KeepAliveSendInterval2,m_u32KeepAliveRecvInterval2);
 
 						//m_pSignature->signXML(elemRoot);
-						m_pMultiSignature->signXML(elemRoot, false);
+						m_pMultiSignature->signXML(elemRoot, true);
 						m_pMuxOut->setSendKey(key,32);
 						m_pMuxOut->setReceiveKey(key+32,32);
 						UINT32 outlen=0;
@@ -253,7 +267,7 @@ SINT32 CAMiddleMix::processKeyExchange()
 
 
 		UINT8 tmpBuff[50];
-		pglobalOptions->getMixId(tmpBuff,50); //the mix id...
+		CALibProxytest::getOptions()->getMixId(tmpBuff,50); //the mix id...
 		setDOMElementAttribute(mixNode,"id",tmpBuff);
 		//Supported Mix Protocol -->currently "0.3"
 		DOMElement* elemMixProtocolVersion=createDOMElement(doc,"MixProtocolVersion");
@@ -275,8 +289,8 @@ SINT32 CAMiddleMix::processKeyExchange()
 
 // Add Info about KeepAlive traffic
 		DOMElement* elemKeepAlive;
-		UINT32 u32KeepAliveSendInterval=pglobalOptions->getKeepAliveSendInterval();
-		UINT32 u32KeepAliveRecvInterval=pglobalOptions->getKeepAliveRecvInterval();
+		UINT32 u32KeepAliveSendInterval=CALibProxytest::getOptions()->getKeepAliveSendInterval();
+		UINT32 u32KeepAliveRecvInterval=CALibProxytest::getOptions()->getKeepAliveRecvInterval();
 		elemKeepAlive=createDOMElement(doc,"KeepAlive");
 		DOMElement* elemKeepAliveSendInterval;
 		DOMElement* elemKeepAliveRecvInterval;
@@ -293,7 +307,7 @@ SINT32 CAMiddleMix::processKeyExchange()
 		 * Extensions, (nodes that can be removed from the KeyInfo without
 		 * destroying the signature of the "Mix"-node).
 		 */
-		if(pglobalOptions->getTermsAndConditions() != NULL)
+		if(CALibProxytest::getOptions()->getTermsAndConditions() != NULL)
 		{
 			appendTermsAndConditionsExtension(doc, root);
 			mixNode->appendChild(termsAndConditionsInfoNode(doc));
@@ -337,7 +351,6 @@ SINT32 CAMiddleMix::processKeyExchange()
 		recvBuff = new UINT8[len+1]; //for \0 at the end
 		if(m_pMuxIn->getCASocket()->receive(recvBuff, len) != len)
 		{
-
 			MONITORING_FIRE_NET_EVENT(ev_net_keyExchangePrevFailed);
 			CAMsg::printMsg(LOG_ERR,"Error receiving symmetric key from Mix n-1!\n");
 			delete []recvBuff;
@@ -358,9 +371,24 @@ SINT32 CAMiddleMix::processKeyExchange()
 			return E_UNKNOWN;
 		}
 		DOMElement* elemRoot=doc->getDocumentElement();
+		//verify certificate from previous mix if enabled
+		if(CALibProxytest::getOptions()->verifyMixCertificates())
+		{
+			CACertificate* prevMixCert = CALibProxytest::getOptions()->getTrustedCertificateStore()->verifyMixCert(elemRoot);
+			if(prevMixCert != NULL)
+			{
+				CAMsg::printMsg(LOG_DEBUG, "Previous mix certificate was verified by a trusted root CA.\n");
+				CALibProxytest::getOptions()->setPrevMixTestCertificate(prevMixCert);
+			}
+			else
+			{
+				CAMsg::printMsg(LOG_ERR, "Could not verify certificate received from previous mix!\n");
+				return E_UNKNOWN;
+			}
+		}
 		//verify signature
 		//CASignature oSig;
-		CACertificate* pCert=pglobalOptions->getPrevMixTestCertificate();
+		CACertificate* pCert=CALibProxytest::getOptions()->getPrevMixTestCertificate();
 		//oSig.setVerifyKey(pCert);
 		SINT32 result = CAMultiSignature::verifyXML(elemRoot, pCert);
 		delete pCert;
@@ -439,10 +467,10 @@ SINT32 CAMiddleMix::init()
 
     // connect to next mix
 		CASocketAddr* pAddrNext=NULL;
-		for(UINT32 i=0;i<pglobalOptions->getTargetInterfaceCount();i++)
+		for(UINT32 i=0;i<CALibProxytest::getOptions()->getTargetInterfaceCount();i++)
 			{
 				TargetInterface oNextMix;
-				pglobalOptions->getTargetInterface(oNextMix,i+1);
+				CALibProxytest::getOptions()->getTargetInterface(oNextMix,i+1);
 				if(oNextMix.target_type==TARGET_MIX)
 					{
 						pAddrNext=oNextMix.addr;
@@ -470,10 +498,10 @@ SINT32 CAMiddleMix::init()
 
     CAMsg::printMsg(LOG_INFO,"Waiting for Connection from previous Mix...\n");
 		CAListenerInterface* pListener=NULL;
-		UINT32 interfaces=pglobalOptions->getListenerInterfaceCount();
+		UINT32 interfaces=CALibProxytest::getOptions()->getListenerInterfaceCount();
 		for(UINT32 i=1;i<=interfaces;i++)
 			{
-				pListener=pglobalOptions->getListenerInterface(i);
+				pListener=CALibProxytest::getOptions()->getListenerInterface(i);
 				if(!pListener->isVirtual())
 					break;
 				delete pListener;

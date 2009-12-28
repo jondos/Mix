@@ -1,6 +1,6 @@
 /*************************************************************************
  *
- * $Id: triostr.cpp,v 1.7 2004-03-09 15:24:55 sk13 Exp $
+ * $Id: triostr.cpp 6063 2009-06-25 23:42:12Z sk13 $
  *
  * Copyright (C) 2001 Bjorn Reese and Daniel Stenberg.
  *
@@ -15,7 +15,7 @@
  *
  ************************************************************************/
 
-static const char rcsid[] = "@(#)$Id: triostr.cpp,v 1.7 2004-03-09 15:24:55 sk13 Exp $";
+static const char rcsid[] = "@(#)$Id: triostr.cpp 6063 2009-06-25 23:42:12Z sk13 $";
 
 /*************************************************************************
  * Include files
@@ -26,7 +26,7 @@ static const char rcsid[] = "@(#)$Id: triostr.cpp,v 1.7 2004-03-09 15:24:55 sk13
 #include <string.h>
 #include <ctype.h>
 #include <math.h>
-#include "triostr.h"
+#include "triostr.hpp"
 
 /*************************************************************************
  * Definitions

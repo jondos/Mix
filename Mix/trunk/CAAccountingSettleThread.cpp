@@ -36,10 +36,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAXMLCostConfirmation.hpp"
 #include "CAXMLErrorMessage.hpp"
 #include "Hashtable.hpp"
+#include "CALibProxytest.hpp"
 
-extern CACmdLnOptions* pglobalOptions;
-
-CAAccountingSettleThread::CAAccountingSettleThread(Hashtable* a_accountingHashtable,
+CAAccountingSettleThread::CAAccountingSettleThread(Hashtable* a_accountingHashtable, 
 													UINT8* currentCascade)/*,
 													CAAccountingBIInterface *pPiInterface,
 													CAAccountingDBInterface *pDbInterface)*/
@@ -94,8 +93,8 @@ THREAD_RETURN CAAccountingSettleThread::mainLoop(void * pParam)
 		BEGIN_STACK("CAAccountingSettleThread::mainLoop");
 
 		UINT32 settlement_status;
-		UINT32 sleepInterval = pglobalOptions->getPaymentSettleInterval();
-
+		UINT32 sleepInterval = CALibProxytest::getOptions()->getPaymentSettleInterval();
+		
 		CAAccountingSettleThread* m_pAccountingSettleThread=(CAAccountingSettleThread*)pParam;
 
 		CAMsg::printMsg(LOG_DEBUG, "AccountingSettleThread: Start loop...\n");
