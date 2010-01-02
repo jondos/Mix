@@ -2424,7 +2424,7 @@ SINT32 CAFirstMix::clean()
 					m_arrSocketsIn[i] = NULL;
 				}
 				delete[] m_arrSocketsIn;
-			}			
+			}
 		m_arrSocketsIn=NULL;
 #ifdef REPLAY_DETECTION
 		if(m_pReplayMsgProc!=NULL)
