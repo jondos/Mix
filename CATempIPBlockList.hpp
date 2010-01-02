@@ -41,6 +41,7 @@ struct _tempipblocklist_t
 	
 		/** Entry is valid until getCurrentTimeMillis() > validTimeMillis */
 		UINT64 validTimeMillis; 
+		SINT32 iCountBlocks;
 		/** First two Bytes of the IP-Address */
 		UINT8 ip[2];
 	};
@@ -87,6 +88,11 @@ class CATempIPBlockList
 		 */
 		void setValidTimeMillis(UINT64 millis);
 
+		UINT32 count()
+		{
+			return m_iEntries;
+		}
+
 	private:
 		/** as long as true the clenaupthread does his job. If false the thread will exit.*/
 		volatile bool m_bRunCleanupThread;
@@ -105,6 +111,8 @@ class CATempIPBlockList
 			
 		/** Used for locking the datastructure to make it threadsafe */
 		CAMutex * m_pMutex;
+
+		UINT32 m_iEntries;
 };
 
 #endif //ONLY_LOCAL_PROXY
