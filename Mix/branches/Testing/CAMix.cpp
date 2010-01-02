@@ -167,7 +167,8 @@ SINT32 CAMix::start()
 	                {
 	                	m_pInfoService->start();
 	                }
-	            }
+					m_pInfoService->signal();
+	           }
 
 	            CAMsg::printMsg(LOG_INFO, "The mix is now on-line.\n");
 #ifdef DYNAMIC_MIX

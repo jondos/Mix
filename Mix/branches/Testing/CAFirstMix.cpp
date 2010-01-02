@@ -37,6 +37,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "CAASymCipher.hpp"
 #include "CAInfoService.hpp"
 #include "CASocketAddrINet.hpp"
+#include "CATempIPBlockList.hpp"
 #ifdef HAVE_UNIX_DOMAIN_PROTOCOL
 	#include "CASocketAddrUnix.hpp"
 #endif
@@ -99,6 +100,65 @@ SINT32 CAFirstMix::initOnce()
 		return E_SUCCESS;
 	}
 
+SINT32 CAFirstMix::createSockets(bool a_bMessages)
+{
+		UINT32 aktSocket;
+		UINT8 buff[255];
+		for(aktSocket=0;aktSocket < CALibProxytest::getOptions()->getListenerInterfaceCount(); aktSocket++)
+			{
+				CAListenerInterface* pListener=NULL;
+				pListener=CALibProxytest::getOptions()->getListenerInterface(aktSocket+1);
+				if(pListener==NULL)
+					{
+            CAMsg::printMsg(LOG_CRIT,"Error: Listener interface invalid.\n");
+						return E_UNKNOWN;
+					}
+				if(pListener->isVirtual())
+					{
+						delete pListener;
+						pListener = NULL;
+						continue;
+					}
+				m_arrSocketsIn[aktSocket] = new CASocket();
+				m_arrSocketsIn[aktSocket]->create();
+				m_arrSocketsIn[aktSocket]->setReuseAddr(true);
+				CASocketAddr* pAddr=pListener->getAddr();
+				pAddr->toString(buff,255);
+				if (a_bMessages)
+				{
+					CAMsg::printMsg(LOG_DEBUG,"Listening on Interface: %s\n",buff);
+				}
+				delete pListener;
+				pListener = NULL;
+#ifndef _WIN32
+				//we have to be a temporaly superuser if port <1024...
+				int old_uid=geteuid();
+				if(pAddr->getType()==AF_INET&&((CASocketAddrINet*)pAddr)->getPort()<1024)
+					{
+						if(seteuid(0)==-1) //changing to root
+							CAMsg::printMsg(LOG_CRIT,"Setuid failed! You must start the mix as root in order to use listener ports lower than 1024!\n");
+					}
+#endif
+				SINT32 ret=m_arrSocketsIn[aktSocket]->listen(*pAddr);
+				delete pAddr;
+				pAddr = NULL;
+#ifndef _WIN32
+				seteuid(old_uid);
+#endif
+				if(ret!=E_SUCCESS)
+					{
+            CAMsg::printMsg(LOG_CRIT,"Socket error while listening on interface %d\n",aktSocket+1);
+						return E_UNKNOWN;
+					}
+			}
+
+		if (a_bMessages)
+		{
+			CAMsg::printMsg(LOG_DEBUG,"FirstMix Init - listening on all interfaces\n");
+		}
+		return E_SUCCESS;
+}
+
 SINT32 CAFirstMix::init()
 	{
 		if (isShuttingDown())
@@ -111,60 +171,20 @@ SINT32 CAFirstMix::init()
 #endif
 
 		CAMsg::printMsg(LOG_DEBUG,"Starting FirstMix Init\n");
-		UINT8 buff[255];
 		m_nMixedPackets=0; //reset to zero after each restart (at the moment neccessary for infoservice)
 		m_bRestart=false;
 		//Establishing all Listeners
-		m_arrSocketsIn=new CASocket[m_nSocketsIn];
+		m_arrSocketsIn=new CASocket*[m_nSocketsIn];
 		//initiate ownerDocument for tc templates
 		m_templatesOwner = createDOMDocument();
-		UINT32 i,aktSocket=0;
-		for(i=1;i<=CALibProxytest::getOptions()->getListenerInterfaceCount();i++)
-			{
-				CAListenerInterface* pListener=NULL;
-				pListener=CALibProxytest::getOptions()->getListenerInterface(i);
-				if(pListener==NULL)
-					{
-            CAMsg::printMsg(LOG_CRIT,"Error: Listener interface invalid.\n");
-						return E_UNKNOWN;
-					}
-				if(pListener->isVirtual())
-					{
-						delete pListener;
-						pListener = NULL;
-						continue;
-					}
-				m_arrSocketsIn[aktSocket].create();
-				m_arrSocketsIn[aktSocket].setReuseAddr(true);
-				CASocketAddr* pAddr=pListener->getAddr();
-				pAddr->toString(buff,255);
-				CAMsg::printMsg(LOG_DEBUG,"Listening on Interface: %s\n",buff);
-				delete pListener;
-				pListener = NULL;
-#ifndef _WIN32
-				//we have to be a temporaly superuser if port <1024...
-				int old_uid=geteuid();
-				if(pAddr->getType()==AF_INET&&((CASocketAddrINet*)pAddr)->getPort()<1024)
-					{
-						if(seteuid(0)==-1) //changing to root
-							CAMsg::printMsg(LOG_CRIT,"Setuid failed! You must start the mix as root in order to use listener ports lower than 1024!\n");
-					}
-#endif
-				SINT32 ret=m_arrSocketsIn[aktSocket].listen(*pAddr);
-				delete pAddr;
-				pAddr = NULL;
-#ifndef _WIN32
-				seteuid(old_uid);
-#endif
-				if(ret!=E_SUCCESS)
-					{
-            CAMsg::printMsg(LOG_CRIT,"Socket error while listening on interface %d\n",i);
-						return E_UNKNOWN;
-					}
-				aktSocket++;
-			}
-		CAMsg::printMsg(LOG_DEBUG,"FirstMix Init - listening on all interfaces\n");
 
+		SINT32 retSockets = createSockets(true);
+
+		UINT32 i;
+		if (retSockets != E_SUCCESS)
+		{
+			return retSockets;
+		}
 
 		CASocketAddr* pAddrNext=NULL;
 		for(i=0;i<CALibProxytest::getOptions()->getTargetInterfaceCount();i++)
@@ -224,6 +244,7 @@ SINT32 CAFirstMix::init()
         return E_UNKNOWN;
     }
 		m_pIPList=new CAIPList();
+		m_pIPBlockList = new CATempIPBlockList(1000 * 60 * 2); 
 #ifdef COUNTRY_STATS
 		char* db_host;
 		char* db_user;
@@ -585,7 +606,7 @@ SINT32 CAFirstMix::processKeyExchange()
             }
             UINT32 outlen=5000;
             UINT8* out=new UINT8[outlen];
-						///Getting the KeepAlive Traffice...
+			///Getting the KeepAlive Traffic...
 			DOMElement* elemKeepAlive=NULL;
 			DOMElement* elemKeepAliveSendInterval=NULL;
 			DOMElement* elemKeepAliveRecvInterval=NULL;
@@ -1121,7 +1142,7 @@ SINT32 isAllowedToPassRestrictions(CASocket* pNewMuxSocket)
 
 				if(memcmp(peerIP, remoteIP, 4) == 0)
 				{
-					CAMsg::printMsg(LOG_DEBUG,"FirstMix: You are allowed...\n");
+					CAMsg::printMsg(LOG_DEBUG,"Got InfoService connection: You are allowed for login...\n");
 					master = E_SUCCESS;
 					break;
 				}
@@ -1145,8 +1166,9 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 		BEGIN_STACK("CAFirstMix::fm_loopAcceptUsers");
 
 		CAFirstMix* pFirstMix=(CAFirstMix*)param;
-		CASocket* socketsIn=pFirstMix->m_arrSocketsIn;
+		CASocket** socketsIn=pFirstMix->m_arrSocketsIn;
 		CAIPList* pIPList=pFirstMix->m_pIPList;
+		CATempIPBlockList* pIPBlockList = pFirstMix->m_pIPBlockList;
 		CAThreadPool* pthreadsLogin=pFirstMix->m_pthreadsLogin;
 		UINT32 nSocketsIn=pFirstMix->m_nSocketsIn;
 		CASocketGroup* psocketgroupAccept=new CASocketGroup(false);
@@ -1155,12 +1177,13 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 		UINT32 i=0;
 		SINT32 countRead;
 		SINT32 ret;
+		SINT32 retPeerIP = E_SUCCESS;
 
 		pFirstMix->m_newConnections = 0;
 
 		for(i=0;i<nSocketsIn;i++)
 		{
-			psocketgroupAccept->add(socketsIn[i]);
+			psocketgroupAccept->add(*socketsIn[i]);
 		}
 #ifdef REPLAY_DETECTION //before we can start to accept users we have to ensure that we received the replay timestamps form the over mixes
 		CAMsg::printMsg(LOG_DEBUG,"Waiting for Replay Timestamp from next mixes\n");
@@ -1178,6 +1201,25 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 #endif
 		while(!pFirstMix->m_bRestart)
 			{
+				if (pIPBlockList->count()>40)
+				{
+					CAMsg::printMsg(LOG_DEBUG,"UserAcceptLoop: block list counts %d. We have %d open sockets and %d new connections. Restarting server sockets...\n",pIPBlockList->count(), CASocket::countOpenSockets(), pFirstMix->m_newConnections);
+					for(i=0;i<nSocketsIn;i++)
+					{
+						psocketgroupAccept->remove(*socketsIn[i]);
+						while (socketsIn[i]->close() != E_SUCCESS)
+						{
+							sSleep(1);
+						}
+					}
+	
+					pFirstMix->createSockets(false);
+					for(i=0;i<nSocketsIn;i++)
+					{
+						psocketgroupAccept->add(*socketsIn[i]);
+					}
+					sSleep(1);
+				}
 				countRead=psocketgroupAccept->select(10000);
 				if(countRead<0)
 					{ //check for Error - are we restarting ?
@@ -1190,14 +1232,14 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 #endif
 				while(countRead>0&&i<nSocketsIn)
 				{
-					if(psocketgroupAccept->isSignaled(socketsIn[i]))
+					if(psocketgroupAccept->isSignaled(*socketsIn[i]))
 					{
 						countRead--;
 						#ifdef _DEBUG
 							CAMsg::printMsg(LOG_DEBUG,"New direct Connection from Client!\n");
 						#endif
 						pNewMuxSocket=new CAMuxSocket;
-						ret=socketsIn[i].accept(*(pNewMuxSocket->getCASocket()));
+						ret=socketsIn[i]->accept(*(pNewMuxSocket->getCASocket()));
 						pFirstMix->incNewConnections();
 
 						if(ret!=E_SUCCESS)
@@ -1229,17 +1271,25 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 						}
 //#ifndef PAYMENT
 						else if ((ret = pNewMuxSocket->getCASocket()->getPeerIP(peerIP)) != E_SUCCESS ||
-								pIPList->insertIP(peerIP)<0)
+								(retPeerIP = pIPList->insertIP(peerIP)) < 0) 
+								// || (pIPBlockList->checkIP(peerIP) == E_UNKNOWN && isAllowedToPassRestrictions(pNewMuxSocket->getCASocket()) != E_SUCCESS))
 						{
 							if (ret != E_SUCCESS)
 							{
-								CAMsg::printMsg(LOG_DEBUG,"Could not insert IP address as IP could not be retrieved!\n");
+								CAMsg::printMsg(LOG_DEBUG,"Could not insert IP address as IP could not be retrieved! We have %d login threads currently running.\n", pthreadsLogin->countRequests()); 
+	
 							}
-							else
+							else if (retPeerIP < 0)
 							{
-								ret = E_UNKNOWN;
-								CAMsg::printMsg(LOG_DEBUG,"CAFirstMix Flooding protection: Could not insert IP address!\n");
+								CAMsg::printMsg(LOG_DEBUG,"CAFirstMix Flooding protection: Could not insert IP address! We have %d login threads currently running.\n", pthreadsLogin->countRequests()); 
+								pIPBlockList->insertIP(peerIP);
 							}
+							else if (pIPBlockList->checkIP(peerIP) == E_UNKNOWN)
+							{
+								CAMsg::printMsg(LOG_DEBUG, "Client IP address %u.%u.x.x is temporarily blocked! User login denied. We have %d open sockets and %d new connections.\n", peerIP[0],peerIP[1], CASocket::countOpenSockets(), pFirstMix->m_newConnections);
+								pIPList->removeIP(peerIP);
+							} 
+							ret = E_UNKNOWN;
 						}
 //#endif
 						else
@@ -1554,13 +1604,9 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 	{
 		INIT_STACK;
 		BEGIN_STACK("CAFirstMix::doUserLogin");
-		#ifdef _DEBUG
 			int ret=pNewUser->getCASocket()->setKeepAlive(true);
 			if(ret!=E_SUCCESS)
-				CAMsg::printMsg(LOG_DEBUG,"Error setting KeepAlive!");
-		#else
-			pNewUser->getCASocket()->setKeepAlive(true);
-		#endif
+				CAMsg::printMsg(LOG_DEBUG,"Error setting KeepAlive for user login connection!");
 
 		#ifdef DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"User login: start\n");
@@ -1571,9 +1617,13 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 		// send the mix-keys to JAP
 		if (pNewUser->getCASocket()->sendFullyTimeOut(m_xmlKeyInfoBuff,m_xmlKeyInfoSize, 40000, 10000) != E_SUCCESS)
 		{
-#ifdef _DEBUG
-			CAMsg::printMsg(LOG_DEBUG,"User login: Sending login data has been interrupted!\n");
-#endif
+// #ifdef _DEBUG
+			CAMsg::printMsg(LOG_DEBUG,"User login: Sending login data to client %u.%u.x.x has been interrupted!\n", peerIP[0],peerIP[1]);
+// #endif
+			if (m_pIPBlockList->insertIP(peerIP) != E_SUCCESS)
+			{
+				// CAMsg::printMsg(LOG_ERR,"User login: Could not block IP address!\n");
+			}
 			delete pNewUser;
 			pNewUser = NULL;
 			m_pIPList->removeIP(peerIP);
@@ -1589,12 +1639,19 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 
 		//wait for keys from user
 		UINT16 xml_len;
-		if(pNewUser->getCASocket()->isClosed() ||
-		   pNewUser->getCASocket()->receiveFullyT((UINT8*)&xml_len,2,FIRST_MIX_RECEIVE_SYM_KEY_FROM_JAP_TIME_OUT)!=E_SUCCESS)
+		if(pNewUser->getCASocket()->isClosed())
 		{
-			#ifdef DEBUG
-				CAMsg::printMsg(LOG_DEBUG,"User login: timed out while waiting for first symmetric key from client!\n");
-			#endif
+			CAMsg::printMsg(LOG_DEBUG,"User login: Socket was closed while waiting for first symmetric key from client!\n");
+		}
+		else if (pNewUser->getCASocket()->receiveFullyT((UINT8*)&xml_len,2,FIRST_MIX_RECEIVE_SYM_KEY_FROM_JAP_TIME_OUT)!=E_SUCCESS)
+		{
+//			#ifdef DEBUG
+				CAMsg::printMsg(LOG_DEBUG,"User login: timed out while waiting for first symmetric key from client %u.%u.x.x!\n", peerIP[0], peerIP[1]);
+//			#endif
+			if (m_pIPBlockList->insertIP(peerIP) != E_SUCCESS)
+			{
+				// CAMsg::printMsg(LOG_ERR,"User login: Could not block IP address!\n");
+			}
 			delete pNewUser;
 			pNewUser = NULL;
 			m_pIPList->removeIP(peerIP);
@@ -2290,7 +2347,12 @@ SINT32 CAFirstMix::clean()
 		if(m_arrSocketsIn!=NULL)
 			{
 				for(UINT32 i=0;i<m_nSocketsIn;i++)
-					m_arrSocketsIn[i].close();
+				{
+					m_arrSocketsIn[i]->close();
+					delete m_arrSocketsIn[i];
+					m_arrSocketsIn[i] = NULL;
+				}
+				
 			}
 		//writing some bytes to the queue...
 		if(m_pQueueSendToMix!=NULL)
@@ -2450,6 +2512,10 @@ SINT32 CAFirstMix::clean()
 		m_u32MixCount=0;
 		m_nMixedPackets=0; //reset to zero after each restart (at the moment neccessary for infoservice)
 		m_nUser=0;
+
+
+		delete m_pIPBlockList;
+		m_pIPBlockList = NULL;
 
 		CAMsg::printMsg	(LOG_CRIT,"before tc cleanup\n");
 		for (UINT32 i = 0; i < m_nrOfTermsAndConditionsDefs; i++)
