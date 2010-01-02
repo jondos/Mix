@@ -2353,16 +2353,7 @@ SINT32 CAFirstMix::clean()
 			{
 				m_pMuxOut->close();
 			}
-		if(m_arrSocketsIn!=NULL)
-			{
-				for(UINT32 i=0;i<m_nSocketsIn;i++)
-				{
-					m_arrSocketsIn[i]->close();
-					delete m_arrSocketsIn[i];
-					m_arrSocketsIn[i] = NULL;
-				}
-				
-			}
+
 		//writing some bytes to the queue...
 		if(m_pQueueSendToMix!=NULL)
 			{
@@ -2425,7 +2416,15 @@ SINT32 CAFirstMix::clean()
 		m_pLogPacketStats=NULL;
 #endif
 		if(m_arrSocketsIn!=NULL)
-			delete[] m_arrSocketsIn;
+			{
+				for(UINT32 i=0;i<m_nSocketsIn;i++)
+				{
+					m_arrSocketsIn[i]->close();
+					delete m_arrSocketsIn[i];
+					m_arrSocketsIn[i] = NULL;
+				}
+				delete[] m_arrSocketsIn;
+			}			
 		m_arrSocketsIn=NULL;
 #ifdef REPLAY_DETECTION
 		if(m_pReplayMsgProc!=NULL)
