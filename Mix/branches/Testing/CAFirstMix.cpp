@@ -1181,6 +1181,15 @@ THREAD_RETURN fm_loopAcceptUsers(void* param)
 
 		pFirstMix->m_newConnections = 0;
 
+		// kick out users that already have connected
+		for(i=0;i<nSocketsIn;i++)
+		{
+				while (socketsIn[i]->close() != E_SUCCESS)
+				{
+					sSleep(1);
+				}
+		}
+		pFirstMix->createSockets(false);
 		for(i=0;i<nSocketsIn;i++)
 		{
 			psocketgroupAccept->add(*socketsIn[i]);
