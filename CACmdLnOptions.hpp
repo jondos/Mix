@@ -146,8 +146,6 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_NODE_HOST "Host"
 #define OPTIONS_NODE_PORT "Port"
 #define OPTIONS_NODE_FILE "File"
-#define OPTIONS_NODE_PERFORMANCE_TEST "PerformanceTest"
-#define OPTIONS_ATTRIBUTE_PERFTEST_ENABLED "enabled"
 
 #define OPTIONS_NODE_RESSOURCES "Ressources"
 
@@ -489,7 +487,6 @@ class CACmdLnOptions
 		bool isMiddleMix();
 		bool isLastMix();
 
-		bool isPerformanceTestEnabled();
 
 		bool isSock5sSupported()
 		{
@@ -851,13 +848,12 @@ class CACmdLnOptions
 		SINT32 setAccountingDatabase(DOMElement *elemAccounting);
 
 		/* Network Options */
-#define NETWORK_OPTIONS_NR 6
+#define NETWORK_OPTIONS_NR 5
 		SINT32 setInfoServices(DOMElement *elemNetwork);
 		SINT32 setListenerInterfaces(DOMElement *elemNetwork);
 		SINT32 setTargetInterfaces(DOMElement *elemNetwork);
 		SINT32 setServerMonitoring(DOMElement *elemNetwork);
 		SINT32 setKeepAliveTraffic(DOMElement *elemNetwork);
-		SINT32 setPerformanceTestEnabled(DOMElement *elemNetwork);
 
 		/* Terms & Conditions options */
 #define TERMS_AND_CONDITIONS_OPTIONS_NR 2
