@@ -93,12 +93,10 @@ SINT32 CATempIPBlockList::insertIP(const UINT8 ip[4])
 	UINT64 now;
 	getcurrentTimeMillis(now);
 	
-	PTEMPIPBLOCKLIST newEntry;
-	newEntry = new TEMPIPBLOCKLISTENTRY;
+	PTEMPIPBLOCKLIST newEntry = new TEMPIPBLOCKLISTENTRY;
 	memcpy(newEntry->ip,ip,2);
 	newEntry->validTimeMillis = now + m_validTimeMillis;
 	newEntry->next=NULL;	
-	newEntry->iCountBlocks = 1;
 	
 	UINT16 hashvalue=((ip[2]<<8)|ip[3]) % 0x10000;
 	m_pMutex->lock();
@@ -110,19 +108,12 @@ SINT32 CATempIPBlockList::insertIP(const UINT8 ip[4])
 	else {
 		PTEMPIPBLOCKLIST temp = m_hashTable[hashvalue];
 		do {
-			if(memcmp(temp->ip,ip,2)==0) {
+			if(memcmp(temp->ip,ip,2)==0) 
+			{
 				// we have found the entry
-/*				if (temp->iCountBlocks <= 1)
-				{
-					temp->iCountBlocks++;
-					m_pMutex->unlock();
-					return E_SUCCESS;
-				}
-				else
-*/				{
-					m_pMutex->unlock();
-					return E_UNKNOWN;
-				}
+				delete newEntry;
+				m_pMutex->unlock();
+				return E_UNKNOWN;
 			}
 			if (temp->next)
 			{
@@ -161,7 +152,8 @@ SINT32 CATempIPBlockList::checkIP(const UINT8 ip[4])
 			// additional check: is it still valid?
 			UINT64 now;
 			getcurrentTimeMillis(now);
-			if(entry->validTimeMillis <= now) {
+			if(entry->validTimeMillis <= now) 
+			{
 				// entry can be removed
 				if(previous==NULL) {
 					m_hashTable[hashvalue] = entry->next;
@@ -175,12 +167,8 @@ SINT32 CATempIPBlockList::checkIP(const UINT8 ip[4])
 				m_pMutex->unlock();
 				return E_SUCCESS;
 			}
-/*			else if (entry->iCountBlocks <= 1)
+			else 
 			{
-				m_pMutex->unlock();
-				return E_SUCCESS;
-			}
-*/			else {
 				m_pMutex->unlock();
 				return E_UNKNOWN;
 			}
