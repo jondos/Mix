@@ -41,7 +41,6 @@ struct _tempipblocklist_t
 	
 		/** Entry is valid until getCurrentTimeMillis() > validTimeMillis */
 		UINT64 validTimeMillis; 
-		SINT32 iCountBlocks;
 		/** First two Bytes of the IP-Address */
 		UINT8 ip[2];
 	};

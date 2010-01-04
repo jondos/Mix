@@ -2380,7 +2380,7 @@ SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
 		UINT8 tmpAKI[tmpAKIlen];
 		if(tmpCert->getAuthorityKeyIdentifier(tmpAKI, &tmpAKIlen) != E_SUCCESS)
 		{
-			CAMsg::printMsg(LOG_WARNING, "Error while getting AKI of own certificate!\n");
+			CAMsg::printMsg(LOG_WARNING, "Could not get AKI of own certificate.\n");
 		}
 		else
 		{
@@ -2392,14 +2392,14 @@ SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
 			if(tmpCert->verify(opCerts[j]) == E_SUCCESS)
 			{
 				//found right operator cert -> add it to store
-				CAMsg::printMsg(LOG_DEBUG, "Found operator cert for sign key %d!\n", i+1);
+				// CAMsg::printMsg(LOG_DEBUG, "Found operator cert for sign key %d!\n", i+1);
 				certs->add(opCerts[j]);
 				break;
 			}
 		}
 		if(certs->getNumber() == 0)
 		{
-			CAMsg::printMsg(LOG_CRIT, "Could not find an operator cert for sign key %d! Please check your configuration. Exiting...\n", i+1);
+			CAMsg::printMsg(LOG_CRIT, "Could not find operator cert for sign key %d! Please check your configuration. Exiting...\n", i+1);
 			exit(EXIT_FAILURE);
 		}
 		//add own cert to store
@@ -3446,7 +3446,7 @@ SINT32 CACmdLnOptions::setRessourceOptions(DOMElement *elemRoot)
 		//<Intervall></Intervall>  #duration of one intervall in ms
 		//<Latency></Latency> #minimum Latency per channel in ms
 		//</Ressources>
-		CAMsg::printMsg(LOG_INFO,"Loading Parameters for Resources limitation....\n");
+		CAMsg::printMsg(LOG_INFO,"Loading Parameters for traffic shaping / resource limitation....\n");
 		UINT32 u32 = 0;
 		DOMElement *elemRessources=NULL;
 		DOMElement *elem = NULL;
