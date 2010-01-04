@@ -1629,10 +1629,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 // #ifdef _DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"User login: Sending login data to client %u.%u.x.x has been interrupted!\n", peerIP[0],peerIP[1]);
 // #endif
-			if (m_pIPBlockList->insertIP(peerIP) != E_SUCCESS)
-			{
-				// CAMsg::printMsg(LOG_ERR,"User login: Could not block IP address!\n");
-			}
+			m_pIPBlockList->insertIP(peerIP);
+
 			delete pNewUser;
 			pNewUser = NULL;
 			m_pIPList->removeIP(peerIP);
@@ -1657,10 +1655,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 //			#ifdef DEBUG
 				CAMsg::printMsg(LOG_DEBUG,"User login: timed out while waiting for first symmetric key from client %u.%u.x.x!\n", peerIP[0], peerIP[1]);
 //			#endif
-			if (m_pIPBlockList->insertIP(peerIP) != E_SUCCESS)
-			{
-				// CAMsg::printMsg(LOG_ERR,"User login: Could not block IP address!\n");
-			}
+			m_pIPBlockList->insertIP(peerIP);
+			
 			delete pNewUser;
 			pNewUser = NULL;
 			m_pIPList->removeIP(peerIP);
@@ -1679,6 +1675,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 #ifdef _DEBUG
 			CAMsg::printMsg(LOG_DEBUG,"User login: timed out while waiting for second symmetric key from client!\n");
 #endif
+			m_pIPBlockList->insertIP(peerIP);
+
 			delete pNewUser;
 			pNewUser = NULL;
 			delete[] xml_buff;
@@ -1863,6 +1861,8 @@ SINT32 CAFirstMix::doUserLogin_internal(CAMuxSocket* pNewUser,UINT8 peerIP[4])
 				doc = NULL;
 			}
 			CAMsg::printMsg(LOG_DEBUG,"User login: Sending key exchange signature has been interrupted!\n");
+			m_pIPBlockList->insertIP(peerIP);
+			
 			delete[] xml_buff;
 			xml_buff = NULL;
 			delete pNewUser;
