@@ -113,15 +113,15 @@ SINT32 CAMsg::setLogOptions(UINT32 opt)
 	
 			if (opt == MSG_LOG)
 			{
-				strLogType = " in Syslog";
+				strLogType = " as Syslog";
 			}
 			else if (opt == MSG_FILE)
 			{
-				strLogType = " in file";
+				strLogType = " as file";
 			}
 			else if (opt == MSG_COMPRESSED_FILE)
 			{
-				strLogType = " in compressed file";
+				strLogType = " as compressed file";
 			}
 			
 
