@@ -1,6 +1,6 @@
 /*************************************************************************
  *
- * $Id: trionan.h,v 1.1 2002-02-11 15:16:04 sk13 Exp $
+ * $Id: trionan.h 639 2002-02-11 15:16:04Z sk13 $
  *
  * Copyright (C) 2001 Bjorn Reese <breese@users.sourceforge.net>
  *
