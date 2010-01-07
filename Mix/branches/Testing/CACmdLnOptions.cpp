@@ -2223,8 +2223,6 @@ SINT32 CACmdLnOptions::initLogging()
 			}
 	}
 	
-	CAMsg::printMsg(LOG_INFO,MIX_VERSION_INFO);
-	
 	return E_SUCCESS;
 }
 
@@ -2323,7 +2321,11 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 		}
 		
 	}
-	return initLogging();
+	
+	SINT32 ret = initLogging();
+	CAMsg::printMsg(LOG_INFO,MIX_VERSION_INFO);
+	
+	return ret;
 }
 
 /* append the mix description to the mix info DOM structure
