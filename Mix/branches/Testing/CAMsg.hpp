@@ -66,6 +66,10 @@ class CAMsg
 			static SINT32 init(){pMsg=new CAMsg();return E_SUCCESS;}
 			static SINT32 cleanup()
 			{
+				if (pMsg != NULL)
+				{
+					pMsg->closeLog();
+				}
 				delete pMsg;
 				pMsg = NULL;
 				return E_SUCCESS;

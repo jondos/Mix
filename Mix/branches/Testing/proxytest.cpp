@@ -637,10 +637,12 @@ int main(int argc, const char* argv[])
 
 
 #ifndef _WIN32
-		if(CALibProxytest::getOptions()->getDaemon()&&CALibProxytest::getOptions()->getAutoRestart()) //we need two forks...
+		if(CALibProxytest::getOptions()->getDaemon()) 
 			{
+				CAMsg::printMsg(LOG_DEBUG,"starting as daemon\n");
+				CAMsg::cleanup();
+				CAMsg::init();
 				pid_t pid;
-				CAMsg::printMsg(LOG_DEBUG,"daemon - before fork()\n");
 				pid=fork();
 				if(pid!=0)
 					{
@@ -657,44 +659,8 @@ int main(int argc, const char* argv[])
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
 			}
-		if(CALibProxytest::getOptions()->getDaemon()||CALibProxytest::getOptions()->getAutoRestart()) //if Autorestart is requested, when we fork a controlling process
-			                              //which is only responsible for restarting the Mix if it dies
-																		//unexpectly
-			{
-RESTART_MIX:
-				CAMsg::printMsg(LOG_DEBUG,"starting as daemon\n");
-				pid_t pid;
-				CAMsg::printMsg(LOG_DEBUG,"daemon - before fork()\n");
-				pid=fork();
-				if(pid!=0)
-					{
-						if(!CALibProxytest::getOptions()->getAutoRestart())
-							{
-								CAMsg::printMsg(LOG_DEBUG,"Exiting parent!\n");
-								exit(EXIT_SUCCESS);
-							}
-						int status=0;
-						pid_t ret=waitpid(pid,&status,0); //wait for process termination
-						if(ret==pid&&status!=0) //if unexpectly died --> restart
-							goto RESTART_MIX;
-						exit(EXIT_SUCCESS);
-					}
-				CAMsg::printMsg(LOG_DEBUG,"child after fork...\n");
-				setsid();
-				#ifndef DO_TRACE
-					chdir("/");
-					umask(0);
-				#endif
-			 // Close out the standard file descriptors
-        close(STDIN_FILENO);
-        close(STDOUT_FILENO);
-        close(STDERR_FILENO);
-			}
 #endif
 
-#ifdef SERVER_MONITORING
-		CAStatusManager::init();
-#endif
 
 		ret = E_SUCCESS;
 #ifndef ONLY_LOCAL_PROXY
@@ -729,6 +695,11 @@ RESTART_MIX:
 					exit(EXIT_FAILURE);
 				}
 		}
+
+#ifdef SERVER_MONITORING
+		CAStatusManager::init();
+#endif
+
 
 #if defined (_DEBUG) &&!defined(ONLY_LOCAL_PROXY)
 		//		CADatabase::test();
