@@ -561,7 +561,81 @@ int main(int argc, const char* argv[])
 			}
 
 		UINT8 buff[255];
+#ifdef SERVER_MONITORING
+		CAStatusManager::init();
+#endif
 
+/*#ifdef LOG_CRIME
+		initHttpVerbLengths();
+#endif
+*/
+#ifndef WIN32
+		maxFiles=CALibProxytest::getOptions()->getMaxOpenFiles();
+
+		struct rlimit coreLimit;
+		coreLimit.rlim_cur = coreLimit.rlim_max = RLIM_INFINITY;
+		if (setrlimit(RLIMIT_CORE, &coreLimit) != 0)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Could not set RLIMIT_CORE (max core file size) to unlimited size. -- Core dumps might not be generated!\n",maxFiles);
+		}
+
+		if(maxFiles>0)
+			{
+				struct rlimit lim;
+				// Set the new MAX open files limit
+				lim.rlim_cur = lim.rlim_max = maxFiles;
+				if (setrlimit(RLIMIT_NOFILE, &lim) != 0)
+				{
+					CAMsg::printMsg(LOG_CRIT,"Could not set MAX open files to: %u -- Exiting!\n",maxFiles);
+					exit(EXIT_FAILURE);
+				}
+			}
+		if(CALibProxytest::getOptions()->getUser(buff,255)==E_SUCCESS) //switching user
+			{
+				struct passwd* pwd=getpwnam((char*)buff);
+				if(pwd==NULL || (setegid(pwd->pw_gid)==-1) || (seteuid(pwd->pw_uid)==-1) )
+					CAMsg::printMsg(LOG_ERR,"Could not switch to effective user %s!\n",buff);
+				else
+					CAMsg::printMsg(LOG_INFO,"Switched to effective user %s!\n",buff);
+			}
+
+		if(geteuid()==0)
+			CAMsg::printMsg(LOG_INFO,"Warning - Running as root!\n");
+#endif
+
+		ret = E_SUCCESS;
+#ifndef ONLY_LOCAL_PROXY
+		if(CALibProxytest::getOptions()->isSyslogEnabled())
+		{
+			ret = CAMsg::setLogOptions(MSG_LOG);
+		}
+#endif
+		if(CALibProxytest::getOptions()->getLogDir((UINT8*)buff,255)==E_SUCCESS)
+			{
+				if(CALibProxytest::getOptions()->getCompressLogs())
+					ret = CAMsg::setLogOptions(MSG_COMPRESSED_FILE);
+				else
+					ret = CAMsg::setLogOptions(MSG_FILE);
+			}
+#ifndef ONLY_LOCAL_PROXY
+		if(CALibProxytest::getOptions()->isEncryptedLogEnabled())
+		{
+			if (CAMsg::openEncryptedLog() != E_SUCCESS)
+			{
+				CAMsg::printMsg(LOG_ERR,"Could not open encrypted log - exiting!\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+#endif
+
+		if(CALibProxytest::getOptions()->getDaemon()||CALibProxytest::getOptions()->getAutoRestart()) 
+		{
+				if (ret != E_SUCCESS)
+				{
+					CAMsg::printMsg(LOG_CRIT, "We need a log file in daemon mode in order to get any messages! Exiting...\n");
+					exit(EXIT_FAILURE);
+				}
+		}
 
 #ifndef _WIN32
 		if(CALibProxytest::getOptions()->getDaemon()&&CALibProxytest::getOptions()->getAutoRestart()) //we need two forks...
@@ -617,20 +691,7 @@ RESTART_MIX:
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
 			}
-#endif		
-		
-		
-#ifdef SERVER_MONITORING
-		CAStatusManager::init();
 #endif
-
-/*#ifdef LOG_CRIME
-		initHttpVerbLengths();
-#endif
-*/
-
-
-
 
 #if defined (_DEBUG) &&!defined(ONLY_LOCAL_PROXY)
 		//		CADatabase::test();
