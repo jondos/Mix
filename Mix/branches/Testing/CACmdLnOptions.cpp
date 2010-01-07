@@ -45,6 +45,7 @@ CACmdLnOptions::CACmdLnOptions()
   {
 		m_bDaemon=false;
 		m_bSyslog=false;
+		m_bLogConsole = false;
 		m_bSocksSupport = false;
 		m_bLocalProxy=m_bFirstMix=m_bLastMix=m_bMiddleMix=false;
 #ifndef ONLY_LOCAL_PROXY
@@ -2136,6 +2137,7 @@ SINT32 CACmdLnOptions::initLogging()
 {
 	SINT32 ret = E_SUCCESS;
 	UINT8 buff[2000];
+	UINT32 iLogOptions = 0;
 	
 	CAMsg::init();
 			
@@ -2143,17 +2145,23 @@ SINT32 CACmdLnOptions::initLogging()
 #ifndef ONLY_LOCAL_PROXY
 	if(isSyslogEnabled())
 	{
-		ret = CAMsg::setLogOptions(MSG_LOG);
+		iLogOptions |= MSG_LOG; 
 	}
 #endif
 		if(getLogDir((UINT8*)buff,2000)==E_SUCCESS)
 		{
 			if(getCompressLogs())
-				ret = CAMsg::setLogOptions(MSG_COMPRESSED_FILE);
+				iLogOptions = MSG_COMPRESSED_FILE;
 			else
-				ret = CAMsg::setLogOptions(MSG_FILE);
+				iLogOptions = MSG_FILE;
 		}
 #ifndef ONLY_LOCAL_PROXY
+
+	if (m_bLogConsole || iLogOptions == 0)
+	{
+		iLogOptions |= MSG_STDOUT;
+	}	
+	ret = CAMsg::setLogOptions(iLogOptions);
 	if(isEncryptedLogEnabled())
 	{
 		SINT32 retEncr;
@@ -2223,13 +2231,21 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 			}
 		}
 		getDOMChildByName(elemLogging, OPTIONS_NODE_SYSLOG, elem, false);
-
 		tmpLen = TMP_BUFF_SIZE;
 		memset(tmpBuff, 0, tmpLen);
 		if( (getDOMElementValue(elem, tmpBuff, &tmpLen) == E_SUCCESS) &&
 			(memcmp(tmpBuff,"True",4) == 0) )
 		{
 			m_bSyslog = true;
+		}
+
+		getDOMChildByName(elemLogging, OPTIONS_NODE_LOGGING_CONSOLE, elem, false);
+		tmpLen = TMP_BUFF_SIZE;
+		memset(tmpBuff, 0, tmpLen);
+		if( (getDOMElementValue(elem, tmpBuff, &tmpLen) == E_SUCCESS) &&
+			(memcmp(tmpBuff,"True",4) == 0) )
+		{
+			m_bLogConsole = true;
 		}
 
 		//get Encrypted Log Info

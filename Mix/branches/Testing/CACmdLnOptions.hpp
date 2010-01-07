@@ -74,6 +74,7 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #define OPTIONS_NODE_DAEMON "Daemon"
 #define OPTIONS_NODE_MAX_USERS "MaxUsers"
 #define OPTIONS_NODE_LOGGING "Logging"
+#define OPTIONS_NODE_LOGGING_CONSOLE "Console"
 #define OPTIONS_NODE_LOGGING_FILE "File"
 #define OPTIONS_ATTRIBUTE_LOGGING_MAXFILESIZE "MaxFileSize"
 #define OPTIONS_ATTRIBUTE_LOGGING_MAXFILES "MaxFiles"
@@ -706,6 +707,7 @@ class CACmdLnOptions
 		bool		m_bCompressedLogs;
 		bool 		m_bSocksSupport;
 		bool		m_bSyslog;
+		bool		m_bLogConsole;
 		char*		m_strUser;
 		char*		m_strPidFile;
 		SINT32	m_nrOfOpenFiles; //How many open files (sockets) should we use
