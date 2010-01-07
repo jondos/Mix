@@ -499,10 +499,6 @@ class CACmdLnOptions
 			return m_bAutoReconnect;
 		}
 
-		bool getAutoRestart()
-		{
-			return m_bAutoRestart;
-		}
 #ifdef LOG_CRIME
 		regex_t* getCrimeRegExpsURL(UINT32* len)
 		{
@@ -701,7 +697,6 @@ class CACmdLnOptions
 
 		bool		m_bLocalProxy,m_bFirstMix,m_bMiddleMix,m_bLastMix;
 		bool		m_bAutoReconnect; //auto reconnect if connection to first mix lost ??
-		bool		m_bAutoRestart; //auto restart if Mix dies unexpectly?
 		UINT8*	m_strCascadeName;
 		char*		m_strLogDir;
 		SINT64	m_maxLogFileSize;

@@ -63,7 +63,14 @@ class CAMsg
 			static CAMsg* pMsg;
 		public:
 			~CAMsg();
-			static SINT32 init(){pMsg=new CAMsg();return E_SUCCESS;}
+			static SINT32 init()
+			{
+					if (pMsg == NULL)
+					{
+						pMsg=new CAMsg();
+					}
+					return E_SUCCESS;
+			}
 			static SINT32 cleanup()
 			{
 				if (pMsg != NULL)
