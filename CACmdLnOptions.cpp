@@ -2221,7 +2221,9 @@ SINT32 CACmdLnOptions::initLogging()
 				CAMsg::printMsg(LOG_CRIT, "We need a log file in daemon mode in order to get any messages! Exiting...\n");
 				return ret;
 			}
-	}		
+	}
+	
+	CAMsg::printMsg(LOG_INFO,MIX_VERSION_INFO);
 	
 	return E_SUCCESS;
 }
