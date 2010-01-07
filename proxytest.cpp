@@ -603,39 +603,6 @@ int main(int argc, const char* argv[])
 			CAMsg::printMsg(LOG_INFO,"Warning - Running as root!\n");
 #endif
 
-		ret = E_SUCCESS;
-#ifndef ONLY_LOCAL_PROXY
-		if(CALibProxytest::getOptions()->isSyslogEnabled())
-		{
-			ret = CAMsg::setLogOptions(MSG_LOG);
-		}
-#endif
-		if(CALibProxytest::getOptions()->getLogDir((UINT8*)buff,255)==E_SUCCESS)
-			{
-				if(CALibProxytest::getOptions()->getCompressLogs())
-					ret = CAMsg::setLogOptions(MSG_COMPRESSED_FILE);
-				else
-					ret = CAMsg::setLogOptions(MSG_FILE);
-			}
-#ifndef ONLY_LOCAL_PROXY
-		if(CALibProxytest::getOptions()->isEncryptedLogEnabled())
-		{
-			if (CAMsg::openEncryptedLog() != E_SUCCESS)
-			{
-				CAMsg::printMsg(LOG_ERR,"Could not open encrypted log - exiting!\n");
-				exit(EXIT_FAILURE);
-			}
-		}
-#endif
-
-		if(CALibProxytest::getOptions()->getDaemon()||CALibProxytest::getOptions()->getAutoRestart()) 
-		{
-				if (ret != E_SUCCESS)
-				{
-					CAMsg::printMsg(LOG_CRIT, "We need a log file in daemon mode in order to get any messages! Exiting...\n");
-					exit(EXIT_FAILURE);
-				}
-		}
 
 #ifndef _WIN32
 		if(CALibProxytest::getOptions()->getDaemon()&&CALibProxytest::getOptions()->getAutoRestart()) //we need two forks...
@@ -692,6 +659,41 @@ RESTART_MIX:
         close(STDERR_FILENO);
 			}
 #endif
+
+
+		ret = E_SUCCESS;
+#ifndef ONLY_LOCAL_PROXY
+		if(CALibProxytest::getOptions()->isSyslogEnabled())
+		{
+			ret = CAMsg::setLogOptions(MSG_LOG);
+		}
+#endif
+		if(CALibProxytest::getOptions()->getLogDir((UINT8*)buff,255)==E_SUCCESS)
+			{
+				if(CALibProxytest::getOptions()->getCompressLogs())
+					ret = CAMsg::setLogOptions(MSG_COMPRESSED_FILE);
+				else
+					ret = CAMsg::setLogOptions(MSG_FILE);
+			}
+#ifndef ONLY_LOCAL_PROXY
+		if(CALibProxytest::getOptions()->isEncryptedLogEnabled())
+		{
+			if (CAMsg::openEncryptedLog() != E_SUCCESS)
+			{
+				CAMsg::printMsg(LOG_ERR,"Could not open encrypted log - exiting!\n");
+				exit(EXIT_FAILURE);
+			}
+		}
+#endif
+
+		if(CALibProxytest::getOptions()->getDaemon()||CALibProxytest::getOptions()->getAutoRestart()) 
+		{
+				if (ret != E_SUCCESS)
+				{
+					CAMsg::printMsg(LOG_CRIT, "We need a log file in daemon mode in order to get any messages! Exiting...\n");
+					exit(EXIT_FAILURE);
+				}
+		}
 
 #if defined (_DEBUG) &&!defined(ONLY_LOCAL_PROXY)
 		//		CADatabase::test();
