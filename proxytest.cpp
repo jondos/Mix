@@ -561,9 +561,6 @@ int main(int argc, const char* argv[])
 			}
 
 		UINT8 buff[255];
-#ifdef SERVER_MONITORING
-		CAStatusManager::init();
-#endif
 
 /*#ifdef LOG_CRIME
 		initHttpVerbLengths();
@@ -603,6 +600,9 @@ int main(int argc, const char* argv[])
 			CAMsg::printMsg(LOG_INFO,"Warning - Running as root!\n");
 #endif
 
+#ifdef SERVER_MONITORING
+		CAStatusManager::init();
+#endif
 
 #ifndef _WIN32
 		if(CALibProxytest::getOptions()->getDaemon()&&CALibProxytest::getOptions()->getAutoRestart()) //we need two forks...
