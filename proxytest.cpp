@@ -600,9 +600,6 @@ int main(int argc, const char* argv[])
 			CAMsg::printMsg(LOG_INFO,"Warning - Running as root!\n");
 #endif
 
-#ifdef SERVER_MONITORING
-		CAStatusManager::init();
-#endif
 
 #ifndef _WIN32
 		if(CALibProxytest::getOptions()->getDaemon()&&CALibProxytest::getOptions()->getAutoRestart()) //we need two forks...
@@ -684,6 +681,10 @@ RESTART_MIX:
 				exit(EXIT_FAILURE);
 			}
 		}
+#endif
+
+#ifdef SERVER_MONITORING
+		CAStatusManager::init();
 #endif
 
 		if(CALibProxytest::getOptions()->getDaemon()||CALibProxytest::getOptions()->getAutoRestart()) 
