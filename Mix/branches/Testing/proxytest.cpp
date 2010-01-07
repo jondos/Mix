@@ -604,14 +604,14 @@ int main(int argc, const char* argv[])
 #ifndef _WIN32
 		if(CALibProxytest::getOptions()->getDaemon()) 
 			{
-				CAMsg::printMsg(LOG_DEBUG,"starting as daemon\n");
+				CAMsg::printMsg(LOG_DEBUG,"Starting mix process as daemon...\n");
 				CAMsg::cleanup();
 				CAMsg::init();
 				pid_t pid;
 				pid=fork();
 				if(pid!=0)
 					{
-						CAMsg::printMsg(LOG_DEBUG,"Exiting parent!\n");
+						CAMsg::printMsg(LOG_DEBUG,"Exiting parent shell process...\n");
 						exit(EXIT_SUCCESS);
 					}
 				setsid();
