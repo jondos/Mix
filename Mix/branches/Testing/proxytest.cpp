@@ -630,7 +630,6 @@ int main(int argc, const char* argv[])
 //			CAMsg::printMsg(LOG_ENCRYPTED,"Test3: Anon proxy started!\n");
 
 		CAMsg::printMsg(LOG_INFO,"Anon proxy started!\n");
-		CAMsg::printMsg(LOG_INFO,MIX_VERSION_INFO);
 
 #ifdef ENABLE_GPERFTOOLS_CPU_PROFILER
 		ProfilerStart("gperf.cpuprofiler.data");
