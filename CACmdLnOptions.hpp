@@ -241,6 +241,7 @@ class CACmdLnOptions
 		SINT32 cleanup();
 		void clean();
 		SINT32 parse(int argc,const char** arg);
+		SINT32 initLogging();
 		bool getDaemon();
 		//bool getProxySupport();
 
