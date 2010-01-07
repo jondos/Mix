@@ -195,6 +195,14 @@ void CACmdLnOptions::initGeneralOptionSetters()
 	int count = -1;
 
 	generalOptionSetters[++count]=
+		&CACmdLnOptions::setDaemonMode;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setNrOfFileDescriptors;		
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setUserID;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setLoggingOptions;
+	generalOptionSetters[++count]=
 		&CACmdLnOptions::setMixType;
 	generalOptionSetters[++count]=
 		&CACmdLnOptions::setMixName;
@@ -206,16 +214,9 @@ void CACmdLnOptions::initGeneralOptionSetters()
 		&CACmdLnOptions::setMinCascadeLength;
 	generalOptionSetters[++count]=
 		&CACmdLnOptions::setCascadeNameFromOptions;
-	generalOptionSetters[++count]=
-		&CACmdLnOptions::setUserID;
-	generalOptionSetters[++count]=
-		&CACmdLnOptions::setNrOfFileDescriptors;
-	generalOptionSetters[++count]=
-		&CACmdLnOptions::setDaemonMode;
+
 	generalOptionSetters[++count]=
 		&CACmdLnOptions::setMaxUsers;
-	generalOptionSetters[++count]=
-		&CACmdLnOptions::setLoggingOptions;
 }
 
 void CACmdLnOptions::initCertificateOptionSetters()
@@ -672,9 +673,7 @@ SINT32 CACmdLnOptions::parse(int argc,const char** argv)
 #endif
 			free(configfile);
 		}
-	if(iDaemon==0)
-	    m_bDaemon=false;
-	else
+	if(iDaemon!=0)
 	    m_bDaemon=true;
   if(target!=NULL)
 	    {
@@ -741,13 +740,9 @@ SINT32 CACmdLnOptions::parse(int argc,const char** argv)
 			strcpy(m_strPidFile,strPidFile);
 			free(strPidFile);
 		}
-	if(iCompressedLogs==0)
-		m_bCompressedLogs=false;
-	else
+	if(iCompressedLogs!=0)
 		m_bCompressedLogs=true;
-	if(iAutoRestart==0)
-		m_bAutoRestart=false;
-	else
+	if(iAutoRestart!=0)
 		m_bAutoRestart=true;
 	if(serverPort!=NULL&&m_bLocalProxy)
 		{
@@ -2076,6 +2071,23 @@ SINT32 CACmdLnOptions::setUserID(DOMElement* elemGeneral)
 		memcpy(m_strUser,tmpBuff,tmpLen);
 		m_strUser[tmpLen]=0;
 	}
+	
+#ifndef WIN32
+	
+	UINT8 buff[255];
+	if(getUser(buff,255)==E_SUCCESS) //switching user
+		{
+			struct passwd* pwd=getpwnam((char*)buff);
+			if(pwd==NULL || (setegid(pwd->pw_gid)==-1) || (seteuid(pwd->pw_uid)==-1) )
+				CAMsg::printMsg(LOG_ERR,"Could not switch to effective user %s!\n",buff);
+			else
+				CAMsg::printMsg(LOG_INFO,"Switched to effective user %s!\n",buff);
+		}
+
+	if(geteuid()==0)
+		CAMsg::printMsg(LOG_INFO,"Warning - Running as root!\n");
+#endif	
+	
 	return E_SUCCESS;
 }
 
@@ -2095,6 +2107,32 @@ SINT32 CACmdLnOptions::setNrOfFileDescriptors(DOMElement* elemGeneral)
 	{
 		m_nrOfOpenFiles=tmp;
 	}
+	
+	
+#ifndef WIN32
+
+		struct rlimit coreLimit;
+		coreLimit.rlim_cur = coreLimit.rlim_max = RLIM_INFINITY;
+		if (setrlimit(RLIMIT_CORE, &coreLimit) != 0)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Could not set RLIMIT_CORE (max core file size) to unlimited size. -- Core dumps might not be generated!\n",maxFiles);
+		}
+
+		if(m_nrOfOpenFiles>0)
+			{
+				struct rlimit lim;
+				// Set the new MAX open files limit
+				lim.rlim_cur = lim.rlim_max = m_nrOfOpenFiles;
+				if (setrlimit(RLIMIT_NOFILE, &lim) != 0)
+				{
+					CAMsg::printMsg(LOG_CRIT,"Could not set MAX open files to: %u -- Exiting!\n",m_nrOfOpenFiles);
+					exit(EXIT_FAILURE);
+				}
+			}
+#endif
+	
+	
+	
 	return E_SUCCESS;
 }
 
@@ -2148,8 +2186,10 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 	DOMElement* elem=NULL;
 
 	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT8 buff[2000];
 	UINT32 tmpLen = TMP_BUFF_SIZE;
-
+	
+	SINT32 ret;
 	SINT32 maxLogFilesTemp = 0;
 	if(elemGeneral == NULL) return E_UNKNOWN;
 	ASSERT_GENERAL_OPTIONS_PARENT
@@ -2178,7 +2218,7 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 			{
 				if(maxLogFilesTemp < 0)
 				{
-					//CAMsg::printMsg(LOG_ERR,"Negative number of log files specified.\n");
+					CAMsg::printMsg(LOG_ERR,"Negative number of log files specified. Please enter a valid maximum number for the log files.\n");
 					return E_UNKNOWN;
 				}
 				m_maxLogFiles = (UINT32) maxLogFilesTemp;
@@ -2225,6 +2265,42 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 		{
 			m_bIsEncryptedLogEnabled=false;
 		}
+		
+		ret = E_SUCCESS;
+#ifndef ONLY_LOCAL_PROXY
+		if(isSyslogEnabled())
+		{
+			ret = CAMsg::setLogOptions(MSG_LOG);
+		}
+#endif
+		if(getLogDir((UINT8*)buff,2000)==E_SUCCESS)
+			{
+				if(getCompressLogs())
+					ret = CAMsg::setLogOptions(MSG_COMPRESSED_FILE);
+				else
+					ret = CAMsg::setLogOptions(MSG_FILE);
+			}
+#ifndef ONLY_LOCAL_PROXY
+		if(isEncryptedLogEnabled())
+		{
+			SINT32 retEncr;
+			if ((retEncr = CAMsg::openEncryptedLog()) != E_SUCCESS)
+			{
+				CAMsg::printMsg(LOG_ERR,"Could not open encrypted log - exiting!\n");
+				return retEncr;
+			}
+		}
+#endif
+
+		if(getDaemon()||getAutoRestart()) 
+		{
+				if (ret != E_SUCCESS)
+				{
+					CAMsg::printMsg(LOG_CRIT, "We need a log file in daemon mode in order to get any messages! Exiting...\n");
+					return ret;
+				}
+		}		
+		
 	}
 	return E_SUCCESS;
 }
