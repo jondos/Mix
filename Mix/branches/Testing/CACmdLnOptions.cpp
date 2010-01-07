@@ -195,6 +195,10 @@ void CACmdLnOptions::initGeneralOptionSetters()
 	int count = -1;
 
 	generalOptionSetters[++count]=
+		&CACmdLnOptions::setDaemonMode;
+	generalOptionSetters[++count]=
+		&CACmdLnOptions::setLoggingOptions;
+	generalOptionSetters[++count]=
 		&CACmdLnOptions::setMixType;
 	generalOptionSetters[++count]=
 		&CACmdLnOptions::setMixName;
@@ -211,11 +215,7 @@ void CACmdLnOptions::initGeneralOptionSetters()
 	generalOptionSetters[++count]=
 		&CACmdLnOptions::setNrOfFileDescriptors;
 	generalOptionSetters[++count]=
-		&CACmdLnOptions::setDaemonMode;
-	generalOptionSetters[++count]=
 		&CACmdLnOptions::setMaxUsers;
-	generalOptionSetters[++count]=
-		&CACmdLnOptions::setLoggingOptions;
 }
 
 void CACmdLnOptions::initCertificateOptionSetters()
@@ -672,9 +672,7 @@ SINT32 CACmdLnOptions::parse(int argc,const char** argv)
 #endif
 			free(configfile);
 		}
-	if(iDaemon==0)
-	    m_bDaemon=false;
-	else
+	if(iDaemon!=0)
 	    m_bDaemon=true;
   if(target!=NULL)
 	    {
@@ -741,13 +739,9 @@ SINT32 CACmdLnOptions::parse(int argc,const char** argv)
 			strcpy(m_strPidFile,strPidFile);
 			free(strPidFile);
 		}
-	if(iCompressedLogs==0)
-		m_bCompressedLogs=false;
-	else
+	if(iCompressedLogs!=0)
 		m_bCompressedLogs=true;
-	if(iAutoRestart==0)
-		m_bAutoRestart=false;
-	else
+	if(iAutoRestart!=0)
 		m_bAutoRestart=true;
 	if(serverPort!=NULL&&m_bLocalProxy)
 		{
@@ -2148,8 +2142,10 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 	DOMElement* elem=NULL;
 
 	UINT8 tmpBuff[TMP_BUFF_SIZE];
+	UINT8 buff[2000];
 	UINT32 tmpLen = TMP_BUFF_SIZE;
-
+	
+	SINT32 ret;
 	SINT32 maxLogFilesTemp = 0;
 	if(elemGeneral == NULL) return E_UNKNOWN;
 	ASSERT_GENERAL_OPTIONS_PARENT
@@ -2178,7 +2174,7 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 			{
 				if(maxLogFilesTemp < 0)
 				{
-					//CAMsg::printMsg(LOG_ERR,"Negative number of log files specified.\n");
+					CAMsg::printMsg(LOG_ERR,"Negative number of log files specified. Please enter a valid maximum number for the log files.\n");
 					return E_UNKNOWN;
 				}
 				m_maxLogFiles = (UINT32) maxLogFilesTemp;
@@ -2225,6 +2221,42 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 		{
 			m_bIsEncryptedLogEnabled=false;
 		}
+		
+		ret = E_SUCCESS;
+#ifndef ONLY_LOCAL_PROXY
+		if(isSyslogEnabled())
+		{
+			ret = CAMsg::setLogOptions(MSG_LOG);
+		}
+#endif
+		if(getLogDir((UINT8*)buff,2000)==E_SUCCESS)
+			{
+				if(getCompressLogs())
+					ret = CAMsg::setLogOptions(MSG_COMPRESSED_FILE);
+				else
+					ret = CAMsg::setLogOptions(MSG_FILE);
+			}
+#ifndef ONLY_LOCAL_PROXY
+		if(isEncryptedLogEnabled())
+		{
+			SINT32 retEncr;
+			if ((retEncr = CAMsg::openEncryptedLog()) != E_SUCCESS)
+			{
+				CAMsg::printMsg(LOG_ERR,"Could not open encrypted log - exiting!\n");
+				return retEncr;
+			}
+		}
+#endif
+
+		if(getDaemon()||getAutoRestart()) 
+		{
+				if (ret != E_SUCCESS)
+				{
+					CAMsg::printMsg(LOG_CRIT, "We need a log file in daemon mode in order to get any messages! Exiting...\n");
+					return ret;
+				}
+		}		
+		
 	}
 	return E_SUCCESS;
 }
