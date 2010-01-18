@@ -140,10 +140,10 @@ SINT32 CAFirstMix::init()
 				TargetInterface oNextMix;
 				CALibProxytest::getOptions()->getTargetInterface(oNextMix,i+1);
 				if(oNextMix.target_type==TARGET_MIX)
-					{
-						pAddrNext=oNextMix.addr;
-						break;
-					}
+				{
+					pAddrNext=oNextMix.addr;
+					break;
+				}
 				delete oNextMix.addr;
 				oNextMix.addr = NULL;
 			}
@@ -167,13 +167,19 @@ SINT32 CAFirstMix::init()
 		//CAMsg::printMsg(LOG_INFO,"MUXOUT-SOCKET SendLowWatSize: %i\n",((*m_pMuxOut))->getSendLowWat());
 
 		/** Connect to the next mix */
+		UINT8 buff[255];
+		UINT32 buffLen = 255;
+		if (pAddrNext->toString(buff, buffLen) == E_SUCCESS)
+		{
+			CAMsg::printMsg(LOG_INFO, "CAFirstMix::init - Try connecting to next mix on interface %s...\n", buff);
+		}
 		if(connectToNextMix(pAddrNext) != E_SUCCESS)
-			{
-				delete pAddrNext;
-				pAddrNext = NULL;
-			CAMsg::printMsg(LOG_DEBUG, "CAFirstMix::init - Unable to connect to next mix\n");
-				return E_UNKNOWN;
-			}
+		{
+			delete pAddrNext;
+			pAddrNext = NULL;
+			CAMsg::printMsg(LOG_DEBUG, "CAFirstMix::init - Unable to connect to next mix\n");				
+			return E_UNKNOWN;
+		}
 		delete pAddrNext;
 		pAddrNext = NULL;
 		MONITORING_FIRE_NET_EVENT(ev_net_nextConnected);
