@@ -279,6 +279,7 @@ SINT32 CAFirstMix::connectToNextMix(CASocketAddr* a_pAddrNext)
 	CAMsg::printMsg(LOG_INFO,"Try to connect to next Mix on %s ...\n",buff);
 	SINT32 err = E_UNKNOWN;
 	SINT32 errLast = E_SUCCESS;
+	
 	for(UINT32 i=0; i < 100; i++)
 	{
 #ifdef DYNAMIC_MIX
@@ -300,7 +301,7 @@ SINT32 CAFirstMix::connectToNextMix(CASocketAddr* a_pAddrNext)
 			if(err!=ERR_INTERN_TIMEDOUT&&err!=ERR_INTERN_CONNREFUSED)
 				break;
 				
-			if (errLast != err)
+			if (errLast != err || i % 10 == 0)
 			{
 				CAMsg::printMsg(LOG_ERR, "Cannot connect to next Mix. Reason: %s (%i). Retrying... (You will be notified on success or if a different error occurs.)\n",
 					GET_NET_ERROR_STR(err), err);
