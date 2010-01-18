@@ -2069,15 +2069,27 @@ SINT32 CACmdLnOptions::setUserID(DOMElement* elemGeneral)
 		memcpy(m_strUser,tmpBuff,tmpLen);
 		m_strUser[tmpLen]=0;
 	}
-	
+
 #ifndef WIN32
 		if(getUser(buff,255)==E_SUCCESS) //switching user
 			{
 				struct passwd* pwd=getpwnam((char*)buff);
 				if(pwd==NULL || (setegid(pwd->pw_gid)==-1) || (seteuid(pwd->pw_uid)==-1) )
-					CAMsg::printMsg(LOG_ERR,"Could not switch to effective user %s!\n",buff);
+				{
+					if (pwd==NULL)
+					{
+						CAMsg::printMsg(LOG_ERR,
+								"Could not switch to effective user '%s'! Reason: User '%s' does not exist on this system. Create this user first.\n",
+														buff, buff);
+					}
+					else
+					{
+						CAMsg::printMsg(LOG_ERR,"Could not switch to effective user '%s'! Reason: '%s' (%i)\n",
+								buff, GET_NET_ERROR_STR(GET_NET_ERROR), GET_NET_ERROR);
+					}
+				}
 				else
-					CAMsg::printMsg(LOG_INFO,"Switched to effective user %s!\n",buff);
+					CAMsg::printMsg(LOG_INFO,"Switched to effective user '%s'!\n",buff);
 			}
 
 		if(geteuid()==0)
@@ -2085,7 +2097,7 @@ SINT32 CACmdLnOptions::setUserID(DOMElement* elemGeneral)
 #endif
 	
 	
-	
+
 	return E_SUCCESS;
 }
 
@@ -2122,7 +2134,8 @@ SINT32 CACmdLnOptions::setNrOfFileDescriptors(DOMElement* elemGeneral)
 				lim.rlim_cur = lim.rlim_max = m_nrOfOpenFiles;
 				if (setrlimit(RLIMIT_NOFILE, &lim) != 0)
 				{
-					CAMsg::printMsg(LOG_CRIT,"Could not set MAX open files to: %u -- Exiting!\n",m_nrOfOpenFiles);
+					CAMsg::printMsg(LOG_CRIT,"Could not set MAX open files to: %u Reason: '%s' (%i) \nYou might have insufficient user rights. If so, switch to a privileged user or do not set the number of file descriptors. -- Exiting!\n",
+							m_nrOfOpenFiles, GET_NET_ERROR_STR(GET_NET_ERROR), GET_NET_ERROR);
 					exit(EXIT_FAILURE);
 				}
 			}
@@ -2182,7 +2195,7 @@ SINT32 CACmdLnOptions::initLogging()
 	
 	CAMsg::init();
 			
-		
+
 #ifndef ONLY_LOCAL_PROXY
 	if(isSyslogEnabled())
 	{
@@ -2201,7 +2214,7 @@ SINT32 CACmdLnOptions::initLogging()
 	if (m_bLogConsole || iLogOptions == 0)
 	{
 		iLogOptions |= MSG_STDOUT;
-	}	
+	}
 	ret = CAMsg::setLogOptions(iLogOptions);
 	if(isEncryptedLogEnabled())
 	{
@@ -2321,10 +2334,13 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 		}
 		
 	}
-	
+
 	SINT32 ret = initLogging();
-	CAMsg::printMsg(LOG_INFO,MIX_VERSION_INFO);
-	
+	if (ret == E_SUCCESS)
+	{
+		CAMsg::printMsg(LOG_INFO,MIX_VERSION_INFO);
+	}
+
 	return ret;
 }
 
@@ -2479,7 +2495,7 @@ SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
 		UINT8 tmpAKI[tmpAKIlen];
 		if(tmpCert->getAuthorityKeyIdentifier(tmpAKI, &tmpAKIlen) != E_SUCCESS)
 		{
-			CAMsg::printMsg(LOG_WARNING, "Could not get AKI of own certificate.\n");
+			CAMsg::printMsg(LOG_WARNING, "Could not get AKI of own certificate. This is not a critical problem, but you should create a new Mix certificate as soon as possible.\n");
 		}
 		else
 		{
@@ -2543,7 +2559,7 @@ SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
 	{
 		if(strncmp(m_strMixID, (char*)tmpBuff, strlen((char*)tmpBuff) ) != 0)
 		{
-			CAMsg::printMsg(LOG_CRIT,"Error, two different MixIDs specified (%s and %s)!\n", m_strMixID, tmpBuff);
+			CAMsg::printMsg(LOG_CRIT,"The configuration file seems inconsistent: it contains another Mix ID (%s) than calculated from the Mix certificate(s), which is %s. Please re-import you mix certificate in the configuration tool, or set the correct mix ID manually by editing the configuration file.\n", m_strMixID, tmpBuff);
 			return E_UNKNOWN;
 		}
 	}

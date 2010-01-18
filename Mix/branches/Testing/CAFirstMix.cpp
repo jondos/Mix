@@ -174,13 +174,18 @@ SINT32 CAFirstMix::init()
 		m_nMixedPackets=0; //reset to zero after each restart (at the moment neccessary for infoservice)
 		m_bRestart=false;
 		//Establishing all Listeners
+		UINT32 i;
 		m_arrSocketsIn=new CASocket*[m_nSocketsIn];
+		for (i = 0; i < m_nSocketsIn; i++)
+		{
+			m_arrSocketsIn[i] = NULL;
+		}
 		//initiate ownerDocument for tc templates
 		m_templatesOwner = createDOMDocument();
 
 		SINT32 retSockets = createSockets(true);
 
-		UINT32 i;
+
 		if (retSockets != E_SUCCESS)
 		{
 			return retSockets;
@@ -2419,9 +2424,12 @@ SINT32 CAFirstMix::clean()
 			{
 				for(UINT32 i=0;i<m_nSocketsIn;i++)
 				{
-					m_arrSocketsIn[i]->close();
-					delete m_arrSocketsIn[i];
-					m_arrSocketsIn[i] = NULL;
+					if (m_arrSocketsIn[i] != NULL)
+					{
+						m_arrSocketsIn[i]->close();
+						delete m_arrSocketsIn[i];
+						m_arrSocketsIn[i] = NULL;
+					}
 				}
 				delete[] m_arrSocketsIn;
 			}
