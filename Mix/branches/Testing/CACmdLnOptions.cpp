@@ -3149,8 +3149,122 @@ SINT32 CACmdLnOptions::setListenerInterfaces(DOMElement *elemNetwork)
 	    // -- inserted by ronin <ronin2@web.de> 2004-08-16
 		appendMixInfo_internal(elemListenerInterfaces, WITH_SUBTREE);
     }
-	return E_SUCCESS;
+
+	UINT32 i;
+	SINT32 ret;
+	CASocket** arrSocketsIn=new CASocket*[getListenerInterfaceCount()];
+	for (i = 0; i < getListenerInterfaceCount(); i++)
+	{
+		arrSocketsIn[i] = NULL;
+	}
+
+	ret = createSockets(false, arrSocketsIn, getListenerInterfaceCount());
+
+	for(i=0;i<getListenerInterfaceCount();i++)
+	{
+		if (arrSocketsIn[i] != NULL)
+		{
+			arrSocketsIn[i]->close();
+			delete arrSocketsIn[i];
+			arrSocketsIn[i] = NULL;
+		}
+	}
+	delete[] arrSocketsIn;
+	arrSocketsIn=NULL;
+
+	if (ret != E_SUCCESS)
+	{
+		CAMsg::printMsg(LOG_CRIT, "Could not listen on at least one of the specified interfaces!\n");
+	}
+
+	return ret;
 }
+
+
+SINT32 CACmdLnOptions::createSockets(bool a_bMessages, CASocket** a_sockets, UINT32 a_socketsLen)
+{
+		UINT32 aktSocket;
+		UINT8 buff[255];
+		SINT32 ret = E_UNKNOWN;
+
+		if (a_socketsLen != getListenerInterfaceCount())
+		{
+			CAMsg::printMsg(LOG_CRIT,"Could not create sockets, as number of listener interfaces differs from the size of the given socket array!\n");
+
+			return E_SPACE;
+		}
+
+		for(aktSocket=0;aktSocket < getListenerInterfaceCount(); aktSocket++)
+			{
+				CAListenerInterface* pListener=NULL;
+				pListener=getListenerInterface(aktSocket+1);
+				if(pListener==NULL)
+					{
+            CAMsg::printMsg(LOG_CRIT,"Error: Listener interface %d is invalid.\n", aktSocket+1);
+						return E_UNKNOWN;
+					}
+				if(pListener->isVirtual())
+					{
+						delete pListener;
+						pListener = NULL;
+						continue;
+					}
+				ret = E_SUCCESS;
+				a_sockets[aktSocket] = new CASocket();
+				a_sockets[aktSocket]->create();
+				a_sockets[aktSocket]->setReuseAddr(true);
+				CASocketAddr* pAddr=pListener->getAddr();
+				pAddr->toString(buff,255);
+
+				delete pListener;
+				pListener = NULL;
+#ifndef _WIN32
+				//we have to be a temporary superuser if port <1024...
+				int old_uid=geteuid();
+				if(pAddr->getType()==AF_INET&&((CASocketAddrINet*)pAddr)->getPort()<1024)
+				{
+					if(seteuid(0)==-1) //changing to root
+						CAMsg::printMsg(LOG_CRIT,"Setuid failed! Cannot listen on interface %d (%s). Reason: You must start the mix as root in order to use listener ports lower than 1024!\n",
+								aktSocket+1, buff);
+				}
+#endif
+				ret=a_sockets[aktSocket]->listen(*pAddr);
+				delete pAddr;
+				pAddr = NULL;
+
+				if(ret!=E_SUCCESS)
+				{
+					CAMsg::printMsg(LOG_CRIT,"Socket error while listening on interface %d (%s). Reason: '%s' (%i)\n",aktSocket+1, buff,
+							GET_NET_ERROR_STR(GET_NET_ERROR), GET_NET_ERROR);
+				}
+
+#ifndef _WIN32
+				seteuid(old_uid);
+#endif
+				if(ret!=E_SUCCESS)
+				{
+						return E_UNKNOWN;
+				}
+
+				if (a_bMessages)
+				{
+						CAMsg::printMsg(LOG_DEBUG,"Listening on Interface: %s\n",buff);
+				}
+			}
+
+		if (ret != E_SUCCESS)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Could not find any valid (non-virtual) listener interface!\n");
+		}
+		else if (a_bMessages)
+		{
+			CAMsg::printMsg(LOG_DEBUG,"Listening on all interfaces.\n");
+		}
+
+
+		return ret;
+}
+
 
 /* Proxy settings and next mix settings */
 SINT32 CACmdLnOptions::setTargetInterfaces(DOMElement *elemNetwork)
@@ -4043,7 +4157,6 @@ SINT32 setRegExpressions(DOMElement *rootElement, const char* const childElement
 #endif
 	return E_SUCCESS;
 }
-
 
 
 
