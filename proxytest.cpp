@@ -166,7 +166,11 @@ void signal_segv( int )
 	signal(SIGSEGV,SIG_DFL); //otherwise we might end up in endless loops...
 
 	MONITORING_FIRE_SYS_EVENT(ev_sys_sigSegV);
-	CAMsg::printMsg(LOG_CRIT,"Oops ... caught SIG_SEGV! Exiting ...\n");
+	CAMsg::printMsg(LOG_CRIT,"Oops ... caught SIG_SEGV! Exiting...\n");
+
+	// wait 1 second so that log files may still be written
+	sSleep(1);
+
 #ifdef PRINT_THREAD_STACK_TRACE
 	CAThread::METHOD_STACK* stack = CAThread::getCurrentStack();
 	if (stack != NULL)
