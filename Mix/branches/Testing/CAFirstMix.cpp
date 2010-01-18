@@ -303,8 +303,8 @@ SINT32 CAFirstMix::connectToNextMix(CASocketAddr* a_pAddrNext)
 				
 			if (errLast != err || i % 10 == 0)
 			{
-				CAMsg::printMsg(LOG_ERR, "Cannot connect to next Mix. Reason: %s (%i). Retrying... (You will be notified on success or if a different error occurs.)\n",
-					GET_NET_ERROR_STR(err), err);
+				CAMsg::printMsg(LOG_ERR, "Cannot connect to next Mix on %s. Reason: %s (%i). Retrying... (You will be notified on success or if a different error occurs.)\n",
+					buff, GET_NET_ERROR_STR(err), err);
 				errLast = err;
 			}
 			else
