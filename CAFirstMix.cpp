@@ -167,17 +167,11 @@ SINT32 CAFirstMix::init()
 		//CAMsg::printMsg(LOG_INFO,"MUXOUT-SOCKET SendLowWatSize: %i\n",((*m_pMuxOut))->getSendLowWat());
 
 		/** Connect to the next mix */
-		UINT8 buff[255];
-		UINT32 buffLen = 255;
-		if (pAddrNext->toString(buff, buffLen) == E_SUCCESS)
-		{
-			CAMsg::printMsg(LOG_INFO, "CAFirstMix::init - Try connecting to next mix on interface %s...\n", buff);
-		}
-		if(connectToNextMix(pAddrNext) != E_SUCCESS)
+		if((retSockets = connectToNextMix(pAddrNext)) != E_SUCCESS)
 		{
 			delete pAddrNext;
 			pAddrNext = NULL;
-			CAMsg::printMsg(LOG_DEBUG, "CAFirstMix::init - Unable to connect to next mix\n");				
+			CAMsg::printMsg(LOG_DEBUG, "CAFirstMix::init - Unable to connect to next mix. Reason: %s (%i)\n", GET_NET_ERROR_STR(retSockets), retSockets);				
 			return E_UNKNOWN;
 		}
 		delete pAddrNext;
@@ -284,6 +278,7 @@ SINT32 CAFirstMix::connectToNextMix(CASocketAddr* a_pAddrNext)
 	a_pAddrNext->toString(buff,255);
 	CAMsg::printMsg(LOG_INFO,"Try to connect to next Mix on %s ...\n",buff);
 	SINT32 err = E_UNKNOWN;
+	SINT32 errLast = E_SUCCESS;
 	for(UINT32 i=0; i < 100; i++)
 	{
 #ifdef DYNAMIC_MIX
@@ -298,14 +293,25 @@ SINT32 CAFirstMix::connectToNextMix(CASocketAddr* a_pAddrNext)
 		if(err != E_SUCCESS)
 		{
 			err=GET_NET_ERROR;
+			
 #ifdef _DEBUG
 		 	CAMsg::printMsg(LOG_DEBUG,"Con-Error: %i\n",err);
 #endif
 			if(err!=ERR_INTERN_TIMEDOUT&&err!=ERR_INTERN_CONNREFUSED)
 				break;
+				
+			if (errLast != err)
+			{
+				CAMsg::printMsg(LOG_ERR, "Cannot connect to next Mix. Reason: %s (%i). Retrying... (You will be notified on success or if a different error occurs.)\n",
+					GET_NET_ERROR_STR(err), err);
+				errLast = err;
+			}
+			else
+			{
 #ifdef _DEBUG
-			CAMsg::printMsg(LOG_DEBUG,"Cannot connect... retrying\n");
+				CAMsg::printMsg(LOG_DEBUG,"Cannot connect... retrying\n");
 #endif
+			}
 			sSleep(10);
 		}
 		else
