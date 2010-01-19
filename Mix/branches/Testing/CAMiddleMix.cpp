@@ -420,7 +420,7 @@ SINT32 CAMiddleMix::processKeyExchange()
 			
 			
 		 if (resultCompatibility != E_SUCCESS ||
-			resultCompatibility = checkCompatibility(elemRoot, "previous");
+			(resultCompatibility = checkCompatibility(elemRoot, "previous")) != E_SUCCESS)
 		 {
 				if (doc != NULL)
 				{
