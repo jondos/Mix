@@ -527,15 +527,8 @@ SINT32 CAFirstMix::processKeyExchange()
             }
             CAMsg::printMsg(LOG_DEBUG,"Successfully verified XML signature of next mix!\n");
 
-            if ((result = checkCompatibility(child, "next")) != E_SUCCESS)
-            {
-				if (doc != NULL)
-				{
-					doc->release();
-					doc = NULL;
-				}
-				return result;
-            }
+            result = checkCompatibility(child, "next");
+          
 
             DOMNode* rsaKey=child->getFirstChild();
             CAASymCipher oRSA;
@@ -627,6 +620,18 @@ SINT32 CAFirstMix::processKeyExchange()
         }
         child=child->getNextSibling();
     }
+	
+	 if (result != E_SUCCESS)
+	{
+		if (doc != NULL)
+		{
+			doc->release();
+			doc = NULL;
+		}
+		return result;
+	}
+	
+	
 		///initialises MixParameters struct
 	if(initMixParameters(elemMixes)!=E_SUCCESS)
 	{
