@@ -1735,7 +1735,7 @@ SINT32 CACmdLnOptions::appendMixInfo_internal(DOMNode* a_node, bool with_subtree
 		/** Here we remove any given e-mail address to reduce the spam problem. */
 		if (importedNode->getNodeType() == DOMNode::ELEMENT_NODE)
 		{
-			NodeList* nodesMail = getElementsByTagName((DOMElement*)importedNode, "EMail");
+			DOMNodeList* nodesMail = getElementsByTagName((DOMElement*)importedNode, "EMail");
 			for (UINT32 i = 0; i < nodesMail->getLength (); i++)
 			{
 				nodesMail->item(i)->getParentNode()->removeChild(nodesMail->item(i));
