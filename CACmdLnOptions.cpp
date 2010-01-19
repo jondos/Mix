@@ -37,6 +37,9 @@ OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMA
 #include "xml/DOM_Output.hpp"
 #include "CABase64.hpp"
 #include "CADynaNetworking.hpp"
+#ifdef PAYMENT
+#include "CAAccountingDBInterface.hpp"
+#endif
 //#ifdef LOG_CRIME
 	#include "tre/regex.h"
 //#endif
@@ -3059,10 +3062,12 @@ SINT32 CACmdLnOptions::setAccountingDatabase(DOMElement *elemAccounting)
 	}
 	CAMsg::printMsg(LOG_DEBUG, "Accounting database information parsed successfully.\n");
 	
+	// just for testing the connection to the database
 	if(CAAccountingDBInterface::init() != E_SUCCESS)
 	{
 		exit(EXIT_FAILURE);
 	}
+	CAAccountingDBInterface::cleanup();
 	
 #endif
 	return E_SUCCESS;
