@@ -1732,6 +1732,16 @@ SINT32 CACmdLnOptions::appendMixInfo_internal(DOMNode* a_node, bool with_subtree
 
 	if(importedNode != NULL)
 	{
+		/** Here we remove any given e-mail address to reduce the spam problem. */
+		if (importedNode->getNodeType() == DOMNode::ELEMENT_NODE)
+		{
+			NodeList* nodesMail = getElementsByTagName((DOMElement*)importedNode, "EMail");
+			for (UINT32 i = 0; i < nodesMail->getLength (); i++)
+			{
+				nodesMail->item(i)->getParentNode()->removeChild(nodesMail->item(i));
+			}
+		}
+		
 		appendedNode = m_docMixInfo->getDocumentElement()->appendChild(importedNode);
 		if( appendedNode != NULL )
 		{
@@ -3047,7 +3057,13 @@ SINT32 CACmdLnOptions::setAccountingDatabase(DOMElement *elemAccounting)
 		m_strDatabasePassword = new UINT8[strlen((char*)tmpBuff)+1];
 		strcpy((char *)m_strDatabasePassword, (char *) tmpBuff);
 	}
-	CAMsg::printMsg(LOG_DEBUG, "Accounting values parsed OK.\n");
+	CAMsg::printMsg(LOG_DEBUG, "Accounting database information parsed successfully.\n");
+	
+	if(CAAccountingDBInterface::init() != E_SUCCESS)
+	{
+		exit(EXIT_FAILURE);
+	}
+	
 #endif
 	return E_SUCCESS;
 }
