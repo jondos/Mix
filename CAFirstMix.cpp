@@ -499,6 +499,7 @@ SINT32 CAFirstMix::processKeyExchange()
     m_xmlKeyInfoSize=tlen + sizeof(tlen);
     delete []tmpB;
     tmpB = NULL;
+    SINT32 result;
 
     //Sending symmetric key...
     child=elemMixes->getFirstChild();
@@ -512,7 +513,7 @@ SINT32 CAFirstMix::processKeyExchange()
             CACertificate* nextCert=CALibProxytest::getOptions()->getNextMixTestCertificate();
             /*oSig.setVerifyKey(nextCert);
             SINT32 ret=oSig.verifyXML(child,NULL);*/
-            SINT32 result = CAMultiSignature::verifyXML(child, nextCert);
+            result = CAMultiSignature::verifyXML(child, nextCert);
             delete nextCert;
             nextCert = NULL;
             if(result != E_SUCCESS)
