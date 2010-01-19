@@ -225,7 +225,10 @@ SINT32 CAFirstMix::init()
 #endif
 
 #ifdef PAYMENT
-		CAAccountingDBInterface::init();
+		if (CAAccountingDBInterface::init() != E_SUCCESS)
+		{
+			return E_UNKNOWN;
+		}
 		CAAccountingInstance::init(this);
 #endif
 
