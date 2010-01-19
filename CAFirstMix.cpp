@@ -2170,9 +2170,9 @@ loop_break:
 #endif
 
 #ifndef LOG_DIALOG
-		CAMsg::printMsg(LOG_DEBUG,"User login: finished\n");
+		CAMsg::printMsg(LOG_INFO,"User login: finished\n");
 #else
-		CAMsg::printMsg(LOG_DEBUG,"User login: finished -- connection-ID: %Lu -- country-id: %u -- dialog: %s\n",pHashEntry->id,pHashEntry->countryID,pHashEntry->strDialog);
+		CAMsg::printMsg(LOG_INFO,"User login: finished -- connection-ID: %Lu -- country-id: %u -- dialog: %s\n",pHashEntry->id,pHashEntry->countryID,pHashEntry->strDialog);
 #endif
 		return E_SUCCESS;
 	}
