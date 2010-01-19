@@ -267,7 +267,7 @@ SINT32 CAFirstMix::init()
 #ifdef REPLAY_DETECTION
 //		sendReplayTimestampRequestsToAllMixes();
 #endif
-		CAMsg::printMsg(LOG_DEBUG,"CAFirstMix init() succeded\n");
+		CAMsg::printMsg(LOG_DEBUG,"CAFirstMix init() succeeded\n");
 		MONITORING_FIRE_NET_EVENT(ev_net_keyExchangeNextSuccessful);
 		return E_SUCCESS;
 }
@@ -295,9 +295,6 @@ SINT32 CAFirstMix::connectToNextMix(CASocketAddr* a_pAddrNext)
 		{
 			err=GET_NET_ERROR;
 			
-#ifdef _DEBUG
-		 	CAMsg::printMsg(LOG_DEBUG,"Con-Error: %i\n",err);
-#endif
 			if(err!=ERR_INTERN_TIMEDOUT&&err!=ERR_INTERN_CONNREFUSED)
 				break;
 				
