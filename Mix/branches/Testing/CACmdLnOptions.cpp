@@ -2508,7 +2508,7 @@ SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
 		UINT8 tmpAKI[tmpAKIlen];
 		if(tmpCert->getAuthorityKeyIdentifier(tmpAKI, &tmpAKIlen) != E_SUCCESS)
 		{
-			CAMsg::printMsg(LOG_WARNING, "Could not get AKI of own certificate. This is not a critical problem, but you should create a new Mix certificate as soon as possible.\n");
+			CAMsg::printMsg(LOG_WARNING, "Could not get AKI of own certificate. This is not a critical problem, but you have a very old mix certificate. Create a new one as soon as possible.\n");
 		}
 		else
 		{
@@ -2541,7 +2541,7 @@ SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
 		}
 		if (certs->getNumber() < 2)
 		{
-			CAMsg::printMsg(LOG_CRIT, "We have less than two certificates (only %d). There must be something wrong with the cert store. Exiting...\n", certs->getNumber());
+			CAMsg::printMsg(LOG_CRIT, "We have less than two certificates (only %d), but we need at least one mix and one operator certificate. There must be something wrong with the cert store. Exiting...\n", certs->getNumber());
 			exit(EXIT_FAILURE);
 		}
 		CAMsg::printMsg(LOG_DEBUG, "Adding Sign-Key %d with %d certificate(s).\n", i+1, certs->getNumber());
@@ -2566,7 +2566,6 @@ SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
 	{
 		return E_UNKNOWN;
 	}
-	strtrim(tmpBuff);
 
 	if(m_strMixID != NULL )
 	{
@@ -2583,6 +2582,14 @@ SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
 		strcpy(m_strMixID,(char*) tmpBuff);
 		return addMixIdToMixInfo();
 	}
+	
+#ifdef PAYMENT
+	if (m_strAiID != NULL && m_pMultiSignature->findSKI(m_strAiID) != E_SUCCESS)
+	{
+		CAMsg::printMsg(LOG_CRIT, "Your price certificate does not fit to your mix certificate(s). Please import the proper price or mix certificate.\n");
+	}
+#endif
+	
 #ifdef DYNAMIC_MIX
 		/* LERNGRUPPE: Dynamic Mixes must have a cascade name, as MiddleMixes may be reconfigured to be FirstMixes */
 	if(bNeedCascadeNameFromMixID)
@@ -2736,11 +2743,18 @@ SINT32 CACmdLnOptions::setPriceCertificate(DOMElement *elemAccounting)
 		CAMsg::printMsg(LOG_CRIT,"hash: %s\n", tmpBuff2);
 		exit(0);*/
 		m_pPriceCertificate = CAXMLPriceCert::getInstance(elemPriceCert);
-		if (m_pPriceCertificate == NULL) {
-			CAMsg::printMsg(LOG_DEBUG, "PRICECERT PROCESSED, BUT STILL NULL");
+		if (m_pPriceCertificate == NULL) 
+		{
+			CAMsg::printMsg(LOG_CRIT, "Could not parse price certificate!");
 			return E_UNKNOWN;
 		}
 		m_strAiID = m_pPriceCertificate->getSubjectKeyIdentifier();
+		
+		if (m_pMultiSignature != NULL && m_pMultiSignature->findSKI(m_strAiID) != E_SUCCESS)
+		{
+				CAMsg::printMsg(LOG_CRIT,"Your price certificate does not fit to your mix certificate(s). Please import the proper price or mix certificate.\n");
+				return E_UNKNOWN;
+		}
 	}
 
 	//insert price certificate
