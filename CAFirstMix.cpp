@@ -92,7 +92,7 @@ SINT32 CAFirstMix::initOnce()
 			}
 		if(m_nSocketsIn<1)
 			{
-				CAMsg::printMsg(LOG_CRIT,"No useable ListenerInterfaces specified (maybe wrong values or all are 'virtual'!\n");
+				CAMsg::printMsg(LOG_CRIT,"No usable ListenerInterfaces specified (maybe wrong values or all are 'virtual'!\n");
 				return E_UNKNOWN;
 			}
 

@@ -243,9 +243,9 @@ void CACmdLnOptions::initAccountingOptionSetters()
 	int count = -1;
 
 	accountingOptionSetters[++count]=
-			&CACmdLnOptions::setPriceCertificate;
-	accountingOptionSetters[++count]=
 		&CACmdLnOptions::setPaymentInstance;
+	accountingOptionSetters[++count]=
+			&CACmdLnOptions::setPriceCertificate;
 	accountingOptionSetters[++count]=
 		&CACmdLnOptions::setAccountingSoftLimit;
 	accountingOptionSetters[++count]=
@@ -2097,7 +2097,7 @@ SINT32 CACmdLnOptions::setUserID(DOMElement* elemGeneral)
 					}
 					else
 					{
-						CAMsg::printMsg(LOG_ERR,"Could not switch to effective user '%s'! Reason: '%s' (%i)\n",
+						CAMsg::printMsg(LOG_ERR,"Could not switch to effective user '%s'! Reason: %s (%i)\n",
 								buff, GET_NET_ERROR_STR(GET_NET_ERROR), GET_NET_ERROR);
 					}
 				}
@@ -2147,7 +2147,7 @@ SINT32 CACmdLnOptions::setNrOfFileDescriptors(DOMElement* elemGeneral)
 				lim.rlim_cur = lim.rlim_max = m_nrOfOpenFiles;
 				if (setrlimit(RLIMIT_NOFILE, &lim) != 0)
 				{
-					CAMsg::printMsg(LOG_CRIT,"Could not set MAX open files to: %u Reason: '%s' (%i) \nYou might have insufficient user rights. If so, switch to a privileged user or do not set the number of file descriptors. -- Exiting!\n",
+					CAMsg::printMsg(LOG_CRIT,"Could not set MAX open files to: %u Reason: %s (%i) \nYou might have insufficient user rights. If so, switch to a privileged user or do not set the number of file descriptors. -- Exiting!\n",
 							m_nrOfOpenFiles, GET_NET_ERROR_STR(GET_NET_ERROR), GET_NET_ERROR);
 					exit(EXIT_FAILURE);
 				}
@@ -2586,7 +2586,7 @@ SINT32 CACmdLnOptions::setOwnCertificate(DOMElement *elemCertificates)
 #ifdef PAYMENT
 	if (m_strAiID != NULL && m_pMultiSignature->findSKI(m_strAiID) != E_SUCCESS)
 	{
-		CAMsg::printMsg(LOG_CRIT, "Your price certificate does not fit to your mix certificate(s). Please import the proper price or mix certificate.\n");
+		CAMsg::printMsg(LOG_CRIT, "Your price certificate does not fit to your mix certificate(s). Please import the proper price certificate or mix certificate.\n");
 	}
 #endif
 	
@@ -2752,9 +2752,23 @@ SINT32 CACmdLnOptions::setPriceCertificate(DOMElement *elemAccounting)
 		
 		if (m_pMultiSignature != NULL && m_pMultiSignature->findSKI(m_strAiID) != E_SUCCESS)
 		{
-				CAMsg::printMsg(LOG_CRIT,"Your price certificate does not fit to your mix certificate(s). Please import the proper price or mix certificate.\n");
+				CAMsg::printMsg(LOG_CRIT,"Your price certificate does not fit to your mix certificate(s). Please import the proper price certificate or mix certificate.\n");
 				return E_UNKNOWN;
 		}
+
+		if (m_pBI == NULL)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Could not verify price certificate, as no payment instance was found!\n");
+			return E_UNKNOWN;
+		}
+
+
+		if (CAMultiSignature::verifyXML(elemPriceCert, m_pBI->getCertificate()) != E_SUCCESS)
+		{
+			CAMsg::printMsg(LOG_CRIT,"Signature of price certificate is invalid! It may be damaged, or maybe you are using the wrong payment instance certificate?\n");
+			return E_UNKNOWN;
+		}
+
 	}
 
 	//insert price certificate
@@ -3274,7 +3288,7 @@ SINT32 CACmdLnOptions::createSockets(bool a_bMessages, CASocket** a_sockets, UIN
 
 				if(ret!=E_SUCCESS)
 				{
-					CAMsg::printMsg(LOG_CRIT,"Socket error while listening on interface %d (%s). Reason: '%s' (%i)\n",currentInterface+1, buff,
+					CAMsg::printMsg(LOG_CRIT,"Socket error while listening on interface %d (%s). Reason: %s (%i)\n",currentInterface+1, buff,
 							GET_NET_ERROR_STR(GET_NET_ERROR), GET_NET_ERROR);
 				}
 

@@ -60,7 +60,7 @@ class CAMultiSignature
 		UINT32 getSignatureCount(){ return m_sigCount; }
 		SINT32 sign(UINT8* in,UINT32 inlen,UINT8* sig,UINT32* siglen);
 		SINT32 getXORofSKIs(UINT8* in, UINT32 inlen);
-		SINT32 findSKI(UINT8* a_strSKI);
+		SINT32 findSKI(const UINT8* a_strSKI);
 	private:
 		SIGNATURE* m_signatures;
 		UINT32 m_sigCount;
