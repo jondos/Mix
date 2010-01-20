@@ -72,10 +72,10 @@ CAMultiSignature::~CAMultiSignature()
 }
 
 
-SINT32 CAMultiSignature::findSKI(UINT8* a_strSKI)
+SINT32 CAMultiSignature::findSKI(const UINT8* a_strSKI)
 {
 	SIGNATURE* tmp = m_signatures;
-	UINT8 tmpSKI[SHA_DIGEST_LENGTH];
+	UINT8 tmpSKI[200];
 	
 	if (tmp == NULL)
 	{
@@ -84,16 +84,16 @@ SINT32 CAMultiSignature::findSKI(UINT8* a_strSKI)
 	
 	while(tmp != NULL)
 	{
-		if (getSKI(tmpSKI, SHA_DIGEST_LENGTH, tmp->pSKI) == E_SUCCESS &&
-			strncmp(a_strSKI, (char*)tmpSKI, strlen((char*)tmpSKI) ) == 0)
+		if (getSKI(tmpSKI, 200, tmp->pSKI) == E_SUCCESS &&
+			strncmp((char*)a_strSKI, (char*)tmpSKI, strlen((char*)tmpSKI) ) == 0)
 		{
 			return E_SUCCESS;
 		}
 		tmp = tmp->next;
 	}
 	
-	if (getSKI(tmpSKI, SHA_DIGEST_LENGTH, m_xoredID) == E_SUCCESS &&
-		strncmp(a_strSKI, (char*)tmpSKI, strlen((char*)tmpSKI) ) == 0)
+	if (getSKI(tmpSKI, 200, m_xoredID) == E_SUCCESS &&
+		strncmp((char*)a_strSKI, (char*)tmpSKI, strlen((char*)tmpSKI) ) == 0)
 	{
 		return E_SUCCESS;
 	}
@@ -113,7 +113,7 @@ SINT32 CAMultiSignature::addSignature(CASignature* a_signature, CACertStore* a_c
 	newSignature->pSig = a_signature;
 	newSignature->pCerts = a_certs;
 	newSignature->pSKI = new UINT8[a_skiLen];
-	memcpy(pSKI, a_ski, a_skiLen);
+	memcpy(newSignature->pSKI, a_ski, a_skiLen);
 	newSignature->next = m_signatures;
 	m_signatures = newSignature;
 	m_sigCount++;
@@ -483,7 +483,7 @@ SINT32 CAMultiSignature::getSKI(UINT8* in, UINT32 inlen, UINT8* a_ski)
 
 SINT32 CAMultiSignature::getXORofSKIs(UINT8* in, UINT32 inlen)
 {
-	return getSKI(in, inLen, m_xoredID);
+	return getSKI(in, inlen, m_xoredID);
 }
 
 SINT32 CAMultiSignature::getSignatureElements(DOMNode* parent, DOMNode** signatureNodes, UINT32* length)

@@ -132,6 +132,8 @@ SINT32 CAXMLPriceCert::toXmlElement(XERCES_CPP_NAMESPACE::DOMDocument* a_doc, DO
 
 SINT32 CAXMLPriceCert::setValues() 
 {
+	CAMsg::printMsg(LOG_DEBUG,"Parsing price certificate.\n");
+
 	if(m_domDocument==NULL)
 	{
 		CAMsg::printMsg(LOG_CRIT,"Price certificate is no valid document!\n");
@@ -225,7 +227,7 @@ SINT32 CAXMLPriceCert::setValues()
 	
 		
 	
-	CAMsg::printMsg(LOG_DEBUG,"setValues(): finished\n");
+	//CAMsg::printMsg(LOG_DEBUG,"setValues(): finished\n");
 	return E_SUCCESS;
 }
 
