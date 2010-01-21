@@ -82,6 +82,7 @@ class CAMsg
 				return E_SUCCESS;
 			}
 			static SINT32 setLogOptions(UINT32 options);
+			static SINT32 setLogLevel(UINT32 a_logLevel);
 			static SINT32 setMaxLogFileSize(UINT64 size)
 				{
 					if(pMsg!=NULL)
@@ -107,6 +108,7 @@ class CAMsg
 			SINT32 rotateLog();
 			char* createLogFileMessage(UINT32 opt);
 			UINT32 m_uLogType;
+			UINT32 m_logLevel;
 			UINT32 m_lastLogFileNumber;
 			bool m_alreadyOpened;
 			int m_hFileEncrypted;

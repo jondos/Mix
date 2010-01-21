@@ -1148,7 +1148,7 @@ SINT32 CAAccountingInstance::processJapMessage(fmHashTableEntry * pHashEntry,con
 				else*/
 				if(hf_ret == (SINT32) CAXMLErrorMessage::ERR_OK)
 				{
-					CAMsg::printMsg( LOG_DEBUG, "Prepaid bytes are: %d\n", getPrepaidBytes(pHashEntry->pAccountingInfo));
+					//CAMsg::printMsg( LOG_DEBUG, "Prepaid bytes are: %d\n", getPrepaidBytes(pHashEntry->pAccountingInfo));
 
 					if( (getPrepaidBytes(pHashEntry->pAccountingInfo) > 0) &&
 						!(pHashEntry->pAccountingInfo->authFlags &
@@ -2871,7 +2871,7 @@ SINT32 CAAccountingInstance::__newSettlementTransaction(UINT32 *nrOfSettledCCs)
 		//locks the settlementMutex should be released. (Nested locking should be avoided).
 		if(ms_pInstance->m_nextSettleNr == ms_pInstance->m_settleWaitNr)
 		{
-			CAMsg::printMsg(LOG_INFO, "Thread %x: resetting the wait numbers.\n", pthread_self() );
+			//CAMsg::printMsg(LOG_INFO, "Thread %x: resetting the wait numbers.\n", pthread_self() );
 			//no one is waiting, we use this occasion to reset the wait numbers
 			ms_pInstance->m_nextSettleNr = 0;
 			ms_pInstance->m_settleWaitNr = 1;
@@ -3558,7 +3558,7 @@ SINT32 CAAccountingInstance::settlementTransaction()
 		//locks the settlementMutex should be released. (Nested locking should be avoided).
 		if(ms_pInstance->m_nextSettleNr == ms_pInstance->m_settleWaitNr)
 		{
-			CAMsg::printMsg(LOG_INFO, "Thread %x: resetting the wait numbers.\n", pthread_self() );
+			//CAMsg::printMsg(LOG_INFO, "Thread %x: resetting the wait numbers.\n", pthread_self() );
 			//no one is waiting, we use this occasion to reset the wait numbers
 			ms_pInstance->m_nextSettleNr = 0;
 			ms_pInstance->m_settleWaitNr = 1;
