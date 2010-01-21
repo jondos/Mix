@@ -2285,7 +2285,7 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 	getDOMChildByName(elemGeneral, OPTIONS_NODE_LOGGING, elemLogging, false);
 	if(elemLogging != NULL)
 	{
-		if (getDOMElementAttribute(elemLogging, "level", tmpBuff, tmpLen) == E_SUCCESS)
+		if (getDOMElementAttribute(elemLogging, "level", tmpBuff, &tmpLen) == E_SUCCESS)
 		{
 			strtrim(tmpBuff);
 			toLower(tmpBuff);
