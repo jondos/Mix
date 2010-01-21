@@ -582,7 +582,7 @@ int main(int argc, const char* argv[])
 				pid=fork();
 				if(pid!=0)
 					{
-						CAMsg::printMsg(LOG_DEBUG,"Exiting parent shell process...\n");
+						CAMsg::printMsg(LOG_INFO,"Exiting parent shell process...\n");
 						exit(EXIT_SUCCESS);
 					}
 				setsid();
