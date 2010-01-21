@@ -48,6 +48,7 @@ const char* const CAMsg::m_strMsgTypes[6]={", error   ] ",", critical] ",", info
 CAMsg::CAMsg()
     {
 			m_pcsPrint=new CAMutex();
+			m_logLevel = LOG_DEBUG;
 			setZero64(m_maxLogFileSize);
 			m_strMsgBuff=new char[MAX_MSG_SIZE+1+20+STRMSGTYPES_SIZE];
 			m_uLogType=MSG_STDOUT;
@@ -99,6 +100,19 @@ char* CAMsg::createLogFileMessage(UINT32 opt)
 	return strLogFile;
 }
 
+SINT32 CAMsg::setLogLevel(UINT32 a_logLevel)
+{
+	if (a_logLevel == LOG_DEBUG ||
+		a_logLevel == LOG_INFO ||
+		a_logLevel == LOG_WARNING ||
+		a_logLevel == LOG_ERR ||
+		a_logLevel == LOG_CRIT)
+	{
+		pMsg->m_logLevel = a_logLevel;
+		return E_SUCCESS;
+	}
+	return E_UNKNOWN;
+}
 
 SINT32 CAMsg::setLogOptions(UINT32 opt)
     {
@@ -189,28 +203,44 @@ SINT32 CAMsg::printMsg(UINT32 type,const char* format,...)
 			va_list ap;
 			va_start(ap,format);
 			SINT32 ret=E_SUCCESS;
-
+			
 			//Date is: yyyy/mm/dd-hh:mm:ss   -- the size is: 19
 			time_t currtime=time(NULL);
 			strftime(pMsg->m_strMsgBuff+1,255,"%Y/%m/%d-%H:%M:%S",localtime(&currtime));
 			switch(type)
 				{
 					case LOG_DEBUG:
+						if (pMsg->m_logLevel != LOG_DEBUG)
+						{
+							return E_UNKNOWN;
+						}
 						strcat(pMsg->m_strMsgBuff,pMsg->m_strMsgTypes[3]);
 					break;
 					case LOG_INFO:
+						if (pMsg->m_logLevel == LOG_WARNING || pMsg->m_logLevel == LOG_ERR || pMsg->m_logLevel == LOG_CRIT)
+						{
+							return E_UNKNOWN;
+						}
 						strcat(pMsg->m_strMsgBuff,pMsg->m_strMsgTypes[2]);
 					break;
 					case LOG_CRIT:
 						strcat(pMsg->m_strMsgBuff,pMsg->m_strMsgTypes[1]);
 					break;
 					case LOG_ERR:
+						if (pMsg->m_logLevel == LOG_CRIT)
+						{
+							return E_UNKNOWN;
+						}
 						strcat(pMsg->m_strMsgBuff,pMsg->m_strMsgTypes[0]);
 					break;
 					case LOG_ENCRYPTED:
 						strcat(pMsg->m_strMsgBuff,pMsg->m_strMsgTypes[4]);
 					break;
 					case LOG_WARNING:
+						if (pMsg->m_logLevel == LOG_ERR || pMsg->m_logLevel == LOG_CRIT)
+						{
+							return E_UNKNOWN;
+						}
 						strcat(pMsg->m_strMsgBuff,pMsg->m_strMsgTypes[5]);
 					break;
 					default:

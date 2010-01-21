@@ -2229,6 +2229,24 @@ SINT32 CACmdLnOptions::initLogging()
 		iLogOptions |= MSG_STDOUT;
 	}
 	ret = CAMsg::setLogOptions(iLogOptions);
+	
+	if (strcmp(m_strLogLevel,"info") == 0)
+	{
+		CAMsg::setLogLevel(LOG_INFO);
+	}
+	else if (strcmp(m_strLogLevel,"warning") == 0)
+	{
+		CAMsg::setLogLevel(LOG_WARNING);
+	}
+	else if (strcmp(m_strLogLevel,"error") == 0)
+	{
+		CAMsg::setLogLevel(LOG_ERR);
+	}
+	else if (strcmp(m_strLogLevel,"critical") == 0)
+	{
+		CAMsg::setLogLevel(LOG_CRIT);
+	}
+	
 	if(isEncryptedLogEnabled())
 	{
 		SINT32 retEncr;
@@ -2240,13 +2258,10 @@ SINT32 CACmdLnOptions::initLogging()
 	}
 #endif
 
-	if(getDaemon()) 
+	if(getDaemon() && ret != E_SUCCESS) 
 	{
-			if (ret != E_SUCCESS)
-			{
-				CAMsg::printMsg(LOG_CRIT, "We need a log file in daemon mode in order to get any messages! Exiting...\n");
-				return ret;
-			}
+		CAMsg::printMsg(LOG_CRIT, "We need a log file in daemon mode in order to get any messages! Exiting...\n");
+		return ret;
 	}
 	
 	return E_SUCCESS;
@@ -2270,7 +2285,17 @@ SINT32 CACmdLnOptions::setLoggingOptions(DOMElement* elemGeneral)
 	getDOMChildByName(elemGeneral, OPTIONS_NODE_LOGGING, elemLogging, false);
 	if(elemLogging != NULL)
 	{
+		if (getDOMElementAttribute(elemLogging, "level", tmpBuff, tmpLen) == E_SUCCESS)
+		{
+			strtrim(tmpBuff);
+			toLower(tmpBuff);
+			m_strLogLevel = new char[strlen((char*)tmpBuff)+1];
+			strcpy(m_strLogLevel, (char*)tmpBuff);
+		}
+		
+		
 		getDOMChildByName(elemLogging, OPTIONS_NODE_LOGGING_FILE, elem, false);
+		tmpLen = TMP_BUFF_SIZE;
 		if(getDOMElementValue(elem, tmpBuff, &tmpLen) == E_SUCCESS)
 		{
 			strtrim(tmpBuff);
