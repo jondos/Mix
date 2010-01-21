@@ -2410,7 +2410,7 @@ UINT32 CAAccountingInstance::handleCostConfirmation_internal(tAiAccountingInfo* 
 		err.toXmlDocument(errDoc);
 		pAccInfo->pControlChannel->sendXMLMessage(errDoc);*/
 	}
-	else if (pCC->getTransferredBytes() == pAccInfo->confirmedBytes)
+	else if (pCC->getTransferredBytes() == pAccInfo->confirmedBytes && getPrepaidBytes(pAccInfo) != CALibProxytest::getOptions()->getPrepaidInterval())
 	{
 		CAMsg::printMsg(LOG_WARNING, "Received CostConfirmation for account %llu has no difference in bytes to current CC (%llu bytes).\n", 
 			pAccInfo->accountNumber, pCC->getTransferredBytes());
