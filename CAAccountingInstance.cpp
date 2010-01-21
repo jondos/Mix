@@ -1690,7 +1690,7 @@ UINT32 CAAccountingInstance::handleAccountCertificate_internal(tAiAccountingInfo
 	{
 		prepaidAmount = prepaidIvalLowerBound;
 	}
-	CAMsg::printMsg( LOG_INFO, "handleAccountCertificate read %i prepaid bytes\n", prepaidAmount);
+	//CAMsg::printMsg( LOG_DEBUG, "handleAccountCertificate read %i prepaid bytes\n", prepaidAmount);
 	setDOMElementValue( elemPrepaid, prepaidAmount);
 
 	// send XML struct to Jap & set auth flags
@@ -2046,7 +2046,7 @@ UINT32 CAAccountingInstance::handleChallengeResponse_internal(tAiAccountingInfo*
 	print64(tmp,pAccInfo->accountNumber);
 	if (prepaidAmount > 0)
 	{
-		CAMsg::printMsg(LOG_DEBUG, "CAAccountingInstance: Got %d prepaid bytes for account nr. %s.\n",prepaidAmount, tmp);
+		CAMsg::printMsg(LOG_INFO, "CAAccountingInstance: Got %d prepaid bytes for account nr. %s.\n",prepaidAmount, tmp);
 
 		//pAccInfo->authFlags &= ~AUTH_WAITING_FOR_FIRST_SETTLED_CC;
 
