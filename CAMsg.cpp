@@ -256,6 +256,7 @@ SINT32 CAMsg::printMsg(UINT32 type,const char* format,...)
 			va_end(ap);
 			if (ret != E_SUCCESS)
 			{
+				pMsg->m_pcsPrint->unlock();
 				return ret;
 			}
 			if(type==LOG_ENCRYPTED)
