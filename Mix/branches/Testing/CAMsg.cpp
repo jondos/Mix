@@ -212,14 +212,14 @@ SINT32 CAMsg::printMsg(UINT32 type,const char* format,...)
 					case LOG_DEBUG:
 						if (pMsg->m_logLevel != LOG_DEBUG)
 						{
-							return E_UNKNOWN;
+							ret = E_UNKNOWN;
 						}
 						strcat(pMsg->m_strMsgBuff,pMsg->m_strMsgTypes[3]);
 					break;
 					case LOG_INFO:
 						if (pMsg->m_logLevel == LOG_WARNING || pMsg->m_logLevel == LOG_ERR || pMsg->m_logLevel == LOG_CRIT)
 						{
-							return E_UNKNOWN;
+							ret = E_UNKNOWN;
 						}
 						strcat(pMsg->m_strMsgBuff,pMsg->m_strMsgTypes[2]);
 					break;
@@ -229,7 +229,7 @@ SINT32 CAMsg::printMsg(UINT32 type,const char* format,...)
 					case LOG_ERR:
 						if (pMsg->m_logLevel == LOG_CRIT)
 						{
-							return E_UNKNOWN;
+							ret = E_UNKNOWN;
 						}
 						strcat(pMsg->m_strMsgBuff,pMsg->m_strMsgTypes[0]);
 					break;
@@ -239,7 +239,7 @@ SINT32 CAMsg::printMsg(UINT32 type,const char* format,...)
 					case LOG_WARNING:
 						if (pMsg->m_logLevel == LOG_ERR || pMsg->m_logLevel == LOG_CRIT)
 						{
-							return E_UNKNOWN;
+							ret = E_UNKNOWN;
 						}
 						strcat(pMsg->m_strMsgBuff,pMsg->m_strMsgTypes[5]);
 					break;
@@ -254,6 +254,10 @@ SINT32 CAMsg::printMsg(UINT32 type,const char* format,...)
 		  trio_vsnprintf(pMsg->m_strMsgBuff+20+STRMSGTYPES_SIZE,MAX_MSG_SIZE,format,ap);
 	#endif
 			va_end(ap);
+			if (ret != E_SUCCESS)
+			{
+				return ret;
+			}
 			if(type==LOG_ENCRYPTED)
 			{
 				ret=strlen(pMsg->m_strMsgBuff);
