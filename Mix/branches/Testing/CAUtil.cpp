@@ -78,7 +78,7 @@ UINT32 toLower(UINT8* a_string)
 	int ii = strlen((char*)a_string);
 	for (int i=0; i <ii;i++)
 	{
-		strncpy(&ch,a_string+i,1);
+		strncpy(&ch,(char*)a_string+i,1);
 		if (ch>='A' && ch<='Z')
 		{
 			ch = ch-differ;
