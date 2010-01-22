@@ -869,26 +869,75 @@ SINT32 CALastMix::setTargets()
 		m_pCacheLB->clean();
 		m_pSocksLB->clean();
 		UINT32 i;
+		SINT32 ret;
+		UINT8 buff[255];
+		UINT32 buffLen = 255;
+		CASocket* tmpSocket;
 		for(i=1;i<=cntTargets;i++)
 			{
 				TargetInterface oTargetInterface;
 				CALibProxytest::getOptions()->getTargetInterface(oTargetInterface,i);
+
+				tmpSocket = new CASocket;
+				tmpSocket->setRecvBuff(50000);
+				tmpSocket->setSendBuff(5000);
+				ret = tmpSocket->connect(*oTargetInterface.addr,LAST_MIX_TO_PROXY_CONNECT_TIMEOUT);
+				if (ret != E_SUCCESS)
+				{
+					if (oTargetInterface.addr->toString(buff, buffLen) != E_SUCCESS)
+					{
+						buff[0] = 0;
+					}
+					if (ret != E_UNKNOWN)
+					{
+						CAMsg::printMsg(LOG_WARNING, "Could not connect to proxy %s! Reason: %s (%i) Please check if the proxy is running.\n",
+								buff, GET_NET_ERROR_STR(GET_NET_ERROR), GET_NET_ERROR);
+					}
+					else
+					{
+						CAMsg::printMsg(LOG_WARNING, "Could not connect to proxy %s! Please check if the proxy is running.\n", buff);
+					}
+					tmpSocket->close();
+					delete tmpSocket;
+					continue;
+				}
+
+
 				if(oTargetInterface.target_type==TARGET_HTTP_PROXY)
+				{
+					// TODO: we should not send an HTTP request to a non-existing address, for example to test:9999; if squid runs, we will get an HTTP error response
+					//if(tmpSocket->sendTimeOut(pMixPacket->payload.data,payLen,LAST_MIX_TO_PROXY_SEND_TIMEOUT)==SOCKET_ERROR) ...
+					// else ... tmpSocket->receive(pMixPacket->payload.data,PAYLOAD_SIZE);
+
 					m_pCacheLB->add(oTargetInterface.addr);
+				}
 				else if(oTargetInterface.target_type==TARGET_SOCKS_PROXY)
+				{
+					// TODO maybe there is also a possibility to check the response of the SOCKS proxy?
 					m_pSocksLB->add(oTargetInterface.addr);
+				}
 				delete oTargetInterface.addr;
 				oTargetInterface.addr = NULL;
+
+				tmpSocket->close();
+				delete tmpSocket;
 			}
+
+		if (m_pCacheLB->getElementCount() == 0)
+		{
+			CAMsg::printMsg(LOG_WARNING, "No valid HTTP proxy was specified! Please install and configure an HTTP proxy like Squid before starting the mix.\n");
+			return E_UNKNOWN;
+		}
+
 		CAMsg::printMsg(LOG_DEBUG,"This mix will use the following proxies:\n");
 		for(i=0;i<m_pCacheLB->getElementCount();i++)
-			{
-				CASocketAddrINet* pAddr=m_pCacheLB->get();
-				UINT8 ip[4];
-				pAddr->getIP(ip);
-				UINT32 port=pAddr->getPort();
-				CAMsg::printMsg(LOG_DEBUG,"%u. HTTP Proxy's Address: %u.%u.%u.%u:%u\n",i+1,ip[0],ip[1],ip[2],ip[3],port);
-			}
+		{
+			CASocketAddrINet* pAddr=m_pCacheLB->get();
+			UINT8 ip[4];
+			pAddr->getIP(ip);
+			UINT32 port=pAddr->getPort();
+			CAMsg::printMsg(LOG_DEBUG,"%u. HTTP Proxy's Address: %u.%u.%u.%u:%u\n",i+1,ip[0],ip[1],ip[2],ip[3],port);
+		}
 		for(i=0;i<m_pSocksLB->getElementCount();i++)
 			{
 				CASocketAddrINet* pAddr=m_pSocksLB->get();
@@ -897,6 +946,8 @@ SINT32 CALastMix::setTargets()
 				UINT32 port=pAddr->getPort();
 				CAMsg::printMsg(LOG_DEBUG,"%u. SOCKS Proxy's Address: %u.%u.%u.%u:%u\n",i+1,ip[0],ip[1],ip[2],ip[3],port);
 			}
+
+
 		return E_SUCCESS;
 	}
 

@@ -107,6 +107,7 @@ class CAMsg
 			SINT32 closeLog();
 			SINT32 rotateLog();
 			char* createLogFileMessage(UINT32 opt);
+			char* createLogDirMessage(UINT32 opt);
 			UINT32 m_uLogType;
 			UINT32 m_logLevel;
 			UINT32 m_lastLogFileNumber;
@@ -115,6 +116,7 @@ class CAMsg
 			int m_hFileInfo;
 			char *m_strMsgBuff;
 			char *m_strLogFile;
+			char *m_strLogDir;
 			static const char* const m_strMsgTypes[6];
 			CAMutex* m_pcsPrint;
 #ifdef COMPRESSED_LOGS
